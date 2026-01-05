@@ -70,7 +70,7 @@ const loadDeviceTree = async () => {
     }));
 
     tableData.value = transformedData;
-    console.log('✅ Device list loaded:', transformedData.length, 'items')
+    console.log('Device list loaded:', transformedData.length, 'items')
   } catch (error: any) {
     console.error('❌ Failed to load device tree:', error)
     ElMessage.error(error.message || '获取设备列表失败')

@@ -1,12 +1,75 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElInput, ElCard, ElMessage, ElForm, ElFormItem } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
-import { authApi } from '@/api/authApi'
+import { User } from '@element-plus/icons-vue'
+import { authApi, type LoginConfig } from '@/api/authApi'
 import { authUtils } from '@/utils/authUtils'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
+
+// 登录配置
+const loginConfig = ref<LoginConfig>({
+  user_password_level: 'low',
+  login_connect_login_limit: 0,
+  login_connect_client_login_limit: 0,
+  login_mode: 'nickname',
+  login_captcha: 1,
+  oauth_login_enabled: 0,
+  temporary_lock_enabled: 0
+})
+
+// 是否显示验证码
+const showCaptcha = computed(() => loginConfig.value.login_captcha === 1)
+
+// 根据密码等级动态设置验证规则（匹配后端验证）
+const passwordRules = computed(() => {
+  const level = loginConfig.value.user_password_level
+
+  if (level === 'low') {
+    // 低等级：5-20个非空白字符
+    return [
+      { required: true, message: '请输入密码', trigger: 'blur' },
+      {
+        pattern: /^[\S]{5,20}$/,
+        message: '密码长度为5-20个非空白字符',
+        trigger: 'blur'
+      }
+    ]
+  } else if (level === 'middle') {
+    // 中等级：8-20个非空白字符，不能全是数字、全是字母、或全是特殊字符
+    return [
+      { required: true, message: '请输入密码', trigger: 'blur' },
+      {
+        pattern: /^(?!^(\d+|[a-zA-Z]+|[^\s\da-zA-Z]+)$)[\S]{8,20}$/,
+        message: '密码长度为8-20个非空白字符，必须包含数字、字母或特殊字符中的至少两种',
+        trigger: 'blur'
+      }
+    ]
+  } else if (level === 'high') {
+    // 高等级：8-32个非空白字符，必须包含数字、小写字母、大写字母、特殊字符
+    return [
+      { required: true, message: '请输入密码', trigger: 'blur' },
+      {
+        pattern: /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^\s\da-zA-Z])[\S]{8,32}$/,
+        message: '密码长度为8-32个非空白字符，必须包含大小写字母、数字和特殊字符',
+        trigger: 'blur'
+      }
+    ]
+  }
+
+  // 默认：5-20个非空白字符
+  return [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    {
+      pattern: /^[\S]{5,20}$/,
+      message: '密码长度为5-20个非空白字符',
+      trigger: 'blur'
+    }
+  ]
+})
 
 interface LoginForm {
   username: string
@@ -24,18 +87,43 @@ const loginForm = ref<LoginForm>({
 const loading = ref(false)
 const captchaSrc = ref('')
 
-// Define validation rules
-const rules = {
+// 定义验证规则（使用 ref 避免响应式更新触发验证）
+const rules = ref({
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
   ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
-  ],
-  captcha: [
-    { required: true, message: '请输入验证码', trigger: 'blur' }
-  ]
+  password: [],
+  captcha: []
+})
+
+// 更新验证规则
+const updateRules = () => {
+  rules.value = {
+    username: [
+      { required: true, message: '请输入用户名', trigger: 'blur' },
+    ],
+    password: passwordRules.value,
+    captcha: showCaptcha.value ? [
+      { required: true, message: '请输入验证码', trigger: 'blur' }
+    ] : []
+  }
+}
+
+// 加载登录配置
+const loadLoginConfig = async () => {
+  try {
+    const config = await authApi.getConfig()
+    if (config) {
+      loginConfig.value = config
+      console.log('登录配置加载成功:', config)
+      // 配置加载后更新验证规则
+      updateRules()
+    }
+  } catch (error) {
+    console.error('Failed to load login config:', error)
+    // 即使加载失败，也使用默认配置更新规则
+    updateRules()
+  }
 }
 
 // Function to load new captcha
@@ -52,9 +140,14 @@ const loadCaptcha = async () => {
   }
 }
 
-// Load captcha on component mount
-onMounted(() => {
-  loadCaptcha()
+// Load captcha and login config on component mount
+onMounted(async () => {
+  await loadLoginConfig()
+
+  // 只在需要验证码时才加载
+  if (showCaptcha.value) {
+    loadCaptcha()
+  }
 })
 
 const handleLogin = async () => {
@@ -68,21 +161,26 @@ const handleLogin = async () => {
 
     try {
       console.log('开始调用登录API...')
+      // 根据配置决定是否发送验证码
+      const captchaValue = showCaptcha.value ? loginForm.value.captcha : undefined
+
       // Call the real API to login with captcha
-      const resp: any = await authApi.login(loginForm.value.username, loginForm.value.password, loginForm.value.captcha)
+      const resp: any = await authApi.login(loginForm.value.username, loginForm.value.password, captchaValue)
       console.log('登录API响应:', resp)
 
-
-      const token = resp.token
-
-      if (!token) {
-        throw new Error(`登录响应中缺少令牌。响应内容: ${JSON.stringify(resp)}`)
+      if (!resp.token || !resp.user) {
+        throw new Error(`登录响应格式错误。响应内容: ${JSON.stringify(resp)}`)
       }
 
-      authUtils.setTokenKey(token.key )
-      authUtils.setToken(token.value, 24)
+      // 保存 token 信息
+      authUtils.setTokenKey(resp.token.key)
+      authUtils.setToken(resp.token.value, 24)
 
-      // set resp.user to vuex store or pinia store if needed
+      // 保存用户信息到 store
+      userStore.setLoginInfo({
+        token: resp.token,
+        user: resp.user
+      })
 
       // Small delay to ensure token is properly stored before navigation
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -127,8 +225,10 @@ const handleLogin = async () => {
         ElMessage.error('登录失败，请重试')
       }
 
-      // Refresh captcha after failed login
-      loadCaptcha()
+      // 只在需要验证码时才刷新验证码
+      if (showCaptcha.value) {
+        loadCaptcha()
+      }
     } finally {
       loading.value = false
     }
@@ -189,6 +289,7 @@ const handleLogin = async () => {
             ref="formRef"
             :model="loginForm"
             :rules="rules"
+            :validate-on-rule-change="false"
             @keyup.enter="handleLogin"
           >
             <ElFormItem prop="username">
@@ -206,14 +307,13 @@ const handleLogin = async () => {
                 v-model="loginForm.password"
                 type="password"
                 placeholder="请输入密码"
-                :prefix-icon="Lock"
                 size="large"
                 show-password
                 autocomplete="current-password"
               />
             </ElFormItem>
 
-            <ElFormItem prop="captcha">
+            <ElFormItem prop="captcha" v-if="showCaptcha">
               <div class="captcha-group">
                 <div class="input-group captcha-input">
                   <ElInput

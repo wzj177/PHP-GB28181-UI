@@ -25,7 +25,7 @@ export const monitorApi = {
    * GET /api/admin/system/device-stats
    */
   getDeviceStats: () => {
-    return request.get('/admin/system/device-stats');
+    return request.get('/admin/gb28181/device-stats');
   },
 
   /**
@@ -33,7 +33,7 @@ export const monitorApi = {
    * GET /api/admin/system/zlm-stats
    */
   getZLMediaKitStats: () => {
-    return request.get('/admin/system/zlm-stats');
+    return request.get('/admin/zlm/stats');
   },
 
   /**

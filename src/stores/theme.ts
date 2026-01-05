@@ -28,7 +28,7 @@ export const useThemeStore = defineStore('theme', () => {
    * 应用主题到 DOM
    */
   const applyTheme = (theme: 'light' | 'dark') => {
-    console.log('🎨 Applying theme:', theme)
+    console.log('Applying theme:', theme)
     currentTheme.value = theme
     document.documentElement.setAttribute('data-theme', theme)
     
@@ -41,8 +41,8 @@ export const useThemeStore = defineStore('theme', () => {
       document.documentElement.classList.remove('dark')
     }
     
-    console.log('✅ Theme applied. data-theme:', document.documentElement.getAttribute('data-theme'))
-    console.log('✅ Classes:', document.documentElement.className)
+    console.log('Theme applied. data-theme:', document.documentElement.getAttribute('data-theme'))
+    console.log('Classes:', document.documentElement.className)
   }
 
   /**

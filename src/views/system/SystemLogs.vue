@@ -6,13 +6,17 @@ import { systemApi } from '@/api/systemApi'
 
 interface LogEntry {
   id: string
-  level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL'
-  message: string
-  module: string
   userId?: number
+  module: string
+  action: string
+  message: string
+  data?: string
+  ip: string
+  createdTime: number
+  level: string
+  level_text: string
+  ipArea: string
   username?: string
-  ip?: string
-  createdAt: string
 }
 
 const loading = ref(false)
@@ -66,6 +70,11 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleString('zh-CN')
 }
 
+// Format timestamp (Unix timestamp in seconds)
+const formatTimestamp = (timestamp: number) => {
+  return new Date(timestamp * 1000).toLocaleString('zh-CN')
+}
+
 // Load logs
 const loadLogs = async () => {
   loading.value = true
@@ -81,15 +90,15 @@ const loadLogs = async () => {
     if (filters.value.startDate) params.start_time = filters.value.startDate.toISOString()
     if (filters.value.endDate) params.end_time = filters.value.endDate.toISOString()
 
-    const response = await systemApi.getLogs(params)
+    const data = await systemApi.getLogs(params)
 
-    if (response?.list) {
-      logs.value = response.list || []
-      total.value = response.paginator?.total || 0
-    }
+    logs.value = data.list || []
+    total.value = data.paginator?.total || 0
   } catch (error: any) {
     console.error('Failed to load logs:', error)
     ElMessage.error(error.message || '加载日志失败')
+    logs.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -118,17 +127,29 @@ const resetFilters = () => {
 // Export logs
 const exportLogs = async () => {
   try {
-    const response = await systemApi.exportLogs(filters.value)
-    // Handle file download
-    const blob = new Blob([response], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `logs_${new Date().toISOString()}.csv`
-    document.body.appendChild(a)
-    a.click()
+    const params: any = {
+      page: filters.value.page,
+      limit: filters.value.limit
+    }
+
+    if (filters.value.level) params.level = filters.value.level
+    if (filters.value.module) params.module = filters.value.module
+    if (filters.value.keyword) params.keyword = filters.value.keyword
+    if (filters.value.startDate) params.start_time = filters.value.startDate.toISOString()
+    if (filters.value.endDate) params.end_time = filters.value.endDate.toISOString()
+
+    const blob = await systemApi.exportLogs(params)
+
+    // Create download link
+    const url = window.URL.createObjectURL(new Blob([blob], { type: 'text/csv' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `logs_${new Date().toISOString()}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+
     ElMessage.success('导出成功')
   } catch (error: any) {
     console.error('Failed to export logs:', error)
@@ -215,15 +236,23 @@ onUnmounted(() => {
           style="width: 100%"
           stripe
         >
-          <ElTableColumn prop="level" label="级别" width="80">
+          <ElTableColumn prop="level_text" label="级别" width="100">
             <template #default="{ row }">
-              <ElTag :type="getLevelTagType(row.level)" size="small">{{ row.level }}</ElTag>
+              <ElTag :type="getLevelTagType(row.level)" size="small">{{ row.level_text || row.level }}</ElTag>
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="module" label="模块" width="100" />
+          <ElTableColumn prop="module" label="模块" width="120" />
 
-          <ElTableColumn prop="message" label="消息" min-width="300" show-overflow-tooltip />
+          <ElTableColumn prop="action" label="操作" width="150" show-overflow-tooltip />
+
+          <ElTableColumn prop="message" label="消息" min-width="200" show-overflow-tooltip />
+
+          <ElTableColumn prop="data" label="数据" width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.data || '-' }}
+            </template>
+          </ElTableColumn>
 
           <ElTableColumn prop="username" label="用户" width="100">
             <template #default="{ row }">
@@ -231,15 +260,17 @@ onUnmounted(() => {
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="ip" label="IP地址" width="130">
+          <ElTableColumn prop="ip" label="IP地址" width="130" />
+
+          <ElTableColumn prop="ipArea" label="IP地区" width="150" show-overflow-tooltip>
             <template #default="{ row }">
-              {{ row.ip || '-' }}
+              {{ row.ipArea || '-' }}
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="createdAt" label="时间" width="170">
+          <ElTableColumn prop="createdTime" label="时间" width="170">
             <template #default="{ row }">
-              {{ formatDate(row.createdAt) }}
+              {{ formatTimestamp(row.createdTime) }}
             </template>
           </ElTableColumn>
         </ElTable>

@@ -1,54 +1,38 @@
 <template>
   <div class="tags-view-container">
-    <scroll-pane
-      ref="scrollPaneRef"
-      class="tags-view-wrapper"
-    >
-      <router-link
-        v-for="tag in visitedViews"
-        ref="tagRefs"
-        :key="tag.path"
-        :class="isActive(tag) ? 'active' : ''"
-        :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }"
-        class="tags-view-item"
-        @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''"
-        @contextmenu.prevent="openMenu(tag, $event)"
-      >
+    <scroll-pane ref="scrollPaneRef" class="tags-view-wrapper">
+      <router-link v-for="tag in visitedViews" ref="tagRefs" :key="tag.path" :class="isActive(tag) ? 'active' : ''"
+        :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }" class="tags-view-item"
+        @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''" @contextmenu.prevent="openMenu(tag, $event)">
         {{ tag.title }}
-        <el-icon 
-          v-if="!isAffix(tag)"
-          class="close-icon"
-          @click.prevent.stop="closeSelectedTag(tag)"
-        >
+        <el-icon v-if="!isAffix(tag)" class="close-icon" @click.prevent.stop="closeSelectedTag(tag)">
           <Close />
         </el-icon>
       </router-link>
     </scroll-pane>
-    <ul
-      v-show="visible"
-      :style="{ left: left + 'px', top: top + 'px' }"
-      class="contextmenu"
-    >
+    <ul v-show="visible" :style="{ left: left + 'px', top: top + 'px' }" class="contextmenu">
       <li @click="refreshSelectedTag(selectedTag)">
-        <el-icon><Refresh /></el-icon>
+        <el-icon>
+          <Refresh />
+        </el-icon>
         <span>刷新</span>
       </li>
-      <li
-        v-if="!isAffix(selectedTag)"
-        @click="closeSelectedTag(selectedTag)"
-      >
-        <el-icon><Close /></el-icon>
+      <li v-if="!isAffix(selectedTag)" @click="closeSelectedTag(selectedTag)">
+        <el-icon>
+          <Close />
+        </el-icon>
         <span>关闭</span>
       </li>
       <li @click="closeOthersTags">
-        <el-icon><CircleClose /></el-icon>
+        <el-icon>
+          <CircleClose />
+        </el-icon>
         <span>关闭其他</span>
       </li>
-      <li
-        v-if="!isAffix(selectedTag)"
-        @click="closeAllTags(selectedTag)"
-      >
-        <el-icon><SwitchButton /></el-icon>
+      <li v-if="!isAffix(selectedTag)" @click="closeAllTags(selectedTag)">
+        <el-icon>
+          <SwitchButton />
+        </el-icon>
         <span>关闭所有</span>
       </li>
     </ul>
@@ -207,8 +191,10 @@ const openMenu = (tag: Tag, e: MouseEvent) => {
   const offsetWidth = containerEl.offsetWidth
   const maxLeft = offsetWidth - menuMinWidth
   const leftValue = e.clientX - offsetLeft
+
+  // 计算菜单位置 - 显示在鼠标位置下方，并增加一点间距
   left.value = leftValue > maxLeft ? maxLeft : leftValue
-  top.value = e.clientY
+  top.value = e.clientY + 10 // 在鼠标下方 10px
   visible.value = true
   selectedTag.value = tag
 }
@@ -247,11 +233,13 @@ onBeforeUnmount(() => {
 @use '@/styles/variables.scss' as *;
 
 .tags-view-container {
+  position: relative;
   height: 34px;
   width: 100%;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-base);
   transition: background 0.3s, border-color 0.3s;
+
   .tags-view-wrapper {
     .tags-view-item {
       display: inline-block;
@@ -269,20 +257,25 @@ onBeforeUnmount(() => {
       margin-top: 4px;
       border-radius: 4px;
       transition: all 0.2s;
+
       &:first-of-type {
         margin-left: 15px;
       }
+
       &:last-of-type {
         margin-right: 15px;
       }
+
       &:hover {
         background: var(--bg-active);
         color: var(--text-main);
       }
+
       &.active {
         background-color: $primary;
         color: #fff;
         border-color: $primary;
+
         &::before {
           content: '';
           background: #fff;
@@ -295,6 +288,7 @@ onBeforeUnmount(() => {
         }
       }
     }
+
     .close-icon {
       width: 14px;
       height: 14px;
@@ -305,12 +299,14 @@ onBeforeUnmount(() => {
       justify-content: center;
       vertical-align: middle;
       transition: all 0.2s;
+
       &:hover {
         background-color: rgba(255, 255, 255, 0.3);
         transform: scale(1.1);
       }
     }
   }
+
   .contextmenu {
     margin: 0;
     background: var(--bg-panel);
@@ -324,6 +320,7 @@ onBeforeUnmount(() => {
     font-weight: 400;
     color: var(--text-main);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
     li {
       margin: 0;
       padding: 7px 16px;
@@ -332,9 +329,11 @@ onBeforeUnmount(() => {
       display: flex;
       align-items: center;
       gap: 8px;
+
       &:hover {
         background: var(--bg-hover);
       }
+
       .el-icon {
         font-size: 14px;
       }

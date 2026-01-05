@@ -11,7 +11,7 @@
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon online">
-          <i class="icon-device">📺</i>
+          <el-icon><Monitor /></el-icon>
         </div>
         <div class="stat-content">
           <h3>{{ stats.totalDevices }}</h3>
@@ -24,7 +24,7 @@
 
       <div class="stat-card">
         <div class="stat-icon active">
-          <i class="icon-online">🟢</i>
+          <ElSvg name="online" :size="28" />
         </div>
         <div class="stat-content">
           <h3>{{ stats.onlineDevices }}</h3>
@@ -37,7 +37,7 @@
 
       <div class="stat-card">
         <div class="stat-icon record">
-          <i class="icon-record">🔴</i>
+          <ElSvg name="record" :size="28" />
         </div>
         <div class="stat-content">
           <h3>{{ stats.recordingsToday }}</h3>
@@ -50,7 +50,7 @@
 
       <div class="stat-card">
         <div class="stat-icon alarm">
-          <i class="icon-alarm">⚠️</i>
+          <el-icon><WarnTriangleFilled /></el-icon>
         </div>
         <div class="stat-content">
           <h3>{{ stats.activeAlarms }}</h3>
@@ -183,6 +183,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { monitorApi } from '@/api/monitorApi'
+import ElSvg from '@/components/ElSvg'
+import { Monitor, WarnTriangleFilled } from '@element-plus/icons-vue'
 
 // 当前时间
 const currentTime = ref('')

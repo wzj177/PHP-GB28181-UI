@@ -204,64 +204,38 @@ export const systemApi = {
     return request.get('/admin/system/logs/export', { params, responseType: 'blob' });
   },
 
-  // ================= 系统设置 (原 GB28181 项目) =================
-
-  /**
-   * 获取系统设置
-   * GET /system/admin/settings
-   */
-  getSettings: () => {
-    return request.get('/system/admin/settings');
-  },
-
-  /**
-   * 保存系统设置
-   * POST /system/admin/settings
-   */
-  saveSettings: (data: any) => {
-    return request.post('/system/admin/settings', data);
-  },
-
-  /**
-   * 重置系统设置
-   * POST /system/admin/settings/reset
-   */
-  resetSettings: (type: string) => {
-    return request.post('/system/admin/settings/reset', { type });
-  },
-
   // ================= ZLM 配置 =================
 
   /**
    * 获取 ZLM 配置
-   * GET /system/zlm/config
+   * GET /admin/setting/zlm/get
    */
   getZLMConfig: () => {
-    return request.get('/system/zlm/config');
+    return request.get('/admin/setting/zlm/get');
   },
 
   /**
    * 保存 ZLM 配置
-   * POST /system/zlm/config
+   * POST /admin/setting/zlm/set
    */
   saveZLMConfig: (data: any) => {
-    return request.post('/system/zlm/config', data);
+    return request.post('/admin/setting/zlm/set', data);
   },
 
   /**
    * 重置 ZLM 配置
-   * POST /system/zlm/config/reset
+   * POST /admin/setting/zlm/reset
    */
   resetZLMConfig: () => {
-    return request.post('/system/zlm/config/reset');
+    return request.post('/admin/setting/zlm/reset');
   },
 
   /**
    * 重启 ZLM 服务
-   * POST /system/zlm/restart
+   * POST /admin/setting/zlm/restart
    */
   restartZLM: () => {
-    return request.post('/system/zlm/restart');
+    return request.post('/admin/zlm/restart');
   }
 };
 

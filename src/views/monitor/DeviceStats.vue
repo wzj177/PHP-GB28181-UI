@@ -55,10 +55,23 @@
             </div>
             <div class="overview-info">
               <div class="overview-label">
-                离线设备
+                已注销设备
               </div>
               <div class="overview-value">
-                {{ deviceStats.offline_count || 0 }}
+                {{ offlineCount }}
+              </div>
+            </div>
+          </div>
+          <div class="overview-item">
+            <div class="overview-icon expired">
+              <el-icon><WarningFilled /></el-icon>
+            </div>
+            <div class="overview-info">
+              <div class="overview-label">
+                心跳超时
+              </div>
+              <div class="overview-value">
+                {{ deviceStats.expired_count || 0 }}
               </div>
             </div>
           </div>
@@ -133,7 +146,7 @@
             </div>
             <div class="channel-item">
               <div class="channel-label">
-                离线通道
+                已注销通道
               </div>
               <div class="channel-value danger">
                 {{ deviceStats.offline_channels || 0 }}
@@ -209,14 +222,14 @@
           />
           <el-table-column
             label="状态"
-            width="100"
+            width="120"
           >
             <template #default="{ row }">
               <el-tag
-                :type="row.status === 'online' ? 'success' : 'danger'"
+                :type="getStatusType(row.status)"
                 size="small"
               >
-                {{ row.status === 'online' ? '在线' : '离线' }}
+                {{ getStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -288,7 +301,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   Refresh, DataBoard, Monitor, CircleCheckFilled, CircleCloseFilled,
-  TrendCharts, PieChart, VideoPlay, OfficeBuilding, Clock, Histogram
+  TrendCharts, PieChart, VideoPlay, OfficeBuilding, Clock, Histogram, WarningFilled
 } from '@element-plus/icons-vue'
 import { monitorApi } from '@/api/monitorApi'
 import { ElMessage } from 'element-plus'
@@ -299,6 +312,8 @@ const deviceStats = ref({
   total_count: 0,
   online_count: 0,
   offline_count: 0,
+  unregister_count: 0,
+  expired_count: 0,
   total_channels: 0,
   online_channels: 0,
   offline_channels: 0,
@@ -326,6 +341,11 @@ const deviceStats = ref({
   }>
 })
 
+// offline_count includes unregistered devices (unregistered = offline)
+const offlineCount = computed(() => {
+  return (deviceStats.value.offline_count || 0) + (deviceStats.value.unregister_count || 0)
+})
+
 let refreshTimer: number | null = null
 
 const onlineRate = computed(() => {
@@ -334,6 +354,37 @@ const onlineRate = computed(() => {
     (deviceStats.value.online_count / deviceStats.value.total_count) * 100
   )
 })
+
+// Helper functions for status display
+const getStatusType = (status: string) => {
+  switch (status) {
+    case 'online':
+      return 'success'
+    case 'offline':
+      return 'danger'
+    case 'expired':
+      return 'warning'
+    case 'unregistered':
+      return 'info'
+    default:
+      return 'info'
+  }
+}
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'online':
+      return '在线'
+    case 'offline':
+      return '已注销'
+    case 'expired':
+      return '心跳超时'
+    case 'unregistered':
+      return '已注销'
+    default:
+      return '未知'
+  }
+}
 
 const getTypePercentage = (count: number) => {
   if (!deviceStats.value.total_count) return 0
@@ -367,69 +418,20 @@ const fetchDeviceStats = async () => {
   try {
     loading.value = true
     const response: any = await monitorApi.getDeviceStats()
-    if (response.data) {
+    if (response) {
       deviceStats.value = {
-        total_count: response.data.total_count || 0,
-        online_count: response.data.online_count || 0,
-        offline_count: response.data.offline_count || 0,
-        total_channels: response.data.total_channels || 0,
-        online_channels: response.data.online_channels || 0,
-        offline_channels: response.data.offline_channels || 0,
-        type_distribution: response.data.type_distribution || [
-          { type: 'ipc', type_name: 'IPC', count: 45 },
-          { type: 'nvr', type_name: 'NVR', count: 12 },
-          { type: 'dvr', type_name: 'DVR', count: 8 },
-          { type: 'platform', type_name: '平台', count: 3 }
-        ],
-        manufacturer_distribution: response.data.manufacturer_distribution || [
-          {
-            manufacturer: '海康威视',
-            count: 28,
-            models: ['DS-2CD3xxx', 'DS-2CD2xxx', 'DS-2CD4xxx', 'DS-2CD5xxx']
-          },
-          {
-            manufacturer: '大华',
-            count: 18,
-            models: ['DH-IPCxxx', 'DH-NVRxxx', 'DH-SDxxx']
-          },
-          {
-            manufacturer: '宇视',
-            count: 12,
-            models: ['IPC-xxx', 'NVR-xxx']
-          },
-          {
-            manufacturer: '其他',
-            count: 10,
-            models: ['Generic IPC', 'Generic NVR']
-          }
-        ],
-        recent_activities: response.data.recent_activities || [
-          {
-            device_name: '大厅摄像头01',
-            device_id: '34020000001310000001',
-            status: 'online',
-            last_seen: '2024-01-15 14:30:25'
-          },
-          {
-            device_name: '停车场入口',
-            device_id: '34020000001310000002',
-            status: 'online',
-            last_seen: '2024-01-15 14:28:15'
-          },
-          {
-            device_name: '办公区走廊',
-            device_id: '34020000001310000003',
-            status: 'offline',
-            last_seen: '2024-01-15 10:15:30'
-          },
-          {
-            device_name: '后门入口',
-            device_id: '34020000001310000004',
-            status: 'online',
-            last_seen: '2024-01-15 14:25:40'
-          }
-        ],
-        hourly_stats: response.data.hourly_stats || generateHourlyStats()
+        total_count: response.total_count || 0,
+        online_count: response.online_count || 0,
+        offline_count: response.offline_count || 0,
+        unregister_count: response.unregister_count || 0,
+        expired_count: response.expired_count || 0,
+        total_channels: response.total_channels || 0,
+        online_channels: response.online_channels || 0,
+        offline_channels: response.offline_channels || 0,
+        type_distribution: response.type_distribution || [],
+        manufacturer_distribution: response.manufacturer_distribution || [],
+        recent_activities: response.recent_activities || [],
+        hourly_stats: response.hourly_stats || []
       }
     }
   } catch (error) {
@@ -437,23 +439,6 @@ const fetchDeviceStats = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const generateHourlyStats = () => {
-  const stats = []
-  const now = new Date()
-  for (let i = 23; i >= 0; i--) {
-    const hour = (now.getHours() - i + 24) % 24
-    const total = 65 + Math.floor(Math.random() * 5)
-    const online = Math.floor(total * (0.7 + Math.random() * 0.25))
-    stats.push({
-      hour,
-      online_count: online,
-      total_count: total,
-      online_rate: Math.round((online / total) * 100)
-    })
-  }
-  return stats
 }
 
 const viewDevice = (row: any) => {
@@ -546,7 +531,7 @@ onUnmounted(() => {
     .overview-card {
       .overview-stats {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: 16px;
 
         .overview-item {
@@ -581,9 +566,14 @@ onUnmounted(() => {
               color: $danger;
             }
 
-            &.rate {
+            &.expired {
               background: rgba($warning, 0.15);
               color: $warning;
+            }
+
+            &.rate {
+              background: rgba($info, 0.15);
+              color: $info;
             }
           }
 

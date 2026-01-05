@@ -61,9 +61,11 @@ service.interceptors.request.use(
     config.startTime = Date.now()
 
     const source = CancelToken.source()
-    config.cancelToken = source.token
+    if ('cancelToken' in config) {
+      config.cancelToken = source.token
+    }
 
-    if (config.url) {
+    if ('url' in config && config.url) {
       requestQueue[config.url.replace(/^\//, '')] = { source }
     }
 

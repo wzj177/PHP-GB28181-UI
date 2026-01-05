@@ -26,48 +26,132 @@ export const gb28181Api = {
 
   /**
    * 获取设备详情
-   * GET /admin/gb28181/devices/{deviceId}
+   * GET /admin/gb28181/devices/{id}
    */
-  getDeviceDetail: (deviceId: string) => {
-    return request.get(`/admin/gb28181/devices/${deviceId}`);
+  getDeviceDetail: (id: string) => {
+    return request.get(`/admin/gb28181/devices/${id}`);
   },
 
   /**
    * 删除设备
-   * DELETE /admin/gb28181/devices/{deviceId}
+   * DELETE /admin/gb28181/devices/{id}
    */
-  deleteDevice: (deviceId: string) => {
-    return request.delete(`/admin/gb28181/devices/${deviceId}`);
+  deleteDevice: (id: string) => {
+    return request.delete(`/admin/gb28181/devices/${id}`);
   },
 
   /**
    * 查询设备目录（发送命令到信令网关获取通道列表）
-   * POST /admin/gb28181/devices/{deviceId}/catalog
+   * POST /admin/gb28181/devices/{id}/catalog
    */
-  queryDeviceCatalog: (deviceId: string) => {
-    return request.post(`/admin/gb28181/devices/${deviceId}/catalog`);
+  queryDeviceCatalog: (id: string) => {
+    return request.post(`/admin/gb28181/devices/${id}/catalog`);
+  },
+
+  /**
+   * 更新设备信息
+   * PUT /admin/gb28181/devices/{id}
+   */
+  updateDevice: (id: string, data: {
+    show_name?: string;
+    rtp_trans_mode?: number;
+    province_id?: string;
+    city_id?: string;
+    county_id?: string;
+    custom_lat?: string;
+    custom_lng?: string;
+  }) => {
+    return request.put(`/admin/gb28181/devices/${id}`, data);
+  },
+
+  /**
+   * 批量删除设备
+   * DELETE /admin/gb28181/devices/batch
+   */
+  batchDeleteDevices: (deviceIds: string[]) => {
+    return request.delete('/admin/gb28181/devices/batch', { data: { device_ids: deviceIds } });
+  },
+
+  /**
+   * 批量更新设备状态（启用/禁用）
+   * PUT /admin/gb28181/devices/batch/status
+   */
+  batchUpdateDeviceStatus: (deviceIds: string[], enabled: boolean) => {
+    return request.put('/admin/gb28181/devices/batch/status', { device_ids: deviceIds, enabled });
+  },
+
+  /**
+   * 批量更新设备行政区域
+   * PUT /admin/gb28181/devices/batch/area
+   */
+  batchUpdateDeviceArea: (deviceIds: string[], area: {
+    province_id: string;
+    city_id: string;
+    county_id: string;
+  }) => {
+    return request.put('/admin/gb28181/devices/batch/area', { device_ids: deviceIds, ...area });
   },
 
   // ================= 通道管理 =================
 
   /**
    * 获取设备通道列表
-   * GET /admin/gb28181/channels/{deviceId}
+   * GET /admin/gb28181/channels/{id}
    */
-  getChannelList: (deviceId: string, params?: {
+  getChannelList: (id: string, params?: {
     status?: string;
     page?: number;
     limit?: number;
   }) => {
-    return request.get(`/admin/gb28181/channels/${deviceId}`, { params });
+    return request.get(`/admin/gb28181/channels/${id}`, { params });
+  },
+
+  /**
+   * 获取所有通道列表（用于批量绑定）
+   * GET /admin/gb28181/channels
+   */
+  getAllChannels: (params?: {
+    device_id?: string;
+    status?: string;
+    keyword?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    return request.get('/admin/gb28181/channels', { params });
   },
 
   /**
    * 获取通道详情
-   * GET /admin/gb28181/channels/{deviceId}/channel/{channelId}
+   * GET /admin/gb28181/channels/{id}/channel/{channelId}
    */
-  getChannelDetail: (deviceId: string, channelId: string) => {
-    return request.get(`/admin/gb28181/channels/${deviceId}/channel/${channelId}`);
+  getChannelDetail: (id: string, channelId: string) => {
+    return request.get(`/admin/gb28181/channels/${id}/channel/${channelId}`);
+  },
+
+  /**
+   * 更新通道信息
+   * PUT /admin/gb28181/channels/{id}
+   * @param id 通道主键ID
+   */
+  updateChannel: (id: string, data: {
+    show_name?: string;
+    origin_code?: string;
+    custom_lat?: string;
+    custom_lng?: string;
+  }) => {
+    return request.put(`/admin/gb28181/channels/${id}`, data);
+  },
+
+  /**
+   * 批量绑定通道到流媒体服务器
+   * PUT /admin/gb28181/channels/batch/bind-media
+   */
+  batchBindChannelsToMedia: (params: {
+    device_id?: string;
+    channel_ids?: string[];
+    media_server_id: string;
+  }) => {
+    return request.put('/admin/gb28181/channels/batch/bind-media', params);
   },
 
   // ================= 云台控制 (PTZ) =================

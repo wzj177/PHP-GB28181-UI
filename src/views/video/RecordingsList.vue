@@ -62,7 +62,7 @@ const loadRecordings = async () => {
 
     if (response?.list) {
       recordings.value = response.list || []
-      console.log('✅ Recordings loaded successfully:', recordings.value.length, 'items')
+      console.log('Recordings loaded successfully:', recordings.value.length, 'items')
     } else {
       console.error('❌ API returned non-zero code:', response?.code, response?.message)
       throw new Error(response?.message || '获取录像列表失败')

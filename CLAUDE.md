@@ -64,6 +64,30 @@ Key features:
 - Support for `X-Public` header to bypass token injection
 - Response code handling: expects `code: 0` for success
 
+**IMPORTANT - Response Handling**:
+The response interceptor (lines 108-110) automatically unwraps the API response:
+```typescript
+if (res?.code === 0) {
+  renewJwtToken(response)
+  return res.data  // ← Directly returns data, not the full response
+}
+```
+
+**Correct usage**:
+```typescript
+// ❌ WRONG - Don't check response.code or access response.data
+const response = await api.getData()
+if (response?.code === 0 && response.data) {
+  const data = response.data
+}
+
+// ✅ CORRECT - API calls directly return the data
+const data = await api.getData()
+if (data) {
+  // Use data directly
+}
+```
+
 ### Authentication Flow
 
 Authentication utilities in `src/utils/authUtils.ts`:

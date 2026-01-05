@@ -18,7 +18,7 @@
       <el-card class="stats-card">
         <template #header>
           <div class="card-title">
-            <el-icon><Cpu /></el-icon>
+            <el-icon><ZoomIn /></el-icon>
             <span>CPU 使用率</span>
           </div>
         </template>
@@ -44,10 +44,43 @@
               <span class="info-label">频率:</span>
               <span class="info-value">{{ systemStats.cpu_frequency || '-' }}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">负载:</span>
-              <span class="info-value">{{ systemStats.cpu_load || '-' }}</span>
+          </div>
+        </div>
+
+        <!-- CPU 负载进度条 -->
+        <div class="cpu-load-section">
+          <div class="load-item">
+            <div class="load-header">
+              <span class="load-label">1分钟负载</span>
+              <span class="load-value">{{ systemStats.cpu_load.load1 }} / {{ systemStats.cpu_cores }} 核心</span>
             </div>
+            <el-progress
+              :percentage="systemStats.cpu_load.load1_percent"
+              :color="getLoadColor(systemStats.cpu_load.load1_percent)"
+              :stroke-width="12"
+            />
+          </div>
+          <div class="load-item">
+            <div class="load-header">
+              <span class="load-label">5分钟负载</span>
+              <span class="load-value">{{ systemStats.cpu_load.load5 }}</span>
+            </div>
+            <el-progress
+              :percentage="systemStats.cpu_load.load5_percent"
+              :color="getLoadColor(systemStats.cpu_load.load5_percent)"
+              :stroke-width="12"
+            />
+          </div>
+          <div class="load-item">
+            <div class="load-header">
+              <span class="load-label">15分钟负载</span>
+              <span class="load-value">{{ systemStats.cpu_load.load15 }}</span>
+            </div>
+            <el-progress
+              :percentage="systemStats.cpu_load.load15_percent"
+              :color="getLoadColor(systemStats.cpu_load.load15_percent)"
+              :stroke-width="12"
+            />
           </div>
         </div>
       </el-card>
@@ -56,7 +89,7 @@
       <el-card class="stats-card">
         <template #header>
           <div class="card-title">
-            <el-icon><Memo /></el-icon>
+            <el-icon><Delete /></el-icon>
             <span>内存使用率</span>
           </div>
         </template>
@@ -94,7 +127,7 @@
       <el-card class="stats-card">
         <template #header>
           <div class="card-title">
-            <el-icon><Coin /></el-icon>
+            <el-icon><Location /></el-icon>
             <span>磁盘使用率</span>
           </div>
         </template>
@@ -132,7 +165,7 @@
       <el-card class="stats-card">
         <template #header>
           <div class="card-title">
-            <el-icon><Connection /></el-icon>
+            <el-icon><Bell /></el-icon>
             <span>网络流量</span>
           </div>
         </template>
@@ -160,7 +193,6 @@
       <el-card class="stats-card full-width">
         <template #header>
           <div class="card-title">
-            <el-icon><InfoFilled /></el-icon>
             <span>系统信息</span>
           </div>
         </template>
@@ -189,7 +221,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Refresh, Cpu, Memo, Coin, Connection, InfoFilled } from '@element-plus/icons-vue'
+import { Refresh, Delete, Location, Bell } from '@element-plus/icons-vue'
 import { monitorApi } from '@/api/monitorApi'
 import { ElMessage } from 'element-plus'
 
@@ -199,7 +231,14 @@ const systemStats = ref({
   cpu_usage: 0,
   cpu_cores: 0,
   cpu_frequency: '',
-  cpu_load: '',
+  cpu_load: {
+    load1: 0,
+    load5: 0,
+    load15: 0,
+    load1_percent: 0,
+    load5_percent: 0,
+    load15_percent: 0
+  },
   memory_usage: 0,
   memory_total: '',
   memory_used: '',
@@ -224,31 +263,42 @@ const getProgressColor = (percentage: number) => {
   return '#f56c6c'
 }
 
+const getLoadColor = (percent: number) => {
+  if (percent < 60) return '#67c23a'  // 绿色 - 正常
+  if (percent < 85) return '#e6a23c'  // 橙色 - 警告
+  return '#f56c6c'                     // 红色 - 危险
+}
+
 const fetchSystemStats = async () => {
   try {
     loading.value = true
-    const response: any = await monitorApi.getSystemStats()
-    if (response.data) {
-      systemStats.value = {
-        cpu_usage: response.data.cpu_usage || 0,
-        cpu_cores: response.data.cpu_cores || 0,
-        cpu_frequency: response.data.cpu_frequency || '',
-        cpu_load: response.data.cpu_load || '',
-        memory_usage: response.data.memory_usage || 0,
-        memory_total: formatBytes(response.data.memory_total) || '',
-        memory_used: formatBytes(response.data.memory_used) || '',
-        memory_free: formatBytes(response.data.memory_free) || '',
-        disk_usage: response.data.disk_usage || 0,
-        disk_total: formatBytes(response.data.disk_total) || '',
-        disk_used: formatBytes(response.data.disk_used) || '',
-        disk_free: formatBytes(response.data.disk_free) || '',
-        network_upload: formatSpeed(response.data.network_upload) || '',
-        network_download: formatSpeed(response.data.network_download) || '',
-        os_name: response.data.os_name || '',
-        os_version: response.data.os_version || '',
-        uptime: formatUptime(response.data.uptime) || '',
-        server_time: formatDateTime(response.data.server_time) || ''
-      }
+    const data: any = await monitorApi.getSystemStats()
+    systemStats.value = {
+      cpu_usage: data.cpu_usage || 0,
+      cpu_cores: data.cpu_cores || 0,
+      cpu_frequency: data.cpu_frequency || '',
+      cpu_load: {
+        load1: data.cpu_load?.load1 || 0,
+        load5: data.cpu_load?.load5 || 0,
+        load15: data.cpu_load?.load15 || 0,
+        load1_percent: data.cpu_load?.load1_percent || 0,
+        load5_percent: data.cpu_load?.load5_percent || 0,
+        load15_percent: data.cpu_load?.load15_percent || 0
+      },
+      memory_usage: data.memory_usage || 0,
+      memory_total: formatBytes(data.memory_total) || '',
+      memory_used: formatBytes(data.memory_used) || '',
+      memory_free: formatBytes(data.memory_free) || '',
+      disk_usage: data.disk_usage || 0,
+      disk_total: formatBytes(data.disk_total) || '',
+      disk_used: formatBytes(data.disk_used) || '',
+      disk_free: formatBytes(data.disk_free) || '',
+      network_upload: formatSpeed(data.network_upload) || '',
+      network_download: formatSpeed(data.network_download) || '',
+      os_name: data.os_name || '',
+      os_version: data.os_version || '',
+      uptime: formatUptime(data.uptime) || '',
+      server_time: formatDateTime(data.server_time) || ''
     }
   } catch (error) {
     console.error('获取系统统计信息失败:', error)
@@ -408,6 +458,44 @@ onUnmounted(() => {
               color: var(--text-main);
               font-size: 14px;
               font-weight: 500;
+            }
+          }
+        }
+      }
+
+      .cpu-load-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-base);
+
+        .load-item {
+          margin-bottom: 16px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          .load-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+
+            .load-label {
+              color: var(--text-main);
+              font-size: 14px;
+              font-weight: 500;
+            }
+
+            .load-value {
+              color: var(--text-secondary);
+              font-size: 13px;
+            }
+          }
+
+          :deep(.el-progress) {
+            .el-progress__text {
+              font-size: 14px !important;
             }
           }
         }

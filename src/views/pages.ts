@@ -22,6 +22,14 @@ export const pages: Record<string, () => Promise<any>> = {
   'ZLMStats': () => import('@/views/monitor/ZLMStats.vue'),
   'DeviceStats': () => import('@/views/monitor/DeviceStats.vue'),
 
+  // 流媒体管理
+  'MediaServerList': () => import('@/views/media/MediaServerList.vue'),
+  'MediaServerConfig': () => import('@/views/media/MediaServerConfig.vue'),
+
+  // 设备管理
+  'DeviceList': () => import('@/views/device/DeviceList.vue'),
+  'ChannelList': () => import('@/views/device/ChannelList.vue'),
+
   // 云台控制
   'PTZControl': () => import('@/views/ptz/PTZControl.vue'),
 
@@ -31,6 +39,8 @@ export const pages: Record<string, () => Promise<any>> = {
   'VideoTimeline': () => import('@/views/video/VideoTimeline.vue'),
   'RecordingsList': () => import('@/views/video/RecordingsList.vue'),
   'VideoPlayer': () => import('@/views/video/VideoPlayer.vue'),
+  'VideoPlaza': () => import('@/views/video/VideoPlaza.vue'),
+  'RecordPlanList': () => import('@/views/video/RecordPlanList.vue'),
 
   // 报警管理
   'AlarmManagement': () => import('@/views/alarms/AlarmManagement.vue'),
@@ -38,14 +48,11 @@ export const pages: Record<string, () => Promise<any>> = {
   // 电子地图
   'ElectronicMap': () => import('@/views/map/ElectronicMap.vue'),
 
-  // 设备管理
-  'DeviceList': () => import('@/views/device/DeviceList.vue'),
-  'ChannelList': () => import('@/views/device/ChannelList.vue'),
-
   // 系统管理
   'SystemLogs': () => import('@/views/system/SystemLogs.vue'),
   'SystemSettings': () => import('@/views/system/setting/index.vue'),
   'ZLMConfig': () => import('@/views/system/ZLMConfig.vue'),
+  'AttachmentList': () => import('@/views/system/AttachmentList.vue'),
 
   // 权限管理
   'UserManagement': () => import('@/views/permission/UserManagement.vue'),

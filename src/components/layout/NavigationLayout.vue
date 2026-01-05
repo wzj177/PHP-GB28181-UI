@@ -37,11 +37,15 @@ import TagsView from './TagsView.vue'
 import { loadMenuData, MenuItem } from '@/utils/routeUtils'
 import { useTagsViewStore } from '@/stores/tagsView'
 import { useThemeStore } from '@/stores/theme'
+import { useSystemInfoStore } from '@/stores/systemInfo'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const route = useRoute()
 const tagsViewStore = useTagsViewStore()
 const themeStore = useThemeStore()
+const systemInfoStore = useSystemInfoStore()
+const userStore = useUserStore()
 
 // Navigation items - load from menu.json
 const navItems = ref<MenuItem[]>([])
@@ -78,7 +82,6 @@ const themeTooltip = computed(() => {
 onMounted(async () => {
   try {
     const menuData = await loadMenuData()
-    // Only load top-level menu items (parentId: 0 or parentId: null)
     navItems.value = menuData.filter(item => !item.parentId || item.parentId === 0)
   } catch (error) {
     console.error('Failed to load navigation menu:', error)
@@ -89,19 +92,50 @@ onMounted(async () => {
 // Note: TagsView 组件内部已经处理了路由监听和 tag 添加
 // 这里不需要重复监听，避免代码冗余
 
-// Get icon component based on icon name
-const getIconComponent = (iconName: string) => {
+// Get icon component - supports all Element Plus icons
+const getIconComponent = (iconName?: string) => {
+  if (!iconName) return Monitor
+
+  // 将图标名转换为 PascalCase (如 video-camera -> VideoCamera)
+  const pascalCase = iconName
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('')
+
+  // 图标映射表 - 支持所有已导入的图标
   const iconMap: Record<string, any> = {
+    // 基础图标
     'House': House,
+    'Home': House,
     'Monitor': Monitor,
     'VideoCamera': VideoCamera,
+    'Camera': VideoCamera,
     'Bell': Bell,
     'MapLocation': MapLocation,
-    'DataAnalysis': DataAnalysis,
+    'Location': MapLocation,
+    'User': User,
+    'Setting': Setting,
+    'Settings': Setting,
+
+    // 视频相关
     'VideoPlay': VideoPlay,
-    'Film': Film
+    'Play': VideoPlay,
+    'Film': Film,
+    'Movie': Film,
+    'DataAnalysis': DataAnalysis,
+
+    // 其他
+    'Fold': Fold,
+    'Expand': Expand,
+    'ArrowDown': ArrowDown,
+    'SwitchButton': SwitchButton,
+    'Sunny': Sunny,
+    'Moon': Moon,
+    'Clock': Clock
   }
-  return iconMap[iconName] || Monitor
+
+  // 如果找到对应图标则返回，否则返回默认图标
+  return iconMap[pascalCase] || iconMap[iconName] || Monitor
 }
 
 // Active menu index - watch route changes
@@ -137,10 +171,7 @@ const handleSelect = (index: string, indexPath: string[]) => {
   }
 }
 
-// User profile data
-const userName = ref('管理员')
-const userRole = ref('系统管理员')
-const userAvatar = ref('https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png')
+// User profile data - 从 store 获取
 const userDropdownVisible = ref(false)
 
 // Toggle sidebar collapse
@@ -150,7 +181,7 @@ const toggleSidebar = () => {
 
 // Toggle theme
 const toggleTheme = () => {
-  console.log('🎯 NavigationLayout toggleTheme called')
+  console.log('NavigationLayout toggleTheme called')
   console.log('Before:', themeStore.themeMode, themeStore.currentTheme)
   themeStore.toggleTheme()
   console.log('After:', themeStore.themeMode, themeStore.currentTheme)
@@ -190,8 +221,8 @@ const handleLogout = () => {
     type: 'warning'
   })
     .then(() => {
-      // Clear authentication data
-      document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;'
+      // 清除用户信息和认证数据
+      userStore.clearUserInfo()
       ElMessage.success('已退出登录')
       router.push('/login')
     })
@@ -223,12 +254,14 @@ onUnmounted(() => {
       :class="{ collapsed: sidebarCollapsed }"
     >
       <div class="logo">
-        <h2 v-show="!sidebarCollapsed">
-          PHP-GB28181
-        </h2>
-        <h2 v-show="sidebarCollapsed">
-          G
-        </h2>
+        <template v-if="!sidebarCollapsed">
+          <img v-if="systemInfoStore.systemInfo.platformLogo" :src="systemInfoStore.systemInfo.platformLogo" class="platform-logo" :alt="systemInfoStore.systemInfo.platformName" />
+          <h2 v-else>{{ systemInfoStore.systemInfo.platformName }}</h2>
+        </template>
+        <template v-else>
+          <img v-if="systemInfoStore.systemInfo.platformLogo" :src="systemInfoStore.systemInfo.platformLogo" class="platform-logo platform-logo-small" :alt="systemInfoStore.systemInfo.platformShortName" />
+          <h2 v-else>{{ systemInfoStore.systemInfo.platformShortName }}</h2>
+        </template>
       </div>
 
       <div class="nav-menu-wrapper">
@@ -290,7 +323,7 @@ onUnmounted(() => {
             <div class="user-avatar">
               <ElAvatar
                 :size="32"
-                :src="userAvatar"
+                :src="userStore.displayAvatar"
               />
             </div>
             <div
@@ -298,10 +331,10 @@ onUnmounted(() => {
               class="user-info"
             >
               <div class="user-name">
-                {{ userName }}
+                {{ userStore.displayName }}
               </div>
               <div class="user-role">
-                {{ userRole }}
+                {{ userStore.displayRole }}
               </div>
             </div>
             <ElIcon
@@ -400,6 +433,11 @@ onUnmounted(() => {
       font-size: 1.2rem;
     }
 
+    .logo .platform-logo {
+      max-width: 32px;
+      max-height: 32px;
+    }
+
     .user-info,
     .dropdown-icon {
       display: none;
@@ -425,6 +463,7 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-base);
   color: var(--text-main);
   flex-shrink: 0;
+  padding: 0 12px;
 
   h2 {
     margin: 0;
@@ -432,6 +471,17 @@ onUnmounted(() => {
     font-weight: 500;
     color: var(--text-main);
     white-space: nowrap;
+  }
+
+  .platform-logo {
+    max-height: 40px;
+    max-width: 180px;
+    object-fit: contain;
+
+    &.platform-logo-small {
+      max-height: 32px;
+      max-width: 32px;
+    }
   }
 }
 

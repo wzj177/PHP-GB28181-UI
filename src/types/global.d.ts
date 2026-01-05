@@ -160,6 +160,7 @@ declare module '@element-plus/icons-vue' {
   export const Edit: any
   export const Search: any
   export const RefreshRight: any
+  export const Unlock: any
 }
 
 // 全局变量
@@ -200,3 +201,14 @@ interface DeviceTreeNode {
 
 // Element Plus prop 类型覆盖
 type EpPropType = 'primary' | 'success' | 'warning' | 'info' | 'danger' | string
+
+// Vite ?raw 导入类型声明
+declare module '*.svg?raw' {
+  const content: string
+  export default content
+}
+
+declare module '*.svg' {
+  const content: string
+  export default content
+}

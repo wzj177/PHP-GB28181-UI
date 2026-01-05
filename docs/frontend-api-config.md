@@ -120,6 +120,38 @@ server: {
 | 磁盘统计 | `GET /admin/system/disk-stats` | `/api/admin/system/disk-stats` |
 | 测试邮件 | `POST /admin/system/test-mail` | `/api/admin/system/test-mail` |
 
+#### ZLM 配置
+| 功能 | 前端请求 | 后端路由 |
+|------|----------|----------|
+| 获取配置 | `GET /admin/setting/zlm/get` | `/api/admin/setting/zlm/get` |
+| 保存配置 | `POST /admin/setting/zlm/set` | `/api/admin/setting/zlm/set` |
+| 重置配置 | `POST /admin/setting/zlm/reset` | `/api/admin/setting/zlm/reset` |
+| 重启服务 | `POST /admin/setting/zlm/restart` | `/api/admin/setting/zlm/restart` |
+
+**ZLM 配置数据结构**:
+```typescript
+{
+  api: { apiDebug, defaultSnap, downloadRoot, secret, snapRoot },
+  cluster: { origin_url, retry_count, timeout_sec },
+  ffmpeg: { bin, cmd, log, restart_sec, snap },
+  general: { mediaServerId, listen_ip, maxStreamWaitMS, ... },
+  hls: { segNum, segDur, segRetain, ... },
+  hook: { enable, alive_interval, on_flow_report, on_publish, ... },
+  http: { port, sslport, rootPath, allow_cross_domains, ... },
+  multicast: { addrMin, addrMax, udpTTL },
+  onvif: { port },
+  protocol: { enable_rtsp, enable_rtmp, enable_hls, ... },
+  record: { appName, enableFmp4, sampleMS, ... },
+  rtc: { port, tcpPort, signalingPort, icePort, ... },
+  rtmp: { port, sslport, handshakeSecond, ... },
+  rtp: { audioMtuSize, videoMtuSize, rtpMaxSize },
+  rtp_proxy: { port, port_range, timeoutSec, gop_cache, ... },
+  rtsp: { port, sslport, handshakeSecond, ... },
+  shell: { maxReqSize, port },
+  srt: { port, timeoutSec, latencyMul, ... }
+}
+```
+
 ### 2.5 系统监控 (monitorApi)
 
 **文件**: `src/api/monitorApi.ts`
@@ -166,32 +198,142 @@ server: {
 - 支持公开请求 (X-Public header)
 
 ### 响应拦截器
-- 自动续签 (从响应头获取新 Token)
-- 统一错误处理
-- 401 自动跳转登录
+- **自动数据提取**: 当后端返回 `code: 0` 时，自动提取 `response.data` 并返回
+- **JWT 自动续签**: 从响应头获取新 Token 并更新
+- **统一错误处理**: 非 `code: 0` 的响应自动抛出异常
+- **401 自动跳转登录**: Token 失效时自动清除并跳转登录页
 
-### 请求示例
+**核心逻辑** (`src/utils/request.ts:106-108`):
 ```typescript
-import request from '@/utils/request'
-
-// GET 请求
-request.get('/admin/gb28181/devices', { params: { page: 1 } })
-
-// POST 请求
-request.post('/admin/setting/basic', { site_name: 'GB28181' })
-
-// PUT 请求
-request.put(`/admin/gb28181/alarms/${id}`, { status: 'handled' })
-
-// DELETE 请求
-request.delete(`/admin/gb28181/devices/${id}`)
+if (res?.code === 0) {
+  renewJwtToken(response)
+  return res.data  // 自动提取并返回 data 字段
+}
 ```
 
 ---
 
-## 4. 更新日志
+## 4. API 响应处理最佳实践
+
+### 4.1 响应数据结构
+
+后端统一返回格式:
+```json
+{
+  "code": 0,
+  "data": { /* 实际数据 */ },
+  "message": "success"
+}
+```
+
+### 4.2 组件中的标准处理模式
+
+由于响应拦截器已自动提取 `data` 字段，组件中应直接使用返回数据，**不要**再次访问 `.data` 属性。
+
+#### ❌ 错误写法
+```typescript
+const response = await systemApi.getZLMConfig()
+if (response?.data) {  // ❌ 多此一举，response 已经是 data
+  const config = response.data
+}
+```
+
+#### ✅ 正确写法
+```typescript
+// API 响应拦截器已自动提取 response.data (src/utils/request.ts:106-108)
+const data = await systemApi.getZLMConfig()
+if (data) {
+  apiForm.value = { ...apiForm.value, ...data.api }
+}
+```
+
+### 4.3 完整示例：ZLMConfig 组件
+
+**文件**: `src/views/system/ZLMConfig.vue`
+
+```typescript
+// 加载配置
+const loadConfig = async () => {
+  loading.value = true
+  try {
+    // API 响应拦截器已自动提取 response.data
+    // 当 code === 0 时，直接返回 res.data
+    const data = await systemApi.getZLMConfig()
+
+    if (data) {
+      apiForm.value = { ...apiForm.value, ...data.api }
+      ffmpegForm.value = { ...ffmpegForm.value, ...data.ffmpeg }
+      hookForm.value = { ...hookForm.value, ...data.hook }
+    }
+  } catch (error: any) {
+    console.error('Failed to load ZLM config:', error)
+    ElMessage.error(error.message || '加载配置失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 保存配置
+const saveConfig = async () => {
+  saving.value = true
+  try {
+    const payload = {
+      api: apiForm.value,
+      ffmpeg: ffmpegForm.value,
+      hook: hookForm.value
+    }
+
+    // API 响应拦截器已自动提取 response.data
+    // 保存成功时返回数据，失败时抛出异常
+    await systemApi.saveZLMConfig(payload)
+    ElMessage.success('保存成功')
+  } catch (error: any) {
+    console.error('Failed to save ZLM config:', error)
+    ElMessage.error(error.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+```
+
+### 4.4 错误处理模式
+
+```typescript
+try {
+  const data = await someApi.getData()
+  // 成功：data 已经是实际数据
+  processData(data)
+} catch (error) {
+  // 失败：error.code 和 error.message 可用
+  ElMessage.error(error.message || '操作失败')
+}
+```
+
+### 4.5 文档注释规范
+
+在组件中调用 API 时，建议添加以下注释说明响应处理方式:
+
+```typescript
+/**
+ * 加载配置数据
+ * API 响应拦截器已自动提取 response.data (src/utils/request.ts:106-108)
+ * 当 code === 0 时，直接返回 res.data
+ */
+const loadData = async () => {
+  const data = await api.getConfig()
+  // ...
+}
+```
+
+---
+
+## 5. 更新日志
 
 | 日期 | 更新内容 |
 |------|----------|
+| 2025-12-30 | 更新 ZLMConfig.vue 组件，完整对接后端 ZLM 配置接口 (18个配置模块) |
+| 2025-12-30 | 更新 ZLM API 接口路径: `/admin/setting/zlm/*` |
+| 2025-12-29 | 添加 API 响应处理最佳实践文档 (第 4 节) |
+| 2025-12-29 | 更新 ZLMConfig.vue 组件使用正确的响应处理模式 |
 | 2024-12-29 | 更新所有 API 路由为 `/api/admin/...` 前缀 |
 | 2024-12-29 | 创建系统设置页面 (Vue3 + TypeScript) |

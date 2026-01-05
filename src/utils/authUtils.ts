@@ -2,6 +2,7 @@
 
 // Token storage keys
 const TOKEN_KEY = 'token';
+const TOKEN_KEY_NAME = 'tokenKey';
 
 // Cookie utility functions
 const getCookie = (name: string): string | null => {
@@ -11,70 +12,82 @@ const getCookie = (name: string): string | null => {
   return null;
 };
 
-const setCookie = (name: string, value: string, hours: number = 1): void => {
+const setCookie = (name: string, value: string, hours: number = 24): void => {
   const expires = new Date();
   expires.setTime(expires.getTime() + hours * 60 * 60 * 1000);
-  document.cookie = `${name}=${value}; path=/; expires=${expires.toUTCString()}; SameSite=Strict;`;
+  document.cookie = `${name}=${value}; path=/; expires=${expires.toUTCString()}; SameSite=Strict`;
 };
 
 const removeCookie = (name: string): void => {
   document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
 };
 
-const cache = {};
 // Authentication utility functions
 export const authUtils = {
-  // Get token from localStorage first, then from cookie
+  // Get token from cookie first (优先使用 cookie), then localStorage
   getToken(): string | null {
-    // First check localStorage
-    let token = localStorage.getItem(TOKEN_KEY);
+    // First check cookie (优先)
+    let token = getCookie(TOKEN_KEY);
     if (token) return token;
 
-    // Then check cookie
-    token = getCookie(TOKEN_KEY);
+    // Then check localStorage as fallback
+    token = localStorage.getItem(TOKEN_KEY);
     if (token) {
-      // Also store in localStorage for efficient access
-      localStorage.setItem(TOKEN_KEY, token);
+      // Sync to cookie for next time
+      setCookie(TOKEN_KEY, token);
     }
 
     return token;
   },
 
-  // Store token in both localStorage and cookie
-  setToken(token: string, hours: number = 1): void {
+  // Store token in both cookie (primary) and localStorage (backup)
+  setToken(token: string, hours: number = 24): void {
     // Remove any existing token first to ensure clean state
     this.removeToken();
 
-    // Store in localStorage
-    localStorage.setItem(TOKEN_KEY, token);
-
-    // Store in cookie
+    // Store in cookie (primary storage)
     setCookie(TOKEN_KEY, token, hours);
+
+    // Store in localStorage as backup
+    localStorage.setItem(TOKEN_KEY, token);
   },
 
   setTokenKey(key: string): void {
-    localStorage.setItem('tokenKey', key);
+    // Store in cookie
+    setCookie(TOKEN_KEY_NAME, key);
+    // Also store in localStorage for easy access
+    localStorage.setItem(TOKEN_KEY_NAME, key);
   },
 
   getTokenKey(): string | null {
-    return localStorage.getItem('tokenKey');
-  },
-  removeTokenKey(): void {
-    localStorage.removeItem('tokenKey');
-  },
-  // Remove token from both localStorage and cookie
-  removeToken(): void {
-    // Remove from localStorage
-    localStorage.removeItem(TOKEN_KEY);
+    // Check cookie first
+    let key = getCookie(TOKEN_KEY_NAME);
+    if (key) return key;
 
+    // Fallback to localStorage
+    return localStorage.getItem(TOKEN_KEY_NAME);
+  },
+
+  removeTokenKey(): void {
+    removeCookie(TOKEN_KEY_NAME);
+    localStorage.removeItem(TOKEN_KEY_NAME);
+  },
+
+  // Remove token from both cookie and localStorage
+  removeToken(): void {
     // Remove from cookie
     removeCookie(TOKEN_KEY);
+
+    // Remove from localStorage
+    localStorage.removeItem(TOKEN_KEY);
   },
 
   // Check if user is authenticated
   isAuthenticated(): boolean {
     return !!this.getToken();
   },
+
+  // Clear all auth data
   clear() {
     this.removeToken();
     this.removeTokenKey();
