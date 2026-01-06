@@ -2,11 +2,16 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authUtils } from '@/utils/authUtils'
 
+export interface UserRole {
+  name: string
+  code: string
+}
+
 export interface UserInfo {
   id: number
   nickname: string
   avatar: string
-  roles: string[]
+  roles: UserRole[]
   loginTime: number
   loginIp: string
   uuid: string
@@ -58,13 +63,9 @@ export const useUserStore = defineStore('user', () => {
   const displayRole = computed(() => {
     if (!userInfo.value?.roles?.length) return '系统管理员'
 
-    const roleMap: Record<string, string> = {
-      'ROLE_SUPER_ADMIN': '超级管理员',
-      'ROLE_ADMIN': '管理员',
-      'ROLE_USER': '普通用户'
-    }
-    const mainRole = userInfo.value.roles[0] || ''
-    return roleMap[mainRole] || mainRole || '系统管理员'
+    // roles 现在是对象数组: [{name: '演示角色', code: 'ROLE_DEMO'}]
+    const mainRole = userInfo.value.roles[0]
+    return mainRole?.name || '系统管理员'
   })
 
   // 计算属性 - 获取显示头像

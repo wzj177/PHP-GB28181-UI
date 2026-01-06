@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed, markRaw } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   ElMenu,
@@ -15,24 +15,16 @@ import {
   ElDivider
 } from 'element-plus'
 import {
-  Monitor,
-  VideoCamera,
-  Bell,
-  MapLocation,
-  House,
   Fold,
   Expand,
   ArrowDown,
-  User,
-  Setting,
-  SwitchButton,
-  DataAnalysis,
-  VideoPlay,
-  Film,
   Sunny,
   Moon,
-  Clock
+  Clock,
+  SwitchButton,
+  User
 } from '@element-plus/icons-vue'
+import * as ElementPlusIcons from '@element-plus/icons-vue'
 import TagsView from './TagsView.vue'
 import { loadMenuData, MenuItem } from '@/utils/routeUtils'
 import { useTagsViewStore } from '@/stores/tagsView'
@@ -87,55 +79,23 @@ onMounted(async () => {
     console.error('Failed to load navigation menu:', error)
     ElMessage.error('加载导航菜单失败')
   }
-})
 
-// Note: TagsView 组件内部已经处理了路由监听和 tag 添加
-// 这里不需要重复监听，避免代码冗余
+  // Add click outside listener
+  document.addEventListener('click', handleClickOutside)
+})
 
 // Get icon component - supports all Element Plus icons
 const getIconComponent = (iconName?: string) => {
-  if (!iconName) return Monitor
+  if (!iconName) return markRaw(ElementPlusIcons.Monitor || ElementPlusIcons.House)
 
-  // 将图标名转换为 PascalCase (如 video-camera -> VideoCamera)
-  const pascalCase = iconName
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join('')
-
-  // 图标映射表 - 支持所有已导入的图标
-  const iconMap: Record<string, any> = {
-    // 基础图标
-    'House': House,
-    'Home': House,
-    'Monitor': Monitor,
-    'VideoCamera': VideoCamera,
-    'Camera': VideoCamera,
-    'Bell': Bell,
-    'MapLocation': MapLocation,
-    'Location': MapLocation,
-    'User': User,
-    'Setting': Setting,
-    'Settings': Setting,
-
-    // 视频相关
-    'VideoPlay': VideoPlay,
-    'Play': VideoPlay,
-    'Film': Film,
-    'Movie': Film,
-    'DataAnalysis': DataAnalysis,
-
-    // 其他
-    'Fold': Fold,
-    'Expand': Expand,
-    'ArrowDown': ArrowDown,
-    'SwitchButton': SwitchButton,
-    'Sunny': Sunny,
-    'Moon': Moon,
-    'Clock': Clock
+  // Try to get the icon directly from ElementPlusIcons
+  const icon = (ElementPlusIcons as any)[iconName]
+  if (icon) {
+    return markRaw(icon)
   }
 
-  // 如果找到对应图标则返回，否则返回默认图标
-  return iconMap[pascalCase] || iconMap[iconName] || Monitor
+  // Fallback to Monitor icon if not found
+  return markRaw(ElementPlusIcons.Monitor || ElementPlusIcons.House)
 }
 
 // Active menu index - watch route changes
@@ -236,10 +196,6 @@ const handleClickOutside = (event: Event) => {
     userDropdownVisible.value = false
   }
 }
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)

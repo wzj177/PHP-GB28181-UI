@@ -161,6 +161,7 @@ declare module '@element-plus/icons-vue' {
   export const Search: any
   export const RefreshRight: any
   export const Unlock: any
+  export const Lock: any
 }
 
 // 全局变量

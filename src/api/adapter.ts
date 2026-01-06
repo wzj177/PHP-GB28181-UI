@@ -224,6 +224,182 @@ async function handleMockRequest<T>(config: AxiosRequestConfig): Promise<AxiosRe
     } as AxiosResponse<T>;
   }
 
+  // ==================== Permission API Mock ====================
+  // Menu management
+  else if (url.includes('/admin/menu/tree') && method.toLowerCase() === 'get') {
+    return {
+      data: getMenuTreeMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/menu/user/menu') && method.toLowerCase() === 'get') {
+    return {
+      data: getUserMenuTreeMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/menu') && method.toLowerCase() === 'get') {
+    return {
+      data: getMenusMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/menu') && method.toLowerCase() === 'post') {
+    return {
+      data: createMenuMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/menu\/\d+/.test(url) && method.toLowerCase() === 'put') {
+    return {
+      data: updateMenuMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/menu\/\d+/.test(url) && method.toLowerCase() === 'delete') {
+    return {
+      data: deleteMenuMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/menu/type-options') && method.toLowerCase() === 'get') {
+    return {
+      data: getMenuTypeOptionsMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  }
+  // Role management
+  else if (url.includes('/admin/role/options') && method.toLowerCase() === 'get') {
+    return {
+      data: getRoleOptionsMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/role') && method.toLowerCase() === 'get' && !/\/\d+/.test(url)) {
+    return {
+      data: getRolesMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/role\/\d+/.test(url) && method.toLowerCase() === 'get') {
+    return {
+      data: getRoleDetailMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/role') && method.toLowerCase() === 'post') {
+    return {
+      data: createRoleMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/role\/\d+/.test(url) && method.toLowerCase() === 'put') {
+    return {
+      data: updateRoleMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/role\/\d+/.test(url) && method.toLowerCase() === 'delete') {
+    return {
+      data: deleteRoleMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/role\/\d+\/menus/.test(url) && method.toLowerCase() === 'get') {
+    return {
+      data: getRoleMenusMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/role\/\d+\/menus/.test(url) && method.toLowerCase() === 'post') {
+    return {
+      data: assignRoleMenusMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  }
+  // User management
+  else if (url.includes('/admin/user/role-options') && method.toLowerCase() === 'get') {
+    return {
+      data: getUserRoleOptionsMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/user') && method.toLowerCase() === 'get' && !/\/\d+/.test(url)) {
+    return {
+      data: getUsersMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/user\/\d+/.test(url) && method.toLowerCase() === 'get') {
+    return {
+      data: getUserDetailMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/user') && method.toLowerCase() === 'post') {
+    return {
+      data: createUserMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/user\/\d+/.test(url) && method.toLowerCase() === 'put') {
+    return {
+      data: updateUserMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (/\/admin\/user\/\d+/.test(url) && method.toLowerCase() === 'delete') {
+    return {
+      data: deleteUserMock(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  }
+
   // Default response if no match
   return {
     data: { code: 200, message: 'success', data: {} } as T,
@@ -759,3 +935,543 @@ export const getDeviceStatsMock = (options: any) => {
     }
   };
 };
+
+// ==================== Permission API Mock Functions ====================
+
+// Mock menu data
+const mockMenus = [
+  {
+    id: 1,
+    menuId: 'dashboard',
+    name: '仪表盘',
+    icon: 'House',
+    path: '/dashboard',
+    component: 'Dashboard',
+    title: '仪表盘',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 1,
+    type: 'menu',
+    status: 1,
+    createdTime: 1234567890,
+    updatedTime: 1234567890
+  },
+  {
+    id: 2,
+    menuId: 'monitoring',
+    name: '系统监控',
+    icon: 'Monitor',
+    path: '/monitoring',
+    title: '系统监控',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 2,
+    type: 'directory',
+    status: 1,
+    createdTime: 1234567890,
+    updatedTime: 1234567890,
+    children: [
+      {
+        id: 3,
+        menuId: 'system-stats',
+        name: '系统统计',
+        path: '/monitoring/system-stats',
+        component: 'SystemStats',
+        title: '系统统计',
+        parentId: 2,
+        parentMenuId: 'monitoring',
+        sort: 1,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 4,
+        menuId: 'device-stats',
+        name: '设备统计',
+        path: '/monitoring/device-stats',
+        component: 'DeviceStats',
+        title: '设备统计',
+        parentId: 2,
+        parentMenuId: 'monitoring',
+        sort: 2,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 5,
+        menuId: 'zlm-stats',
+        name: 'ZLM统计',
+        path: '/monitoring/zlm-stats',
+        component: 'ZLMStats',
+        title: 'ZLM统计',
+        parentId: 2,
+        parentMenuId: 'monitoring',
+        sort: 3,
+        type: 'menu',
+        status: 1
+      }
+    ]
+  },
+  {
+    id: 6,
+    menuId: 'device',
+    name: '设备管理',
+    icon: 'VideoCamera',
+    path: '/device',
+    title: '设备管理',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 3,
+    type: 'directory',
+    status: 1,
+    children: [
+      {
+        id: 7,
+        menuId: 'device-list',
+        name: '设备列表',
+        path: '/device/list',
+        component: 'DeviceList',
+        title: '设备列表',
+        parentId: 6,
+        parentMenuId: 'device',
+        sort: 1,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 8,
+        menuId: 'channel-list',
+        name: '通道列表',
+        path: '/device/channels',
+        component: 'ChannelList',
+        title: '通道列表',
+        parentId: 6,
+        parentMenuId: 'device',
+        sort: 2,
+        type: 'menu',
+        status: 1
+      }
+    ]
+  },
+  {
+    id: 9,
+    menuId: 'video',
+    name: '视频管理',
+    icon: 'VideoPlay',
+    path: '/video',
+    title: '视频管理',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 4,
+    type: 'directory',
+    status: 1,
+    children: [
+      {
+        id: 10,
+        menuId: 'video-management',
+        name: '视频管理',
+        path: '/video/management',
+        component: 'VideoManagement',
+        title: '视频管理',
+        parentId: 9,
+        parentMenuId: 'video',
+        sort: 1,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 11,
+        menuId: 'video-playback',
+        name: '视频回放',
+        path: '/video/playback',
+        component: 'VideoPlayback',
+        title: '视频回放',
+        parentId: 9,
+        parentMenuId: 'video',
+        sort: 2,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 12,
+        menuId: 'record-plan',
+        name: '录像计划',
+        path: '/video/record-plan',
+        component: 'RecordPlanList',
+        title: '录像计划',
+        parentId: 9,
+        parentMenuId: 'video',
+        sort: 3,
+        type: 'menu',
+        status: 1
+      }
+    ]
+  },
+  {
+    id: 13,
+    menuId: 'ptz',
+    name: '云台控制',
+    icon: 'Setting',
+    path: '/ptz',
+    component: 'PTZControl',
+    title: '云台控制',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 5,
+    type: 'menu',
+    status: 1
+  },
+  {
+    id: 14,
+    menuId: 'alarm',
+    name: '报警管理',
+    icon: 'Bell',
+    path: '/alarm',
+    component: 'AlarmManagement',
+    title: '报警管理',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 6,
+    type: 'menu',
+    status: 1
+  },
+  {
+    id: 15,
+    menuId: 'map',
+    name: '电子地图',
+    icon: 'MapLocation',
+    path: '/map',
+    component: 'ElectronicMap',
+    title: '电子地图',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 7,
+    type: 'menu',
+    status: 1
+  },
+  {
+    id: 16,
+    menuId: 'permission',
+    name: '权限管理',
+    icon: 'User',
+    path: '/permission',
+    title: '权限管理',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 8,
+    type: 'directory',
+    status: 1,
+    children: [
+      {
+        id: 17,
+        menuId: 'user-management',
+        name: '用户管理',
+        path: '/permission/users',
+        component: 'UserManagement',
+        title: '用户管理',
+        parentId: 16,
+        parentMenuId: 'permission',
+        sort: 1,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 18,
+        menuId: 'role-management',
+        name: '角色管理',
+        path: '/permission/roles',
+        component: 'RoleManagement',
+        title: '角色管理',
+        parentId: 16,
+        parentMenuId: 'permission',
+        sort: 2,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 19,
+        menuId: 'menu-management',
+        name: '菜单管理',
+        path: '/permission/menus',
+        component: 'MenuManagement',
+        title: '菜单管理',
+        parentId: 16,
+        parentMenuId: 'permission',
+        sort: 3,
+        type: 'menu',
+        status: 1
+      }
+    ]
+  },
+  {
+    id: 20,
+    menuId: 'system',
+    name: '系统管理',
+    icon: 'Setting',
+    path: '/system',
+    title: '系统管理',
+    parentId: 0,
+    parentMenuId: '',
+    sort: 9,
+    type: 'directory',
+    status: 1,
+    children: [
+      {
+        id: 21,
+        menuId: 'system-settings',
+        name: '系统设置',
+        path: '/system/settings',
+        component: 'SystemSettings',
+        title: '系统设置',
+        parentId: 20,
+        parentMenuId: 'system',
+        sort: 1,
+        type: 'menu',
+        status: 1
+      },
+      {
+        id: 22,
+        menuId: 'system-logs',
+        name: '系统日志',
+        path: '/system/logs',
+        component: 'SystemLogs',
+        title: '系统日志',
+        parentId: 20,
+        parentMenuId: 'system',
+        sort: 2,
+        type: 'menu',
+        status: 1
+      }
+    ]
+  }
+]
+
+// Mock roles data
+const mockRoles = [
+  { id: 1, name: '超级管理员', code: 'ROLE_SUPER_ADMIN', createdTime: 1234567890, updatedTime: 1234567890 },
+  { id: 2, name: '管理员', code: 'ROLE_ADMIN', createdTime: 1234567890, updatedTime: 1234567890 },
+  { id: 3, name: '操作员', code: 'ROLE_OPERATOR', createdTime: 1234567890, updatedTime: 1234567890 },
+  { id: 4, name: '访客', code: 'ROLE_GUEST', createdTime: 1234567890, updatedTime: 1234567890 }
+]
+
+// Mock users data
+const mockUsers = Array.from({ length: 25 }, (_, i) => ({
+  id: i + 1,
+  email: `user${i + 1}@example.com`,
+  nickname: `用户${i + 1}`,
+  avatar: '',
+  verifiedMobile: '',
+  emailVerified: 1,
+  roles: i === 0
+    ? [{ name: '超级管理员', code: 'ROLE_SUPER_ADMIN' }]
+    : i < 5
+      ? [{ name: '管理员', code: 'ROLE_ADMIN' }]
+      : [{ name: '操作员', code: 'ROLE_OPERATOR' }],
+  locked: 0,
+  lockDeadline: 0,
+  consecutivePasswordErrorTimes: 0,
+  lastPasswordFailTime: 0,
+  loginTime: Date.now() / 1000 - Math.random() * 86400,
+  loginIp: `192.168.1.${100 + i}`,
+  approvalTime: 0,
+  approvalStatus: 'unapprove',
+  createdIp: '127.0.0.1',
+  createdTime: 1234567890 + i,
+  updatedTime: 1234567890 + i,
+  orgId: 1,
+  orgCode: '1.',
+  registeredWay: '',
+  uuid: `uuid-${i + 1}`,
+  passwordInit: 1,
+  registerVisitId: '',
+  destroyed: 0,
+  type: 'default',
+  setup: 1
+}))
+
+// Menu management mocks
+export const getMenuTreeMock = (options: any) => {
+  return { code: 0, msg: 'success', data: mockMenus }
+}
+
+export const getUserMenuTreeMock = (options: any) => {
+  // Return all menus for admin (mock)
+  return { code: 0, msg: 'success', data: mockMenus }
+}
+
+export const getMenusMock = (options: any) => {
+  const start = Number(options.query?.start || 0)
+  const limit = Number(options.query?.limit || 10)
+  const flatMenus = mockMenus.map(m => ({
+    ...m,
+    children: undefined
+  }))
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      total: flatMenus.length,
+      list: flatMenus.slice(start, start + limit)
+    }
+  }
+}
+
+export const createMenuMock = (options: any) => {
+  const body = options.body ? JSON.parse(options.body) : {}
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      id: Date.now(),
+      ...body,
+      createdTime: Math.floor(Date.now() / 1000)
+    }
+  }
+}
+
+export const updateMenuMock = (options: any) => {
+  return { code: 0, msg: 'success', data: null }
+}
+
+export const deleteMenuMock = (options: any) => {
+  return { code: 0, msg: 'success', data: null }
+}
+
+export const getMenuTypeOptionsMock = (options: any) => {
+  return {
+    code: 0,
+    msg: 'success',
+    data: [
+      { value: 'directory', label: '目录' },
+      { value: 'menu', label: '菜单页' },
+      { value: 'path', label: '路径页' },
+      { value: 'api', label: 'API' }
+    ]
+  }
+}
+
+// Role management mocks
+export const getRoleOptionsMock = (options: any) => {
+  return {
+    code: 0,
+    msg: 'success',
+    data: mockRoles.map(r => ({ value: r.id, label: r.name, code: r.code }))
+  }
+}
+
+export const getRolesMock = (options: any) => {
+  const start = Number(options.query?.start || 0)
+  const limit = Number(options.query?.limit || 10)
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      total: mockRoles.length,
+      list: mockRoles.slice(start, start + limit)
+    }
+  }
+}
+
+export const getRoleDetailMock = (options: any) => {
+  const id = Number(options.url?.match(/\/admin\/role\/(\d+)/)?.[1] || 1)
+  const role = mockRoles.find(r => r.id === id)
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      ...role,
+      menuIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+    }
+  }
+}
+
+export const createRoleMock = (options: any) => {
+  const body = options.body ? JSON.parse(options.body) : {}
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      id: Date.now(),
+      ...body,
+      createdTime: Math.floor(Date.now() / 1000)
+    }
+  }
+}
+
+export const updateRoleMock = (options: any) => {
+  return { code: 0, msg: 'success', data: null }
+}
+
+export const deleteRoleMock = (options: any) => {
+  return { code: 0, msg: 'success', data: null }
+}
+
+export const getRoleMenusMock = (options: any) => {
+  return {
+    code: 0,
+    msg: 'success',
+    data: mockMenus
+  }
+}
+
+export const assignRoleMenusMock = (options: any) => {
+  return { code: 0, msg: 'success', data: null }
+}
+
+// User management mocks
+export const getUserRoleOptionsMock = (options: any) => {
+  return {
+    code: 0,
+    msg: 'success',
+    data: [
+      { value: 'ROLE_SUPER_ADMIN', label: '超级管理员' },
+      { value: 'ROLE_ADMIN', label: '管理员' },
+      { value: 'ROLE_OPERATOR', label: '操作员' },
+      { value: 'ROLE_GUEST', label: '访客' }
+    ]
+  }
+}
+
+export const getUsersMock = (options: any) => {
+  const start = Number(options.query?.start || 0)
+  const limit = Number(options.query?.limit || 10)
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      total: mockUsers.length,
+      list: mockUsers.slice(start, start + limit)
+    }
+  }
+}
+
+export const getUserDetailMock = (options: any) => {
+  const id = Number(options.url?.match(/\/admin\/user\/(\d+)/)?.[1] || 1)
+  const user = mockUsers.find(u => u.id === id)
+  return {
+    code: 0,
+    msg: 'success',
+    data: user
+  }
+}
+
+export const createUserMock = (options: any) => {
+  const body = options.body ? JSON.parse(options.body) : {}
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      id: Date.now(),
+      ...body,
+      createdTime: Math.floor(Date.now() / 1000)
+    }
+  }
+}
+
+export const updateUserMock = (options: any) => {
+  return { code: 0, msg: 'success', data: null }
+}
+
+export const deleteUserMock = (options: any) => {
+  return { code: 0, msg: 'success', data: null }
+}

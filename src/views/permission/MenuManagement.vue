@@ -1,60 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElSwitch, ElMessage, ElTree } from 'element-plus'
+import { ref, onMounted, computed } from 'vue'
+import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElInputNumber, ElMessage, ElMessageBox, ElRow, ElCol, ElTreeSelect } from 'element-plus'
 import { Plus, Edit, Delete, Refresh } from '@element-plus/icons-vue'
-import { permissionApi } from '@/api/permissionApi'
-
-interface MenuItem {
-  id: string
-  name: string
-  icon?: string
-  path: string
-  component?: string
-  title: string
-  parentId: number | string
-  sort: number
-  type: 'menu' | 'directory' | 'path' | 'api'
-  children?: MenuItem[]
-}
+import { permissionApi, type MenuItem } from '@/api/permissionApi'
+import IconSelector from '@/components/IconSelector.vue'
 
 const loading = ref(false)
 const menus = ref<MenuItem[]>([])
+const typeOptions = ref<Array<{ value: string; label: string }>>([])
 const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
 const menuFormRef = ref()
 
 // Menu form
 const menuForm = ref({
-  id: '',
+  id: 0,
+  menuId: '',
   name: '',
   icon: '',
   path: '',
   component: '',
-  title: '',
   parentId: 0,
   sort: 0,
-  type: 'menu' as 'menu' | 'directory' | 'path' | 'api'
+  type: 'menu' as 'menu' | 'directory' | 'path' | 'api',
+  status: 1
 })
-
-const typeOptions = [
-  { label: '菜单', value: 'menu' },
-  { label: '目录', value: 'directory' },
-  { label: '路径', value: 'path' },
-  { label: 'API', value: 'api' }
-]
-
-const iconOptions = [
-  'House', 'Monitor', 'VideoCamera', 'Bell', 'MapLocation',
-  'DataAnalysis', 'VideoPlay', 'Film', 'User', 'Setting'
-]
 
 // Load menus
 const loadMenus = async () => {
   loading.value = true
   try {
-    const response = await permissionApi.getMenus()
-    if (response?.data) {
-      menus.value = response.data || []
+    const response = await permissionApi.getMenuTree()
+    if (response) {
+      menus.value = response || []
     }
   } catch (error: any) {
     console.error('Failed to load menus:', error)
@@ -64,19 +42,32 @@ const loadMenus = async () => {
   }
 }
 
+// Load type options
+const loadTypeOptions = async () => {
+  try {
+    const response = await permissionApi.getMenuTypeOptions()
+    if (response) {
+      typeOptions.value = response
+    }
+  } catch (error: any) {
+    console.error('Failed to load type options:', error)
+  }
+}
+
 // Open create dialog
 const openCreateDialog = (parentId: number = 0) => {
   dialogMode.value = 'create'
   menuForm.value = {
-    id: '',
+    id: 0,
+    menuId: '',
     name: '',
     icon: '',
     path: '',
     component: '',
-    title: '',
     parentId,
     sort: 0,
-    type: 'menu'
+    type: 'menu',
+    status: 1
   }
   dialogVisible.value = true
 }
@@ -84,22 +75,34 @@ const openCreateDialog = (parentId: number = 0) => {
 // Open edit dialog
 const openEditDialog = (menu: MenuItem) => {
   dialogMode.value = 'edit'
-  menuForm.value = { ...menu }
+  menuForm.value = {
+    id: menu.id,
+    menuId: menu.menuId,
+    name: menu.name,
+    icon: menu.icon || '',
+    path: menu.path,
+    component: menu.component || '',
+    parentId: menu.parentId,
+    sort: menu.sort,
+    type: menu.type,
+    status: menu.status || 1
+  }
   dialogVisible.value = true
 }
 
 // Submit form
 const submitForm = async () => {
   try {
-    const data = {
+    const data: any = {
+      menuId: menuForm.value.menuId,
       name: menuForm.value.name,
       icon: menuForm.value.icon,
       path: menuForm.value.path,
       component: menuForm.value.component,
-      title: menuForm.value.title,
-      parent_id: menuForm.value.parentId,
+      parentId: menuForm.value.parentId || 0,
       sort: menuForm.value.sort,
-      type: menuForm.value.type
+      type: menuForm.value.type,
+      status: menuForm.value.status
     }
 
     if (dialogMode.value === 'create') {
@@ -121,7 +124,7 @@ const submitForm = async () => {
 // Delete menu
 const deleteMenu = async (menu: MenuItem) => {
   try {
-    await ElMessageBox.confirm(`确定要删除菜单 "${menu.title}" 吗？`, '确认删除', {
+    await ElMessageBox.confirm(`确定要删除菜单 "${menu.name}" 吗？`, '确认删除', {
       type: 'warning'
     })
 
@@ -147,8 +150,59 @@ const getTypeTag = (type: string) => {
   return map[type] || { type: 'info', label: type }
 }
 
+// 获取可选择的父级菜单（排除自己和子菜单）
+const parentMenuOptions = computed(() => {
+  if (dialogMode.value === 'create') {
+    // 新建时，返回所有菜单
+    return menus.value
+  } else {
+    // 编辑时，需要排除自己和所有子菜单
+    const excludeIds = new Set<number>()
+
+    const collectChildIds = (items: MenuItem[], currentId: number) => {
+      for (const item of items) {
+        if (item.id === currentId) {
+          excludeIds.add(item.id)
+          if (item.children) {
+            for (const child of item.children) {
+              excludeIds.add(child.id)
+              if (child.children) {
+                collectChildIds(child.children, child.id)
+              }
+            }
+          }
+        } else if (item.children) {
+          collectChildIds(item.children, currentId)
+        }
+      }
+    }
+
+    collectChildIds(menus.value, menuForm.value.id)
+
+    const filterMenus = (items: MenuItem[]): MenuItem[] => {
+      return items
+        .filter(item => !excludeIds.has(item.id))
+        .map(item => ({
+          ...item,
+          children: item.children ? filterMenus(item.children) : undefined
+        }))
+    }
+
+    return filterMenus(menus.value)
+  }
+})
+
+// 处理父级菜单的显示值，当为 0 时不显示
+const parentMenuValue = computed({
+  get: () => menuForm.value.parentId || undefined,
+  set: (val) => {
+    menuForm.value.parentId = val || 0
+  }
+})
+
 onMounted(() => {
   loadMenus()
+  loadTypeOptions()
 })
 </script>
 
@@ -172,7 +226,13 @@ onMounted(() => {
           :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
           stripe
         >
-          <ElTableColumn prop="title" label="菜单名称" min-width="200" />
+          <ElTableColumn prop="name" label="菜单名称" min-width="200">
+            <template #default="{ row }">
+              {{ row.name }}
+            </template>
+          </ElTableColumn>
+
+          <ElTableColumn prop="menuId" label="菜单标识" min-width="150" />
 
           <ElTableColumn prop="icon" label="图标" width="100">
             <template #default="{ row }">
@@ -198,9 +258,18 @@ onMounted(() => {
 
           <ElTableColumn prop="sort" label="排序" width="80" />
 
-          <ElTableColumn label="操作" width="220" fixed="right">
+          <ElTableColumn prop="status" label="状态" width="80">
             <template #default="{ row }">
-              <el-button size="small" :icon="Plus" @click="openCreateDialog(row.id)">添加子菜单</el-button>
+              <ElTag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+                {{ row.status === 1 ? '启用' : '禁用' }}
+              </ElTag>
+            </template>
+          </ElTableColumn>
+
+          <ElTableColumn label="操作" width="300" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" :icon="Plus" @click="openCreateDialog(row.id)" v-if="row.type === 'directory'">添加子菜单</el-button>
+              <el-button size="small" :icon="Plus" @click="openCreateDialog(row.id)" v-else-if="row.type === 'menu'">添加api权限</el-button>
               <el-button size="small" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
               <el-button size="small" type="danger" :icon="Delete" @click="deleteMenu(row)">删除</el-button>
             </template>
@@ -213,48 +282,82 @@ onMounted(() => {
     <ElDialog
       v-model="dialogVisible"
       :title="dialogMode === 'create' ? '新建菜单' : '编辑菜单'"
-      width="600px"
+      width="700px"
     >
       <ElForm
         ref="menuFormRef"
         :model="menuForm"
         label-width="100px"
       >
-        <ElFormItem label="类型" required>
-          <ElSelect v-model="menuForm.type" style="width: 100%">
-            <ElOption v-for="opt in typeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </ElSelect>
-        </ElFormItem>
+        <ElRow :gutter="20">
+          <ElCol :span="12">
+            <ElFormItem label="类型" required>
+              <ElSelect v-model="menuForm.type" style="width: 100%">
+                <ElOption v-for="opt in typeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </ElSelect>
+            </ElFormItem>
+          </ElCol>
 
-        <ElFormItem label="菜单名称" required>
-          <ElInput v-model="menuForm.title" />
-        </ElFormItem>
+          <ElCol :span="12">
+            <ElFormItem label="排序">
+              <ElInputNumber v-model="menuForm.sort" :min="0" style="width: 100%" />
+            </ElFormItem>
+          </ElCol>
 
-        <ElFormItem label="名称" required>
-          <ElInput v-model="menuForm.name" placeholder="唯一标识" />
-        </ElFormItem>
+          <ElCol :span="12">
+            <ElFormItem label="菜单标识" required>
+              <ElInput v-model="menuForm.menuId" placeholder="唯一标识，如 dashboard" :disabled="dialogMode === 'edit'" />
+            </ElFormItem>
+          </ElCol>
 
-        <ElFormItem label="路径" required>
-          <ElInput v-model="menuForm.path" placeholder="/path" />
-        </ElFormItem>
+          <ElCol :span="12">
+            <ElFormItem label="菜单名称" required>
+              <ElInput v-model="menuForm.name" placeholder="如 仪表盘" />
+            </ElFormItem>
+          </ElCol>
 
-        <ElFormItem label="组件">
-          <ElInput v-model="menuForm.component" placeholder="ComponentName" />
-        </ElFormItem>
+          <ElCol :span="12">
+            <ElFormItem label="父级菜单">
+              <ElTreeSelect
+                v-model="parentMenuValue"
+                :data="parentMenuOptions"
+                :props="{ label: 'name', value: 'id', children: 'children' }"
+                placeholder="请选择父级菜单（不选则为顶级菜单）"
+                clearable
+                check-strictly
+                :render-after-expand="false"
+                class="parent-menu-select"
+              />
+            </ElFormItem>
+          </ElCol>
 
-        <ElFormItem label="图标">
-          <ElSelect v-model="menuForm.icon" style="width: 100%" clearable>
-            <ElOption v-for="icon in iconOptions" :key="icon" :label="icon" :value="icon" />
-          </ElSelect>
-        </ElFormItem>
+          <ElCol :span="12">
+            <ElFormItem label="路径" required>
+              <ElInput v-model="menuForm.path" placeholder="/dashboard" />
+            </ElFormItem>
+          </ElCol>
 
-        <ElFormItem label="排序">
-          <ElInputNumber v-model="menuForm.sort" :min="0" />
-        </ElFormItem>
+          <ElCol :span="12">
+            <ElFormItem label="组件">
+              <ElInput v-model="menuForm.component" placeholder="Dashboard" />
+            </ElFormItem>
+          </ElCol>
 
-        <ElFormItem label="父级ID">
-          <ElInputNumber v-model="menuForm.parentId" :min="0" />
-        </ElFormItem>
+          <ElCol :span="12">
+            <ElFormItem label="图标">
+              <IconSelector v-model="menuForm.icon" />
+            </ElFormItem>
+          </ElCol>
+
+          <ElCol :span="12">
+            <ElFormItem label="状态">
+              <ElSelect v-model="menuForm.status" style="width: 100%">
+                <ElOption label="启用" :value="1" />
+                <ElOption label="禁用" :value="0" />
+              </ElSelect>
+            </ElFormItem>
+          </ElCol>
+        </ElRow>
       </ElForm>
 
       <template #footer>
@@ -307,6 +410,15 @@ onMounted(() => {
 
       :deep(.el-card__body) {
         padding: 16px;
+      }
+    }
+  }
+
+  // 隐藏父级菜单选择器的输入文本
+  :deep(.parent-menu-select) {
+    .el-tree-select__wrapper {
+      .el-select__selected-item {
+        display: none;
       }
     }
   }

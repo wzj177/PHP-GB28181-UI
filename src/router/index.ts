@@ -1,7 +1,10 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { authUtils } from '@/utils/authUtils'
-import { convertMenuToRoutes, loadMenuData, MenuItem } from '@/utils/routeUtils'
+import { convertMenuToRoutes, loadMenuData, MenuItem, hasRoutePermission } from '@/utils/routeUtils'
+
+// Store loaded menu IDs for permission checking
+let loadedMenuIds: (string | number)[] = []
 
 // Define static routes
 const staticRoutes: Array<RouteRecordRaw> = [
@@ -21,16 +24,13 @@ const router = createRouter({
 
 // Helper function to get the first route with a component
 const getFirstValidRoute = (menus: MenuItem[]): MenuItem | null => {
-  // Flatten all menu items
   const allItems: MenuItem[] = []
 
   for (const menu of menus) {
     if (!menu.parentId || menu.parentId === 0) {
-      // Check parent first if it has a component
       if (menu.component) {
         return menu
       }
-      // Then check children
       if (menu.children && menu.children.length > 0) {
         for (const child of menu.children) {
           if (child.component) {
@@ -44,15 +44,29 @@ const getFirstValidRoute = (menus: MenuItem[]): MenuItem | null => {
   return null
 }
 
+// Collect all menu IDs for permission checking
+const collectMenuIds = (menus: MenuItem[]): (string | number)[] => {
+  const ids: (string | number)[] = []
+  const collect = (items: MenuItem[]) => {
+    for (const item of items) {
+      ids.push(item.id)
+      if (item.children) {
+        collect(item.children)
+      }
+    }
+  }
+  collect(menus)
+  return ids
+}
+
 // Navigation guard to check for authentication
 router.beforeEach(async (to, from, next) => {
   const isLoginRoute = to.path === '/login'
 
   // If accessing login route, allow directly
   if (isLoginRoute) {
-    // If already logged in, redirect to first valid route
     if (authUtils.isAuthenticated()) {
-      // Just let it fall through to load routes and redirect properly
+      // Already logged in, will be redirected after loading routes
     } else {
       next()
       return
@@ -70,6 +84,9 @@ router.beforeEach(async (to, from, next) => {
     try {
       const menuData = await loadMenuData()
       const dynamicRoutes = convertMenuToRoutes(menuData)
+
+      // Store menu IDs for permission checking
+      loadedMenuIds = collectMenuIds(menuData)
 
       // Find the first valid route for default redirect
       const firstRoute = getFirstValidRoute(menuData)
@@ -104,15 +121,71 @@ router.beforeEach(async (to, from, next) => {
       if (to.path === '/' || to.path === '') {
         next(defaultPath)
       } else {
-        next({ ...to, replace: true })
+        // Check permission for the target route
+        const targetRoute = router.resolve(to.path)
+        if (targetRoute && hasRoutePermission(targetRoute, loadedMenuIds)) {
+          next({ ...to, replace: true })
+        } else {
+          // No permission, redirect to first available route
+          console.warn('No permission for route:', to.path)
+          next(defaultPath)
+        }
       }
     } catch (error) {
       console.error('Failed to load routes:', error)
       next('/login')
     }
   } else {
-    next()
+    // Routes already loaded, check permission for navigation
+    const targetRoute = router.resolve(to.path)
+    if (targetRoute && !hasRoutePermission(targetRoute, loadedMenuIds)) {
+      console.warn('No permission for route:', to.path)
+      // Find first accessible route
+      const firstRoute = router.getRoutes().find(r =>
+        r.path !== '/' && r.path !== '/login' &&
+        hasRoutePermission(r, loadedMenuIds)
+      )
+      next(firstRoute?.path || '/dashboard')
+    } else {
+      next()
+    }
   }
 })
+
+/**
+ * Check if user has permission for a specific route
+ * @param routePath The route path to check
+ * @returns Whether the user has permission
+ */
+export const checkRoutePermission = (routePath: string): boolean => {
+  const route = router.resolve(routePath)
+  return hasRoutePermission(route, loadedMenuIds)
+}
+
+/**
+ * Get user's accessible menu IDs
+ * @returns Array of menu IDs the user has access to
+ */
+export const getUserMenuIds = (): (string | number)[] => {
+  return [...loadedMenuIds]
+}
+
+/**
+ * Reload user routes (call after login/logout/permission change)
+ */
+export const reloadUserRoutes = async () => {
+  // Remove all dynamic routes
+  const routes = router.getRoutes()
+  routes.forEach(route => {
+    if (route.name && !staticRoutes.find(r => r.name === route.name)) {
+      router.removeRoute(route.name)
+    }
+  })
+
+  // Reset loaded menu IDs
+  loadedMenuIds = []
+
+  // Reload will happen on next navigation
+}
 
 export default router

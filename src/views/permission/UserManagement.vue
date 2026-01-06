@@ -1,31 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElSwitch, ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Refresh } from '@element-plus/icons-vue'
-import { permissionApi } from '@/api/permissionApi'
+import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElMessage, ElPopconfirm } from 'element-plus'
+import { Plus, Edit, Delete, Refresh, Lock, Unlock } from '@element-plus/icons-vue'
+import { permissionApi, type User as ApiUser, type UserRole } from '@/api/permissionApi'
 
-interface User {
-  id: number
-  username: string
-  email?: string
-  phone?: string
-  realName?: string
-  roleId: number
-  roleName?: string
-  status: 'active' | 'disabled'
-  lastLoginAt?: string
-  lastLoginIp?: string
-  createdAt: string
-}
-
-interface Role {
-  id: number
-  name: string
-}
+interface User extends ApiUser {}
 
 const loading = ref(false)
 const users = ref<User[]>([])
-const roles = ref<Role[]>([])
+const roleOptions = ref<Array<{ value: string; label: string }>>([])
 const total = ref(0)
 
 const dialogVisible = ref(false)
@@ -35,38 +18,33 @@ const userFormRef = ref()
 // Filters
 const filters = ref({
   keyword: '',
-  status: '',
-  roleId: '',
-  page: 1,
+  start: 0,
   limit: 20
 })
 
 // User form
 const userForm = ref({
   id: 0,
-  username: '',
-  password: '',
   email: '',
-  phone: '',
-  realName: '',
-  roleId: null as number | null,
-  status: 'active' as 'active' | 'disabled'
+  nickname: '',
+  password: '',
+  roles: [] as string[]
 })
 
 const formRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
+  ],
+  nickname: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, max: 32, message: '长度在 6 到 32 个字符', trigger: 'blur' }
   ],
-  email: [
-    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
-  ],
-  roleId: [
-    { required: true, message: '请选择角色', trigger: 'change' }
+  roles: [
+    { required: true, message: '请选择角色', trigger: 'change', type: 'array' }
   ]
 }
 
@@ -75,19 +53,15 @@ const loadUsers = async () => {
   loading.value = true
   try {
     const params: any = {
-      page: filters.value.page,
+      start: filters.value.start,
       limit: filters.value.limit
     }
 
-    if (filters.value.keyword) params.keyword = filters.value.keyword
-    if (filters.value.status) params.status = filters.value.status
-    if (filters.value.roleId) params.role_id = filters.value.roleId
-
     const response = await permissionApi.getUsers(params)
 
-    if (response?.list) {
+    if (response) {
       users.value = response.list || []
-      total.value = response.paginator?.total || 0
+      total.value = response.total || 0
     }
   } catch (error: any) {
     console.error('Failed to load users:', error)
@@ -97,21 +71,33 @@ const loadUsers = async () => {
   }
 }
 
-// Load roles
-const loadRoles = async () => {
+// Load role options
+const loadRoleOptions = async () => {
   try {
-    const response = await permissionApi.getRoles({ page: 1, limit: 100 })
-    if (response?.list) {
-      roles.value = response.list || []
+    const response = await permissionApi.getUserRoleOptions()
+    if (response) {
+      roleOptions.value = response
     }
   } catch (error: any) {
-    console.error('Failed to load roles:', error)
+    console.error('Failed to load role options:', error)
   }
+}
+
+// Format role names from roles array
+const formatRoles = (roles?: UserRole[]) => {
+  if (!roles || roles.length === 0) return '-'
+  return roles.map(r => r.name).join(', ')
+}
+
+// Get role codes as array
+const getRoleCodes = (roles?: UserRole[]) => {
+  if (!roles || roles.length === 0) return []
+  return roles.map(r => r.code)
 }
 
 // Search
 const searchUsers = () => {
-  filters.value.page = 1
+  filters.value.start = 0
   loadUsers()
 }
 
@@ -119,9 +105,7 @@ const searchUsers = () => {
 const resetFilters = () => {
   filters.value = {
     keyword: '',
-    status: '',
-    roleId: '',
-    page: 1,
+    start: 0,
     limit: 20
   }
   loadUsers()
@@ -132,13 +116,10 @@ const openCreateDialog = () => {
   dialogMode.value = 'create'
   userForm.value = {
     id: 0,
-    username: '',
-    password: '',
     email: '',
-    phone: '',
-    realName: '',
-    roleId: null,
-    status: 'active'
+    nickname: '',
+    password: '',
+    roles: []
   }
   dialogVisible.value = true
 }
@@ -148,13 +129,10 @@ const openEditDialog = (user: User) => {
   dialogMode.value = 'edit'
   userForm.value = {
     id: user.id,
-    username: user.username,
+    email: user.email,
+    nickname: user.nickname || '',
     password: '',
-    email: user.email || '',
-    phone: user.phone || '',
-    realName: user.realName || '',
-    roleId: user.roleId,
-    status: user.status
+    roles: getRoleCodes(user.roles)
   }
   dialogVisible.value = true
 }
@@ -164,12 +142,9 @@ const submitForm = async () => {
   await userFormRef.value?.validate()
 
   const data: any = {
-    username: userForm.value.username,
     email: userForm.value.email,
-    phone: userForm.value.phone,
-    real_name: userForm.value.realName,
-    role_id: userForm.value.roleId,
-    status: userForm.value.status
+    nickname: userForm.value.nickname,
+    roles: userForm.value.roles
   }
 
   if (dialogMode.value === 'create') {
@@ -198,54 +173,49 @@ const submitForm = async () => {
 // Delete user
 const deleteUser = async (user: User) => {
   try {
-    await ElMessageBox.confirm(`确定要删除用户 "${user.username}" 吗？`, '确认删除', {
-      type: 'warning'
-    })
-
     await permissionApi.deleteUser(user.id)
     ElMessage.success('删除成功')
     loadUsers()
   } catch (error: any) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete user:', error)
-      ElMessage.error(error.message || '删除失败')
-    }
+    console.error('Failed to delete user:', error)
+    ElMessage.error(error.message || '删除失败')
   }
 }
 
-// Toggle status
-const toggleStatus = async (user: User) => {
+// Toggle lock status
+const toggleLock = async (user: User) => {
   try {
-    const newStatus = user.status === 'active' ? 'disabled' : 'active'
-    await permissionApi.updateUser(user.id, { status: newStatus })
-    user.status = newStatus
-    ElMessage.success('状态已更新')
+    const newLocked = user.locked === 0 ? 1 : 0
+    await permissionApi.toggleUserLock(user.id, newLocked === 1)
+    user.locked = newLocked
+    ElMessage.success(newLocked === 1 ? '用户已锁定' : '用户已解锁')
   } catch (error: any) {
-    console.error('Failed to update status:', error)
-    ElMessage.error(error.message || '更新失败')
+    console.error('Failed to toggle lock:', error)
+    ElMessage.error(error.message || '操作失败')
   }
 }
 
 // Pagination
 const handlePageChange = (page: number) => {
-  filters.value.page = page
+  filters.value.start = (page - 1) * filters.value.limit
   loadUsers()
 }
 
 const handleSizeChange = (size: number) => {
   filters.value.limit = size
-  filters.value.page = 1
+  filters.value.start = 0
   loadUsers()
 }
 
 // Format date
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString('zh-CN')
+const formatDate = (timestamp?: number) => {
+  if (!timestamp) return '-'
+  return new Date(timestamp * 1000).toLocaleString('zh-CN')
 }
 
 onMounted(() => {
   loadUsers()
-  loadRoles()
+  loadRoleOptions()
 })
 </script>
 
@@ -263,16 +233,7 @@ onMounted(() => {
       <ElCard class="stats-card full-width">
         <!-- Filters -->
         <div class="filter-bar">
-          <el-input v-model="filters.keyword" placeholder="搜索用户名/邮箱/手机号" style="width: 250px" clearable />
-
-          <el-select v-model="filters.status" placeholder="状态" style="width: 120px" clearable>
-            <el-option label="启用" value="active" />
-            <el-option label="禁用" value="disabled" />
-          </el-select>
-
-          <el-select v-model="filters.roleId" placeholder="角色" style="width: 150px" clearable>
-            <el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.id" />
-          </el-select>
+          <el-input v-model="filters.keyword" placeholder="搜索邮箱/用户名" style="width: 250px" clearable />
 
           <el-button type="primary" @click="searchUsers">搜索</el-button>
           <el-button @click="resetFilters">重置</el-button>
@@ -287,49 +248,60 @@ onMounted(() => {
         >
           <ElTableColumn prop="id" label="ID" width="80" />
 
-          <ElTableColumn prop="username" label="用户名" width="120" />
+          <ElTableColumn prop="email" label="邮箱" min-width="200" />
 
-          <ElTableColumn prop="realName" label="真实姓名" width="120">
+          <ElTableColumn prop="nickname" label="用户名" width="150">
             <template #default="{ row }">
-              {{ row.realName || '-' }}
+              {{ row.nickname || '-' }}
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="email" label="邮箱" min-width="180">
+          <ElTableColumn prop="roles" label="角色" width="200">
             <template #default="{ row }">
-              {{ row.email || '-' }}
+              <ElTag v-for="(role, idx) in (row.roles || [])" :key="idx" size="small" style="margin-right: 4px">
+                {{ role.name }}
+              </ElTag>
+              <span v-if="!row.roles || row.roles.length === 0">-</span>
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="phone" label="手机号" width="130">
+          <ElTableColumn prop="locked" label="状态" width="80">
             <template #default="{ row }">
-              {{ row.phone || '-' }}
-            </template>
-          </ElTableColumn>
-
-          <ElTableColumn prop="roleName" label="角色" width="120" />
-
-          <ElTableColumn prop="status" label="状态" width="80">
-            <template #default="{ row }">
-              <ElTag :type="row.status === 'active' ? 'success' : 'danger'" size="small">
-                {{ row.status === 'active' ? '启用' : '禁用' }}
+              <ElTag :type="row.locked ? 'danger' : 'success'" size="small">
+                {{ row.locked ? '锁定' : '正常' }}
               </ElTag>
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="lastLoginAt" label="最后登录" width="170">
+          <ElTableColumn prop="loginTime" label="最后登录" width="170">
             <template #default="{ row }">
-              {{ row.lastLoginAt ? formatDate(row.lastLoginAt) : '-' }}
+              {{ formatDate(row.loginTime) }}
             </template>
           </ElTableColumn>
 
-          <ElTableColumn label="操作" width="200" fixed="right">
+          <ElTableColumn prop="loginIp" label="登录IP" width="130">
+            <template #default="{ row }">
+              {{ row.loginIp || '-' }}
+            </template>
+          </ElTableColumn>
+
+          <ElTableColumn prop="createdTime" label="创建时间" width="170">
+            <template #default="{ row }">
+              {{ formatDate(row.createdTime) }}
+            </template>
+          </ElTableColumn>
+
+          <ElTableColumn label="操作" width="260" fixed="right">
             <template #default="{ row }">
               <el-button size="small" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
-              <el-button size="small" @click="toggleStatus(row)">
-                {{ row.status === 'active' ? '禁用' : '启用' }}
+              <el-button size="small" :icon="row.locked ? Unlock : Lock" @click="toggleLock(row)">
+                {{ row.locked ? '解锁' : '锁定' }}
               </el-button>
-              <el-button size="small" type="danger" :icon="Delete" @click="deleteUser(row)">删除</el-button>
+              <el-popconfirm title="确定要删除这个用户吗？" @confirm="deleteUser(row)">
+                <template #reference>
+                  <el-button size="small" type="danger" :icon="Delete">删除</el-button>
+                </template>
+              </el-popconfirm>
             </template>
           </ElTableColumn>
         </ElTable>
@@ -337,7 +309,7 @@ onMounted(() => {
         <!-- Pagination -->
         <div class="pagination">
           <el-pagination
-            :current-page="filters.page"
+            :current-page="Math.floor(filters.start / filters.limit) + 1"
             :page-size="filters.limit"
             :page-sizes="[10, 20, 50, 100]"
             :total="total"
@@ -361,34 +333,22 @@ onMounted(() => {
         :rules="formRules"
         label-width="100px"
       >
-        <ElFormItem label="用户名" prop="username">
-          <ElInput v-model="userForm.username" :disabled="dialogMode === 'edit'" />
+        <ElFormItem label="邮箱" prop="email">
+          <ElInput v-model="userForm.email" />
+        </ElFormItem>
+
+        <ElFormItem label="用户名" prop="nickname">
+          <ElInput v-model="userForm.nickname" />
         </ElFormItem>
 
         <ElFormItem label="密码" :prop="dialogMode === 'create' ? 'password' : ''">
           <ElInput v-model="userForm.password" type="password" show-password :placeholder="dialogMode === 'edit' ? '留空则不修改' : ''" />
         </ElFormItem>
 
-        <ElFormItem label="邮箱" prop="email">
-          <ElInput v-model="userForm.email" />
-        </ElFormItem>
-
-        <ElFormItem label="手机号">
-          <ElInput v-model="userForm.phone" />
-        </ElFormItem>
-
-        <ElFormItem label="真实姓名">
-          <ElInput v-model="userForm.realName" />
-        </ElFormItem>
-
-        <ElFormItem label="角色" prop="roleId">
-          <ElSelect v-model="userForm.roleId" style="width: 100%">
-            <ElOption v-for="role in roles" :key="role.id" :label="role.name" :value="role.id" />
+        <ElFormItem label="角色" prop="roles">
+          <ElSelect v-model="userForm.roles" style="width: 100%" placeholder="请选择角色" multiple>
+            <ElOption v-for="role in roleOptions" :key="role.value" :label="role.label" :value="role.value" />
           </ElSelect>
-        </ElFormItem>
-
-        <ElFormItem label="状态">
-          <ElSwitch v-model="userForm.status" active-value="active" inactive-value="disabled" active-text="启用" inactive-text="禁用" />
         </ElFormItem>
       </ElForm>
 

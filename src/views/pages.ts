@@ -17,7 +17,6 @@ export const pages: Record<string, () => Promise<any>> = {
   'Dashboard': () => import('@/views/Dashboard.vue'),
 
   // 系统监控相关
-  'SystemMonitor': () => import('@/views/monitor/SystemMonitor.vue'),
   'SystemStats': () => import('@/views/monitor/SystemStats.vue'),
   'ZLMStats': () => import('@/views/monitor/ZLMStats.vue'),
   'DeviceStats': () => import('@/views/monitor/DeviceStats.vue'),

@@ -1,28 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElDialog, ElForm, ElFormItem, ElSwitch, ElMessage, ElTree, ElCheckbox, ElCheckboxGroup } from 'element-plus'
+import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElDialog, ElForm, ElFormItem, ElMessage, ElTree, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Refresh } from '@element-plus/icons-vue'
-import { permissionApi } from '@/api/permissionApi'
-
-interface Role {
-  id: number
-  name: string
-  code: string
-  description?: string
-  status: 'active' | 'disabled'
-  menuIds?: number[]
-  createdAt: string
-}
-
-interface Menu {
-  id: number
-  title: string
-  children?: Menu[]
-}
+import { permissionApi, type Role, type MenuItem } from '@/api/permissionApi'
 
 const loading = ref(false)
 const roles = ref<Role[]>([])
-const allMenus = ref<Menu[]>([])
+const allMenus = ref<MenuItem[]>([])
 const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
 const roleFormRef = ref()
@@ -33,8 +17,6 @@ const roleForm = ref({
   id: 0,
   name: '',
   code: '',
-  description: '',
-  status: 'active' as 'active' | 'disabled',
   menuIds: [] as number[]
 })
 
@@ -42,8 +24,8 @@ const roleForm = ref({
 const loadRoles = async () => {
   loading.value = true
   try {
-    const response = await permissionApi.getRoles({ page: 1, limit: 100 })
-    if (response?.list) {
+    const response = await permissionApi.getRoles({ start: 0, limit: 100 })
+    if (response) {
       roles.value = response.list || []
     }
   } catch (error: any) {
@@ -54,12 +36,12 @@ const loadRoles = async () => {
   }
 }
 
-// Load all menus
+// Load all menus for tree selection
 const loadMenus = async () => {
   try {
-    const response = await permissionApi.getMenus()
-    if (response?.data) {
-      allMenus.value = response.data || []
+    const response = await permissionApi.getMenuTree()
+    if (response) {
+      allMenus.value = response || []
     }
   } catch (error: any) {
     console.error('Failed to load menus:', error)
@@ -73,8 +55,6 @@ const openCreateDialog = () => {
     id: 0,
     name: '',
     code: '',
-    description: '',
-    status: 'active',
     menuIds: []
   }
   dialogVisible.value = true
@@ -87,17 +67,15 @@ const openEditDialog = async (role: Role) => {
     id: role.id,
     name: role.name,
     code: role.code,
-    description: role.description || '',
-    status: role.status,
     menuIds: role.menuIds || []
   }
   dialogVisible.value = true
 
   // Load role menu permissions
   try {
-    const response = await permissionApi.getRoleMenus(role.id)
-    if (response?.data) {
-      roleForm.value.menuIds = response.data || []
+    const menus = await permissionApi.getRoleMenus(role.id)
+    if (menus) {
+      roleForm.value.menuIds = menus.map(m => m.id)
     }
   } catch (error) {
     console.error('Failed to load role menus:', error)
@@ -110,9 +88,7 @@ const submitForm = async () => {
     const data = {
       name: roleForm.value.name,
       code: roleForm.value.code,
-      description: roleForm.value.description,
-      status: roleForm.value.status,
-      menu_ids: roleForm.value.menuIds
+      menuIds: roleForm.value.menuIds
     }
 
     if (dialogMode.value === 'create') {
@@ -150,8 +126,9 @@ const deleteRole = async (role: Role) => {
 }
 
 // Format date
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString('zh-CN')
+const formatDate = (timestamp?: number) => {
+  if (!timestamp) return '-'
+  return new Date(timestamp * 1000).toLocaleString('zh-CN')
 }
 
 onMounted(() => {
@@ -182,25 +159,17 @@ onMounted(() => {
 
           <ElTableColumn prop="name" label="角色名称" width="150" />
 
-          <ElTableColumn prop="code" label="角色代码" width="150" />
+          <ElTableColumn prop="code" label="角色代码" width="200" />
 
-          <ElTableColumn prop="description" label="描述" min-width="200">
+          <ElTableColumn prop="createdTime" label="创建时间" width="180">
             <template #default="{ row }">
-              {{ row.description || '-' }}
+              {{ formatDate(row.createdTime) }}
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="status" label="状态" width="80">
+          <ElTableColumn prop="updatedTime" label="更新时间" width="180">
             <template #default="{ row }">
-              <ElTag :type="row.status === 'active' ? 'success' : 'danger'" size="small">
-                {{ row.status === 'active' ? '启用' : '禁用' }}
-              </ElTag>
-            </template>
-          </ElTableColumn>
-
-          <ElTableColumn prop="createdAt" label="创建时间" width="170">
-            <template #default="{ row }">
-              {{ formatDate(row.createdAt) }}
+              {{ formatDate(row.updatedTime) }}
             </template>
           </ElTableColumn>
 
@@ -230,28 +199,22 @@ onMounted(() => {
         </ElFormItem>
 
         <ElFormItem label="角色代码" required>
-          <ElInput v-model="roleForm.code" placeholder="ROLE_ADMIN" />
-        </ElFormItem>
-
-        <ElFormItem label="描述">
-          <ElInput v-model="roleForm.description" type="textarea" :rows="2" />
-        </ElFormItem>
-
-        <ElFormItem label="状态">
-          <ElSwitch v-model="roleForm.status" active-value="active" inactive-value="disabled" active-text="启用" inactive-text="禁用" />
+          <ElInput v-model="roleForm.code" placeholder="ROLE_ADMIN" :disabled="dialogMode === 'edit'" />
         </ElFormItem>
 
         <ElFormItem label="菜单权限">
-          <ElTree
-            ref="menuTreeRef"
-            :data="allMenus"
-            :props="{ label: 'title', children: 'children' }"
-            node-key="id"
-            show-checkbox
-            default-expand-all
-            :default-checked-keys="roleForm.menuIds"
-            @check="(node, checked) => { roleForm.menuIds = checked.checkedKeys }"
-          />
+          <div class="menu-tree-container">
+            <ElTree
+              ref="menuTreeRef"
+              :data="allMenus"
+              :props="{ label: 'name', children: 'children' }"
+              node-key="id"
+              show-checkbox
+              default-expand-all
+              :default-checked-keys="roleForm.menuIds"
+              @check="(node, checked) => { roleForm.menuIds = checked.checkedKeys as number[] }"
+            />
+          </div>
         </ElFormItem>
       </ElForm>
 
@@ -307,6 +270,15 @@ onMounted(() => {
         padding: 16px;
       }
     }
+  }
+
+  .menu-tree-container {
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-base);
+    border-radius: $radius-panel;
+    padding: 10px;
   }
 }
 </style>

@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElInput, ElCard, ElMessage, ElForm, ElFormItem } from 'element-plus'
-import { User } from '@element-plus/icons-vue'
+import { Lock, User } from '@element-plus/icons-vue'
 import { authApi, type LoginConfig } from '@/api/authApi'
 import { authUtils } from '@/utils/authUtils'
 import { useUserStore } from '@/stores/user'
@@ -305,6 +305,7 @@ const handleLogin = async () => {
             <ElFormItem prop="password">
               <ElInput
                 v-model="loginForm.password"
+                :prefix-icon="Lock"
                 type="password"
                 placeholder="请输入密码"
                 size="large"
