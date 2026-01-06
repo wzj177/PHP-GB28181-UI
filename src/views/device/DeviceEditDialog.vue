@@ -21,6 +21,16 @@
         </ElSelect>
       </ElFormItem>
 
+      <ElFormItem label="启用状态" prop="enabled">
+        <ElSwitch
+          v-model="formData.enabled"
+          :active-value="1"
+          :inactive-value="0"
+          active-text="启用"
+          inactive-text="禁用"
+        />
+      </ElFormItem>
+
       <ElFormItem label="行政区域" prop="area">
         <ElCascader v-model="areaValue" :options="regionOptions" :props="cascaderProps" placeholder="请选择行政区域" clearable
           filterable style="width: 100%;" />
@@ -77,6 +87,7 @@ interface Props {
     device_name: string
     show_name?: string
     rtp_trans_mode?: number
+    enabled?: number
     province_id?: string
     city_id?: string
     county_id?: string
@@ -112,11 +123,12 @@ const cascaderProps = {
   children: 'children'
 }
 
-const formData = ref<DeviceEditData & { custom_lat?: string; custom_lng?: string; id?: number }>({
+const formData = ref<DeviceEditData & { custom_lat?: string; custom_lng?: string; id?: number; enabled?: number }>({
   id: undefined,
   device_id: '',
   show_name: '',
   rtp_trans_mode: undefined,
+  enabled: 1,
   custom_lat: '',
   custom_lng: ''
 })
@@ -135,6 +147,7 @@ const resetForm = () => {
     device_id: '',
     show_name: '',
     rtp_trans_mode: 0,
+    enabled: 1,
     custom_lat: '',
     custom_lng: ''
   }
@@ -153,6 +166,7 @@ watch(
         device_id: device.device_id,
         show_name: device.show_name || '',
         rtp_trans_mode: device.rtp_trans_mode ?? 0,
+        enabled: device.enabled ?? 1,
         custom_lat: device.custom_lat || '',
         custom_lng: device.custom_lng || ''
       }
@@ -197,6 +211,7 @@ const handleSubmit = async () => {
       const updateData: {
         show_name?: string
         rtp_trans_mode?: number
+        enabled?: number
         province_id?: string
         city_id?: string
         county_id?: string
@@ -205,6 +220,7 @@ const handleSubmit = async () => {
       } = {
         show_name: formData.value.show_name || undefined,
         rtp_trans_mode: formData.value.rtp_trans_mode,
+        enabled: formData.value.enabled,
         custom_lat: formData.value.custom_lat || undefined,
         custom_lng: formData.value.custom_lng || undefined
       }

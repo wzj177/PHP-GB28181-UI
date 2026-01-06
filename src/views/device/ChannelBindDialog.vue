@@ -27,9 +27,9 @@
         </div>
       </ElFormItem>
 
-      <ElFormItem label="流媒体服务器" prop="media_server_id">
+      <ElFormItem label="流媒体服务器" prop="server_id">
         <ElSelect
-          v-model="formData.media_server_id"
+          v-model="formData.server_id"
           placeholder="请选择流媒体服务器"
           style="width: 100%;"
           filterable
@@ -37,10 +37,10 @@
           <ElOption
             v-for="server in mediaServers"
             :key="server.id"
-            :label="`${server.name} (${server.type})`"
-            :value="server.id"
+            :label="server.name"
+            :value="server.server_id"
           >
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
               <span>{{ server.name }}</span>
               <ElTag size="small" :type="server.status === 'running' ? 'success' : 'danger'" style="margin-left: 10px;">
                 {{ server.status === 'running' ? '运行中' : '未运行' }}
@@ -77,6 +77,7 @@ import { gb28181Api } from '@/api/gb28181Api'
 import { mediaServerApi } from '@/api/mediaServerApi'
 
 interface ChannelInfo {
+  id: number
   channel_id: string
   channel_name?: string
   device_id?: string
@@ -114,22 +115,21 @@ const mediaServers = ref<MediaServerOption[]>([])
 const selectedChannels = ref<ChannelInfo[]>([])
 
 const formData = ref({
-  media_server_id: undefined as number | undefined
+  server_id: undefined as string | undefined
 })
 
 const formRules: FormRules = {
-  media_server_id: [{ required: true, message: '请选择流媒体服务器', trigger: 'change' }]
+  server_id: [{ required: true, message: '请选择流媒体服务器', trigger: 'change' }]
 }
 
 // Load available media servers
 const loadMediaServers = async () => {
   try {
-    const response = await mediaServerApi.getAvailableServers()
-    if (response?.code === 0) {
-      mediaServers.value = response.data || []
-    }
+    const response = await mediaServerApi.getList({ limit: 1000 }) as any
+    mediaServers.value = response.list || []
   } catch (error: any) {
     console.error('Failed to load media servers:', error)
+    ElMessage.error('加载流媒体服务器列表失败')
   }
 }
 
@@ -151,7 +151,7 @@ const removeChannel = (channel: ChannelInfo) => {
 }
 
 const resetForm = () => {
-  formData.value.media_server_id = undefined
+  formData.value.server_id = undefined
   selectedChannels.value = []
   formRef.value?.clearValidate()
 }
@@ -174,28 +174,14 @@ const handleSubmit = async () => {
 
     submitting.value = true
     try {
-      // 获取服务器详情以获取server_id
-      const server = mediaServers.value.find(s => s.id === formData.value.media_server_id)
-      if (!server) {
-        throw new Error('未找到选中的流媒体服务器')
-      }
+      const ids = selectedChannels.value.map(c => c.id)
+      const serverId = formData.value.server_id!
 
-      const channelIds = selectedChannels.value.map(c => c.channel_id)
-      const deviceId = selectedChannels.value[0]?.device_id
+      await gb28181Api.batchBindChannelsToMedia(ids, serverId)
 
-      const response = await gb28181Api.batchBindChannelsToMedia({
-        device_id: deviceId,
-        channel_ids: channelIds,
-        media_server_id: server.server_id
-      })
-
-      if (response?.code === 0) {
-        ElMessage.success(`成功绑定 ${channelIds.length} 个通道`)
-        emit('success')
-        handleClose()
-      } else {
-        throw new Error(response?.message || '绑定失败')
-      }
+      ElMessage.success(`成功绑定 ${ids.length} 个通道`)
+      emit('success')
+      handleClose()
     } catch (error: any) {
       console.error('Failed to bind channels:', error)
       ElMessage.error(error.message || '绑定失败')

@@ -30,8 +30,6 @@
       <div v-if="selectedDevices.length > 0" class="batch-actions">
         <span class="selection-info">已选择 {{ selectedDevices.length }} 项</span>
         <ElButton type="danger" @click="batchDelete">批量删除</ElButton>
-        <ElButton @click="batchUpdateStatus(false)">批量禁用</ElButton>
-        <ElButton type="success" @click="batchUpdateStatus(true)">批量启用</ElButton>
         <ElButton type="primary" @click="openBatchAreaDialog">批量更新行政区域</ElButton>
         <ElButton @click="clearSelection">取消选择</ElButton>
       </div>
@@ -50,7 +48,7 @@
       </div>
       <div class="summary-card online">
         <div class="summary-icon">
-          <el-icon><CircleCheckFilled /></el-icon>
+          <el-icon><SuccessFilled /></el-icon>
         </div>
         <div class="summary-content">
           <div class="summary-value">{{ summary.online_count || 0 }}</div>
@@ -107,8 +105,8 @@
         </ElTableColumn>
         <ElTableColumn label="启用状态" width="80">
           <template #default="{ row }">
-            <ElTag :type="row.enabled ? 'success' : 'info'">
-              {{ row.enabled ? '启用' : '禁用' }}
+            <ElTag :type="row.enabled === 1 ? 'success' : 'info'">
+              {{ row.enabled === 1 ? '启用' : '禁用' }}
             </ElTag>
           </template>
         </ElTableColumn>
@@ -120,6 +118,11 @@
         <ElTableColumn label="通道数" width="80">
           <template #default="{ row }">
             {{ row.sum_num || 0 }}
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="行政区域" width="200">
+          <template #default="{ row }">
+            {{ getAreaName(row) }}
           </template>
         </ElTableColumn>
         <ElTableColumn prop="ip" label="IP地址" width="150" />
@@ -209,8 +212,8 @@
             </ElTag>
           </el-descriptions-item>
           <el-descriptions-item label="启用状态">
-            <ElTag :type="detailDialog.device.enabled ? 'success' : 'info'">
-              {{ detailDialog.device.enabled ? '启用' : '禁用' }}
+            <ElTag :type="detailDialog.device.enabled === 1 ? 'success' : 'info'">
+              {{ detailDialog.device.enabled === 1 ? '启用' : '禁用' }}
             </ElTag>
           </el-descriptions-item>
           <el-descriptions-item label="通道总数">
@@ -259,7 +262,7 @@
             {{ detailDialog.device.lat || detailDialog.device.custom_lat || '-' }}
           </el-descriptions-item>
           <el-descriptions-item label="行政区域" :span="2">
-            {{ getAreaLabel(detailDialog.device) }}
+            {{ getAreaName(detailDialog.device) }}
           </el-descriptions-item>
           <el-descriptions-item label="创建时间" :span="2">
             {{ detailDialog.device.created_at || '-' }}
@@ -279,11 +282,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Monitor, CircleCheckFilled, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
+// @ts-ignore - Icons exist but type definitions are incorrect
+import { Monitor, CloseBold, CircleClose,CircleCheck } from '@element-plus/icons-vue'
+// @ts-ignore
 import { useRouter } from 'vue-router'
 import { gb28181Api } from '@/api/gb28181Api'
 import DeviceEditDialog from './DeviceEditDialog.vue'
 import { regionData } from 'element-china-area-data'
+
+// Use available icons as replacements
+const SuccessFilled = CircleCheck
+const WarningFilled = CloseBold
+const CircleCloseFilled = CircleClose
 
 const router = useRouter()
 
@@ -294,6 +304,38 @@ const convertRegionData = (data: any[]): any[] => {
     label: province.label,
     children: province.children ? convertRegionData(province.children) : undefined
   }))
+}
+
+// Find region label by value from region data
+const findRegionLabel = (value: string, data: any[]): string => {
+  for (const item of data) {
+    if (item.value === value) {
+      return item.label
+    }
+    if (item.children) {
+      const result = findRegionLabel(value, item.children)
+      if (result) return result
+    }
+  }
+  return ''
+}
+
+// Get area name from device's province_id, city_id, county_id
+const getAreaName = (device: Device): string => {
+  const parts: string[] = []
+  if (device.province_id) {
+    const label = findRegionLabel(device.province_id, regionData)
+    if (label) parts.push(label)
+  }
+  if (device.city_id) {
+    const label = findRegionLabel(device.city_id, regionData)
+    if (label) parts.push(label)
+  }
+  if (device.county_id) {
+    const label = findRegionLabel(device.county_id, regionData)
+    if (label) parts.push(label)
+  }
+  return parts.length > 0 ? parts.join(' / ') : '-'
 }
 
 interface Device {
@@ -307,7 +349,7 @@ interface Device {
   firmware: string
   user_agent?: string
   status: 'online' | 'offline' | 'expired' | 'unregistered'
-  enabled: boolean
+  enabled: number
   rtp_trans_mode?: number
   ip: string
   port: number
@@ -509,15 +551,6 @@ const viewDetail = (device: Device) => {
   detailDialog.value.visible = true
 }
 
-// Get area label for device detail
-const getAreaLabel = (device: Device) => {
-  const parts = []
-  if (device.province_id) parts.push(device.province_id)
-  if (device.city_id) parts.push(device.city_id)
-  if (device.county_id) parts.push(device.county_id)
-  return parts.length > 0 ? parts.join(' / ') : '-'
-}
-
 // Edit success handler
 const onEditSuccess = () => {
   getDeviceList()
@@ -536,8 +569,8 @@ const batchDelete = async () => {
       }
     )
 
-    const deviceIds = selectedDevices.value.map(d => d.device_id)
-    await gb28181Api.batchDeleteDevices(deviceIds)
+    const ids = selectedDevices.value.map(d => d.id)
+    await gb28181Api.batchDeleteDevices(ids)
 
     ElMessage.success('批量删除成功')
     clearSelection()
@@ -547,21 +580,6 @@ const batchDelete = async () => {
       console.error('Failed to batch delete devices:', error)
       ElMessage.error(error.message || '批量删除失败')
     }
-  }
-}
-
-// Batch update status
-const batchUpdateStatus = async (enabled: boolean) => {
-  try {
-    const deviceIds = selectedDevices.value.map(d => d.device_id)
-    await gb28181Api.batchUpdateDeviceStatus(deviceIds, enabled)
-
-    ElMessage.success(`批量${enabled ? '启用' : '禁用'}成功`)
-    clearSelection()
-    getDeviceList()
-  } catch (error: any) {
-    console.error('Failed to batch update device status:', error)
-    ElMessage.error(error.message || '批量更新状态失败')
   }
 }
 
@@ -580,14 +598,14 @@ const confirmBatchArea = async () => {
 
   areaDialog.value.loading = true
   try {
-    const deviceIds = selectedDevices.value.map(d => d.device_id)
+    const ids = selectedDevices.value.map(d => d.id)
     const area = {
       province_id: areaDialog.value.areaValue[0],
       city_id: areaDialog.value.areaValue[1] || '',
       county_id: areaDialog.value.areaValue[2] || ''
     }
 
-    await gb28181Api.batchUpdateDeviceArea(deviceIds, area)
+    await gb28181Api.batchUpdateDeviceArea(ids, area)
 
     ElMessage.success('批量更新行政区域成功')
     areaDialog.value.visible = false

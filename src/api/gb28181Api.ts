@@ -55,6 +55,7 @@ export const gb28181Api = {
   updateDevice: (id: string, data: {
     show_name?: string;
     rtp_trans_mode?: number;
+    enabled?: number;
     province_id?: string;
     city_id?: string;
     county_id?: string;
@@ -68,28 +69,20 @@ export const gb28181Api = {
    * 批量删除设备
    * DELETE /admin/gb28181/devices/batch
    */
-  batchDeleteDevices: (deviceIds: string[]) => {
-    return request.delete('/admin/gb28181/devices/batch', { data: { device_ids: deviceIds } });
-  },
-
-  /**
-   * 批量更新设备状态（启用/禁用）
-   * PUT /admin/gb28181/devices/batch/status
-   */
-  batchUpdateDeviceStatus: (deviceIds: string[], enabled: boolean) => {
-    return request.put('/admin/gb28181/devices/batch/status', { device_ids: deviceIds, enabled });
+  batchDeleteDevices: (ids: number[]) => {
+    return request.delete('/admin/gb28181/devices/batch', { data: { ids } });
   },
 
   /**
    * 批量更新设备行政区域
    * PUT /admin/gb28181/devices/batch/area
    */
-  batchUpdateDeviceArea: (deviceIds: string[], area: {
+  batchUpdateDeviceArea: (ids: number[], area: {
     province_id: string;
     city_id: string;
     county_id: string;
   }) => {
-    return request.put('/admin/gb28181/devices/batch/area', { device_ids: deviceIds, ...area });
+    return request.put('/admin/gb28181/devices/batch/area', { ids, ...area });
   },
 
   // ================= 通道管理 =================
@@ -146,12 +139,8 @@ export const gb28181Api = {
    * 批量绑定通道到流媒体服务器
    * PUT /admin/gb28181/channels/batch/bind-media
    */
-  batchBindChannelsToMedia: (params: {
-    device_id?: string;
-    channel_ids?: string[];
-    media_server_id: string;
-  }) => {
-    return request.put('/admin/gb28181/channels/batch/bind-media', params);
+  batchBindChannelsToMedia: (ids: number[], server_id: string) => {
+    return request.put('/admin/gb28181/channels/batch/bind-media', { ids, server_id });
   },
 
   // ================= 云台控制 (PTZ) =================

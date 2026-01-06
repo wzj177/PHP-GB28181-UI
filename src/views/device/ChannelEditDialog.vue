@@ -71,7 +71,6 @@ interface Props {
   modelValue: boolean
   channel?: {
     id: number
-    device_id: string
     channel_id: string
     channel_name: string
     show_name?: string
@@ -101,7 +100,6 @@ const coordinatePickerVisible = ref(false)
 
 const formData = ref<{
   id: number
-  device_id: string
   channel_id: string
   show_name: string
   origin_code: string
@@ -109,7 +107,6 @@ const formData = ref<{
   custom_lng: string
 }>({
   id: 0,
-  device_id: '',
   channel_id: '',
   show_name: '',
   origin_code: '',
@@ -123,7 +120,6 @@ const formRules: FormRules = {}
 const resetForm = () => {
   formData.value = {
     id: 0,
-    device_id: '',
     channel_id: '',
     show_name: '',
     origin_code: '',
@@ -141,7 +137,6 @@ watch(
     if (channel) {
       formData.value = {
         id: channel.id,
-        device_id: channel.device_id,
         channel_id: channel.channel_id,
         show_name: channel.show_name || '',
         origin_code: channel.origin_code || '',

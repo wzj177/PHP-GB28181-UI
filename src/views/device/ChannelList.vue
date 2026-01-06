@@ -44,6 +44,13 @@
         <ElTableColumn type="selection" width="55" />
         <ElTableColumn prop="channel_id" label="通道ID" width="180" />
         <ElTableColumn prop="channel_name" label="通道名称" width="150" />
+        <ElTableColumn label="流媒体服务器" width="150" show-overflow-tooltip >
+          <template #default="{ row }">
+            <ElTag :type="row.media_server ? 'success' : 'danger'">
+              {{ row.media_server ? row.media_server.name : '未绑定' }}
+            </ElTag>
+          </template>
+        </ElTableColumn>
         <ElTableColumn prop="device_id" label="设备ID" width="180" />
         <ElTableColumn prop="manufacturer" label="厂商" width="120" />
         <ElTableColumn prop="model" label="型号" width="120" />
@@ -73,7 +80,6 @@
             </ElTag>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="media_server_id" label="流媒体服务器" width="150" show-overflow-tooltip />
         <ElTableColumn prop="stream_id" label="流ID" width="140" show-overflow-tooltip />
         <ElTableColumn label="最后心跳" width="160">
           <template #default="{ row }">
@@ -214,7 +220,7 @@ const bindDialog = ref({
 const editDialog = ref({
   visible: false,
   channel: null as {
-    device_id: string
+    id: number
     channel_id: string
     channel_name: string
     show_name?: string
@@ -226,6 +232,7 @@ const editDialog = ref({
 
 const selectedChannelsForBind = computed(() => {
   return selectedChannels.value.map(c => ({
+    id: c.id,
     channel_id: c.channel_id,
     channel_name: c.channel_name,
     device_id: c.device_id
@@ -343,7 +350,6 @@ const onBindSuccess = () => {
 const openEditDialog = (channel: Channel) => {
   editDialog.value.channel = {
     id: channel.id,
-    device_id: channel.device_id,
     channel_id: channel.channel_id,
     channel_name: channel.channel_name,
     show_name: channel.show_name || '',
