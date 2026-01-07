@@ -113,7 +113,7 @@
         <template #default="{ row }">
           <div class="materials-cell">
             <div class="materials-table-img">
-              <el-image :src="row.cover_full" fit="fill" />
+              <el-image :src="row.coverFull" fit="fill" />
             </div>
             <div class="materials-table-title">
               <el-link
