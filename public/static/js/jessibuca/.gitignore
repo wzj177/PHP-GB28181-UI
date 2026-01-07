@@ -1,0 +1,14 @@
+Debug
+.vs
+.vscode
+*.rar
+node_modules
+.idea
+.cache
+.parcel-cache
+demo/.vitepress/dist
+yarn.lock
+package-lock.json
+.DS_Store
+demo/public/pro/js
+

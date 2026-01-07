@@ -1004,38 +1004,20 @@ const stopTalk = () => {
   flex: 1;
 }
 
-:deep(.el-input__wrapper) {
-  background-color: #020617 !important;
-  border: 1px solid $border-base !important;
-  box-shadow: none !important;
-  color: $text-main;
-}
-
-:deep(.el-input__inner) {
-  color: $text-main;
-}
-
 :deep(.el-select .el-input__wrapper) {
-  background-color: #020617 !important;
-  border: 1px solid $border-base !important;
-  box-shadow: none !important;
-  color: $text-main;
-}
-
-:deep(.el-popper) {
-  background-color: #020617;
+  background-color: $bg-active;
   border: 1px solid $border-base;
+  box-shadow: none;
   color: $text-main;
 }
 
 :deep(.el-select-dropdown__item) {
   color: $text-main;
-  background-color: #020617;
 }
 
 :deep(.el-select-dropdown__item.hover),
 :deep(.el-select-dropdown__item:hover) {
-  background-color: $border-light;
+  background-color: $bg-hover;
 }
 
 .btn-group {

@@ -49,6 +49,15 @@ export const gb28181Api = {
   },
 
   /**
+   * 获取设备和通道树形结构
+   * GET /admin/gb28181/devices/tree
+   * 返回完整的设备树，包含所有设备及其通道
+   */
+  getDeviceTree: () => {
+    return request.get('/admin/gb28181/devices/tree');
+  },
+
+  /**
    * 更新设备信息
    * PUT /admin/gb28181/devices/{id}
    */

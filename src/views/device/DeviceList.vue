@@ -129,11 +129,10 @@
         <ElTableColumn prop="port" label="端口" width="80" />
         <ElTableColumn prop="registered_at" label="注册时间" width="180" fixed="right" />
         <ElTableColumn prop="last_heartbeat_at" label="最后心跳时间" width="180" fixed="right" />
-        <ElTableColumn label="操作" width="360" fixed="right">
+        <ElTableColumn label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <ElButton size="small" @click="viewDetail(row)">详情</ElButton>
             <ElButton size="small" @click="viewChannels(row)">通道列表</ElButton>
-            <ElButton size="small" type="primary" @click="viewLive(row)">实时预览</ElButton>
             <ElButton size="small" type="warning" @click="openEditDialog(row)">编辑</ElButton>
             <ElButton size="small" type="danger" @click="deleteDevice(row)">删除</ElButton>
           </template>
@@ -532,11 +531,6 @@ const getTransModeLabel = (mode?: number) => {
 // View channels
 const viewChannels = (device: Device) => {
   router.push(`/channels?device_id=${device.device_id}`)
-}
-
-// View live
-const viewLive = (device: Device) => {
-  router.push(`/live-preview/${device.device_id}`)
 }
 
 // Open edit dialog

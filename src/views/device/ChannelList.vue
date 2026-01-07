@@ -2,12 +2,24 @@
   <div class="channel-list-container">
     <!-- Channel filters -->
     <div class="channel-filters">
-      <div class="filters">
+      <div class="filters-left">
+        <!-- ⚠️ TEST MODE UI - TODO: DELETE THIS SECTION WHEN API IS READY -->
+        <div class="test-stream-section">
+          <span class="label">测试流地址：</span>
+          <ElInput
+            v-model="testStreamUrl"
+            placeholder="https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-720p.flv"
+            style="width: 350px; margin-right: 10px;"
+          />
+          <ElSwitch v-model="useTestStream" active-text="测试模式" inactive-text="API模式" style="margin-right: 20px;" />
+        </div>
+        <!-- ⚠️ END TEST MODE UI -->
+
         <ElSelect
           v-model="filters.status"
           placeholder="通道状态"
           clearable
-          style="width: 150px; margin-right: 10px;"
+          style="width: 120px; margin-right: 10px;"
         >
           <ElOption label="在线" value="online" />
           <ElOption label="离线" value="offline" />
@@ -16,7 +28,7 @@
         <ElInput
           v-model="filters.keyword"
           placeholder="请输入通道名称或编号"
-          style="width: 200px; margin-right: 10px;"
+          style="width: 180px; margin-right: 10px;"
           @keyup.enter="searchChannels"
         />
 
@@ -113,28 +125,15 @@
       />
     </div>
 
-    <!-- Video playback dialog -->
-    <ElDialog
+    <!-- Aggregated Player Dialog -->
+    <AggregatedPlayer
       v-model="playDialog.visible"
-      :title="playDialog.title"
-      width="80%"
-      top="5vh"
-    >
-      <div class="video-container">
-        <video
-          ref="videoRef"
-          :src="playDialog.videoUrl"
-          controls
-          autoplay
-          style="width: 100%; height: 500px;"
-        />
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <ElButton @click="closePlayDialog">关闭</ElButton>
-        </span>
-      </template>
-    </ElDialog>
+      :device-id="playDialog.deviceId"
+      :channel-id="playDialog.channelId"
+      :stream-info="playDialog.streamInfo"
+      :has-audio="playDialog.hasAudio"
+      :is-live="true"
+    />
 
     <!-- Channel Bind Dialog -->
     <ChannelBindDialog
@@ -154,11 +153,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElSwitch } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { gb28181Api } from '@/api/gb28181Api'
 import ChannelBindDialog from './ChannelBindDialog.vue'
 import ChannelEditDialog from './ChannelEditDialog.vue'
+import { AggregatedPlayer } from '@/components/player'
 
 const router = useRouter()
 const route = useRoute()
@@ -204,11 +204,20 @@ const pagination = ref({
 })
 const selectedChannels = ref<Channel[]>([])
 
+// ============================================================================
+// ⚠️ TEST MODE STATE - TODO: DELETE THIS SECTION WHEN API IS READY
+// ============================================================================
+const testStreamUrl = ref('https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-720p.flv')
+const useTestStream = ref(false)
+// ============================================================================
+
 // Play dialog
 const playDialog = ref({
   visible: false,
-  title: '',
-  videoUrl: ''
+  deviceId: '',
+  channelId: '',
+  streamInfo: null as any,
+  hasAudio: false
 })
 
 // Bind dialog
@@ -365,8 +374,58 @@ const onEditSuccess = () => {
   getChannelList()
 }
 
+// ============================================================================
+// ⚠️ TEST MODE - TODO: DELETE THIS SECTION WHEN API IS READY
+// ============================================================================
+// 临时测试模式：使用测试流地址，不调用后端API
+// 对接API后删除这个 if 分支
+const startPlayTestMode = async (channel: Channel) => {
+  if (!testStreamUrl.value) {
+    ElMessage.warning('请输入测试流地址')
+    return
+  }
+
+  // Replace .flv with .m3u8 for HLS
+  const hlsUrl = testStreamUrl.value.replace('/flv/', '/hls/').replace('.flv', '.m3u8')
+  const mp4Url = testStreamUrl.value.replace('/flv/', '/mp4/').replace('.flv', '.mp4')
+
+  const mockStreamInfo = {
+    testUrl: testStreamUrl.value, // 保存原始测试 URL，所有播放器都使用这个
+    ws_flv: testStreamUrl.value,
+    wss_flv: testStreamUrl.value.replace('ws://', 'wss://'),
+    flv: testStreamUrl.value.replace('ws://', 'http://').replace('.flv', '.flv'),
+    https_flv: testStreamUrl.value.replace('ws://', 'https://').replace('.flv', '.flv'),
+    hls: hlsUrl,
+    https_hls: hlsUrl.replace('http://', 'https://'),
+    mp4: mp4Url,
+    https_mp4: mp4Url.replace('http://', 'https://'),
+    app: 'live',
+    stream: 'test'
+  }
+
+  playDialog.value = {
+    visible: true,
+    deviceId: channel.device_id,
+    channelId: channel.channel_id,
+    streamInfo: mockStreamInfo,
+    hasAudio: false
+  }
+}
+
+// ============================================================================
+// ✅ PRODUCTION MODE - ALREADY IMPLEMENTED BELOW
+// ============================================================================
+
 // Start live playback
 const startPlay = async (channel: Channel) => {
+  // TODO: DELETE THIS if BLOCK WHEN API IS READY
+  // ⚠️ TEST MODE - 临时测试模式开关
+  if (useTestStream.value) {
+    await startPlayTestMode(channel)
+    return
+  }
+
+  // ✅ API MODE - 调用后端API获取播放地址
   try {
     const data = await gb28181Api.startLive({
       device_id: channel.device_id,
@@ -374,13 +433,12 @@ const startPlay = async (channel: Channel) => {
     })
 
     if (data?.play_urls) {
-      const urls = data.play_urls
-      const firstUrl = urls[Object.keys(urls)[0]] || urls[0]
-
       playDialog.value = {
         visible: true,
-        title: `实时预览 - ${channel.channel_name}`,
-        videoUrl: firstUrl
+        deviceId: channel.device_id,
+        channelId: channel.channel_id,
+        streamInfo: data.play_urls,
+        hasAudio: data.has_audio || false
       }
     } else {
       throw new Error('启动实时播放失败')
@@ -436,17 +494,6 @@ const getPicture = async (channel: Channel) => {
   }
 }
 
-// Close play dialog
-const closePlayDialog = () => {
-  playDialog.value.visible = false
-  playDialog.value.videoUrl = ''
-
-  const video = document.querySelector('video')
-  if (video) {
-    video.pause()
-  }
-}
-
 // Initialize
 onMounted(() => {
   getChannelList()
@@ -467,6 +514,36 @@ onMounted(() => {
     border-radius: $radius-panel;
     border: 1px solid var(--border-base);
     margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+
+    .filters-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .test-stream-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(var(--el-color-primary), 0.08);
+      border: 1px solid var(--el-color-primary);
+      border-radius: 6px;
+
+      .label {
+        white-space: nowrap;
+        font-size: 13px;
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+    }
 
     .filters {
       display: flex;
@@ -479,9 +556,6 @@ onMounted(() => {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border-base);
 
       .selection-info {
         color: var(--text-secondary);

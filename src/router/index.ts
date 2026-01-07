@@ -13,6 +13,12 @@ const staticRoutes: Array<RouteRecordRaw> = [
     name: 'Login',
     component: () => import('../views/Login.vue'),
     meta: { title: '登录' }
+  },
+  {
+    path: '/play/player',
+    name: 'PlayerView',
+    component: () => import('../views/play/PlayerView.vue'),
+    meta: { title: '播放器' }
   }
 ]
 

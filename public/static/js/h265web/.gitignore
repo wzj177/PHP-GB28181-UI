@@ -1,0 +1,47 @@
+.DS_Store
+*.swp~
+*.swp
+push.sh
+
+#
+# Media
+#
+*.mp4
+*.hevc
+*.265
+*.h265
+*.aac
+*.pcm
+*.mp3
+#Node stuff
+node_modules
+node_modules*
+bundle_player.js
+# Others
+VideoMissileServerDemo
+
+demo/dist
+demo/res
+aa
+res
+test.sh
+
+node_modules.bak/
+
+*.bak
+*.bak1
+
+resource/demo3.png
+resource/demo1.png
+
+example/dist/missile-512mb*
+example/dist/missile-256mb*
+example_normal/dist/missile-512mb*
+example_normal/dist/missile-256mb*
+src/src/decoder/dc-worker*
+
+example_normal/dist*
+example_vue3_vite/public/dist
+example_vue3/public/dist
+example_vue2/public/dist
+

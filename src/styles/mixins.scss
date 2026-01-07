@@ -179,13 +179,19 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  background: #020617;
+  background: variables.$bg-active;
   border: 1px solid variables.$border-base;
   border-radius: 10px;
   font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
 
   span {
     color: variables.$text-main;
+  }
+
+  &:hover {
+    background: variables.$bg-hover;
+    border-color: variables.$border-light;
   }
 }
 
