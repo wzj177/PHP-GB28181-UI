@@ -6,8 +6,8 @@ import axios, {
 } from 'axios'
 import router from '@/router'
 import { authUtils } from '@/utils/authUtils'
-// 如果你有 Message / MessageBox，直接替换即可
-// import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElLoading } from 'element-plus'
+import type { LoadingInstance } from 'element-plus/es/components/loading/src/loading'
 
 /* ================= axios 实例 ================= */
 
@@ -29,8 +29,56 @@ export const requestQueue: Record<
 > = {}
 
 export const cancelAllRequest = (msg = '') => {
+  closeAllLoading()
   Object.values(requestQueue).forEach(i => i.source.cancel(msg))
   Object.keys(requestQueue).forEach(k => delete requestQueue[k])
+}
+
+/* ================= 全局 Loading ================= */
+
+let loadingInstance: LoadingInstance | null = null
+let requestCount = 0
+
+// 显示 loading
+const showLoading = (config: AxiosRequestConfig) => {
+  // 如果配置了不显示 loading，直接返回
+  if (config.headers?.['X-Silent']) {
+    return
+  }
+
+  requestCount++
+
+  // 防止重复创建
+  if (!loadingInstance) {
+    loadingInstance = ElLoading.service({
+      lock: true,
+      text: '加载中...',
+      background: 'rgba(0, 0, 0, 0.7)',
+      fullscreen: true
+    })
+  }
+}
+
+// 隐藏 loading
+const hideLoading = () => {
+  requestCount--
+
+  if (requestCount <= 0) {
+    requestCount = 0
+    if (loadingInstance) {
+      loadingInstance.close()
+      loadingInstance = null
+    }
+  }
+}
+
+// 关闭所有 loading
+export const closeAllLoading = () => {
+  requestCount = 0
+  if (loadingInstance) {
+    loadingInstance.close()
+    loadingInstance = null
+  }
 }
 
 /* ================= 错误提示 ================= */
@@ -56,9 +104,11 @@ function renewJwtToken(response?: AxiosResponse) {
 /* ================= 请求拦截器 ================= */
 
 service.interceptors.request.use(
-   
   (config: AxiosRequestConfig & { startTime?: number }) => {
     config.startTime = Date.now()
+
+    // 显示 loading
+    showLoading(config)
 
     const source = CancelToken.source()
     if ('cancelToken' in config) {
@@ -90,6 +140,9 @@ service.interceptors.response.use(
     ;(response as any).duration =
       Date.now() - ((response.config as any).startTime || 0)
 
+    // 隐藏 loading
+    hideLoading()
+
     const res = response.data
     if (
       typeof res === 'string' &&
@@ -116,6 +169,9 @@ service.interceptors.response.use(
     })
   },
   error => {
+    // 隐藏 loading
+    hideLoading()
+
     const res = error.response
     const config = error.config || {}
 

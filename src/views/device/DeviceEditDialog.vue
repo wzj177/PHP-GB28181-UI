@@ -1,35 +1,78 @@
 <template>
-  <ElDialog :model-value="visible" title="编辑设备" width="600px" @update:model-value="handleClose" @close="handleClose">
-    <ElForm ref="formRef" :model="formData" :rules="formRules" label-width="140px">
-      <ElFormItem label="设备ID">
-        <ElInput v-model="formData.device_id" disabled />
-      </ElFormItem>
+  <ElDialog :model-value="visible" title="编辑设备" width="800px" @update:model-value="handleClose" @close="handleClose">
+    <ElForm ref="formRef" :model="formData" :rules="formRules" label-width="120px">
+      <!-- 基本信息 -->
+      <ElDivider content-position="left">基本信息</ElDivider>
 
-      <ElFormItem label="设备名称">
-        <ElInput v-model="deviceName" disabled />
-      </ElFormItem>
+      <ElRow :gutter="20">
+        <ElCol :span="12">
+          <ElFormItem label="设备ID">
+            <ElInput v-model="formData.device_id" disabled />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="12">
+          <ElFormItem label="设备名称">
+            <ElInput v-model="deviceName" disabled />
+          </ElFormItem>
+        </ElCol>
+      </ElRow>
 
-      <ElFormItem label="自定义名称" prop="show_name">
-        <ElInput v-model="formData.show_name" placeholder="请输入自定义名称" />
-      </ElFormItem>
+      <ElRow :gutter="20">
+        <ElCol :span="12">
+          <ElFormItem label="自定义名称" prop="show_name">
+            <ElInput v-model="formData.show_name" placeholder="请输入自定义名称" />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="12">
+          <ElFormItem label="流传输类型" prop="rtp_trans_mode">
+            <ElSelect v-model="formData.rtp_trans_mode" placeholder="请选择流传输类型" style="width: 100%;">
+              <ElOption label="UDP模式（局域网推荐）" :value="0" />
+              <ElOption label="TCP被动模式（公网推荐）" :value="1" />
+              <ElOption label="TCP主动模式（需端口映射）" :value="2" />
+            </ElSelect>
+          </ElFormItem>
+        </ElCol>
+      </ElRow>
 
-      <ElFormItem label="流传输类型" prop="rtp_trans_mode">
-        <ElSelect v-model="formData.rtp_trans_mode" placeholder="请选择流传输类型" style="width: 100%;">
-          <ElOption label="UDP模式（局域网推荐）" :value="0" />
-          <ElOption label="TCP被动模式（公网推荐）" :value="1" />
-          <ElOption label="TCP主动模式（需端口映射）" :value="2" />
+      <ElRow :gutter="20">
+        <ElCol :span="12">
+          <ElFormItem label="启用状态" prop="enabled">
+            <ElSwitch
+              v-model="formData.enabled"
+              :active-value="1"
+              :inactive-value="0"
+              active-text="启用"
+              inactive-text="禁用"
+            />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="12">
+          <ElFormItem label="字符集" prop="charset">
+            <ElSelect v-model="formData.charset" placeholder="请选择字符集" style="width: 100%;">
+              <ElOption label="自动识别" value="auto" />
+              <ElOption label="GB2312" value="gb2312" />
+              <ElOption label="UTF-8" value="utf8" />
+            </ElSelect>
+          </ElFormItem>
+        </ElCol>
+      </ElRow>
+
+      <ElFormItem label="流索引" prop="stream_index">
+        <ElSelect v-model="formData.stream_index" placeholder="请选择流索引" style="width: 100%;">
+          <ElOption label="自动" value="auto" />
+          <ElOption label="stream:0 - 主码流" value="stream:0" />
+          <ElOption label="stream:1 - 子码流" value="stream:1" />
+          <ElOption label="streamnumber:0 - 主码流(2022)" value="streamnumber:0" />
+          <ElOption label="streamnumber:1 - 子码流" value="streamnumber:1" />
+          <ElOption label="streamprofile:0 - 主码流" value="streamprofile:0" />
+          <ElOption label="streamprofile:1 - 子码流" value="streamprofile:1" />
+          <ElOption label="streamMode:MAIN - 主码流" value="streamMode:MAIN" />
+          <ElOption label="streamMode:SUB - 子码流" value="streamMode:SUB" />
         </ElSelect>
       </ElFormItem>
 
-      <ElFormItem label="启用状态" prop="enabled">
-        <ElSwitch
-          v-model="formData.enabled"
-          :active-value="1"
-          :inactive-value="0"
-          active-text="启用"
-          inactive-text="禁用"
-        />
-      </ElFormItem>
+      <!-- 位置信息 -->
+      <ElDivider content-position="left">位置信息</ElDivider>
 
       <ElFormItem label="行政区域" prop="area">
         <ElCascader v-model="areaValue" :options="regionOptions" :props="cascaderProps" placeholder="请选择行政区域" clearable
@@ -38,12 +81,56 @@
 
       <ElFormItem label="自填经纬度">
         <div class="coordinate-input-group">
-          <ElInput v-model="formData.custom_lat" placeholder="请输入纬度" type="number" step="0.000001">
-          </ElInput>
-          <ElInput v-model="formData.custom_lng" placeholder="请输入经度" type="number" step="0.000001" />
+          <ElInput v-model="formData.custom_lat" placeholder="请输入纬度" type="number" step="0.000001" style="flex: 1;" />
+          <ElInput v-model="formData.custom_lng" placeholder="请输入经度" type="number" step="0.000001" style="flex: 1;" />
           <ElButton @click="openCoordinatePicker">拾取坐标</ElButton>
-
         </div>
+      </ElFormItem>
+
+      <!-- 订阅配置 -->
+      <ElDivider content-position="left">订阅配置</ElDivider>
+
+      <ElRow :gutter="20">
+        <ElCol :span="12">
+          <ElFormItem label="订阅目录">
+            <ElSwitch v-model="formData.subscribe_catalog" :active-value="1" :inactive-value="0" />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="12">
+          <ElFormItem label="订阅报警">
+            <ElSwitch v-model="formData.subscribe_alarm" :active-value="1" :inactive-value="0" />
+          </ElFormItem>
+        </ElCol>
+      </ElRow>
+
+      <ElRow :gutter="20">
+        <ElCol :span="12">
+          <ElFormItem label="订阅位置">
+            <ElSwitch v-model="formData.subscribe_position" :active-value="1" :inactive-value="0" />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="12">
+          <ElFormItem label="订阅云台">
+            <ElSwitch v-model="formData.subscribe_ptz" :active-value="1" :inactive-value="0" />
+          </ElFormItem>
+        </ElCol>
+      </ElRow>
+
+      <ElRow :gutter="20">
+        <ElCol :span="12">
+          <ElFormItem label="订阅有效期(秒)" prop="subscribe_expires">
+            <ElInputNumber v-model="formData.subscribe_expires" :min="0" :max="86400" style="width: 100%;" />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="12">
+          <ElFormItem label="位置间隔(秒)" prop="position_interval">
+            <ElInputNumber v-model="formData.position_interval" :min="1" :max="3600" style="width: 100%;" />
+          </ElFormItem>
+        </ElCol>
+      </ElRow>
+
+      <ElFormItem label="目录间隔(秒)" prop="catalog_interval">
+        <ElInputNumber v-model="formData.catalog_interval" :min="1" :max="3600" style="width: 200px;" />
       </ElFormItem>
 
     </ElForm>
@@ -93,6 +180,15 @@ interface Props {
     county_id?: string
     custom_lat?: string
     custom_lng?: string
+    subscribe_catalog?: number
+    subscribe_alarm?: number
+    subscribe_position?: number
+    subscribe_ptz?: number
+    subscribe_expires?: number
+    position_interval?: number
+    catalog_interval?: number
+    charset?: string
+    stream_index?: string
   } | null
 }
 
@@ -123,14 +219,37 @@ const cascaderProps = {
   children: 'children'
 }
 
-const formData = ref<DeviceEditData & { custom_lat?: string; custom_lng?: string; id?: number; enabled?: number }>({
+const formData = ref<DeviceEditData & {
+  custom_lat?: string
+  custom_lng?: string
+  id?: number
+  enabled?: number
+  subscribe_catalog?: number
+  subscribe_alarm?: number
+  subscribe_position?: number
+  subscribe_ptz?: number
+  subscribe_expires?: number
+  position_interval?: number
+  catalog_interval?: number
+  charset?: string
+  stream_index?: string
+}>({
   id: undefined,
   device_id: '',
   show_name: '',
   rtp_trans_mode: undefined,
   enabled: 1,
   custom_lat: '',
-  custom_lng: ''
+  custom_lng: '',
+  subscribe_catalog: 0,
+  subscribe_alarm: 0,
+  subscribe_position: 0,
+  subscribe_ptz: 0,
+  subscribe_expires: 3600,
+  position_interval: 5,
+  catalog_interval: 60,
+  charset: 'auto',
+  stream_index: ''
 })
 
 // 区域选择器的值（用于Cascader）
@@ -149,7 +268,16 @@ const resetForm = () => {
     rtp_trans_mode: 0,
     enabled: 1,
     custom_lat: '',
-    custom_lng: ''
+    custom_lng: '',
+    subscribe_catalog: 0,
+    subscribe_alarm: 0,
+    subscribe_position: 0,
+    subscribe_ptz: 0,
+    subscribe_expires: 3600,
+    position_interval: 5,
+    catalog_interval: 60,
+    charset: 'auto',
+    stream_index: ''
   }
   areaValue.value = []
   deviceName.value = ''
@@ -168,7 +296,16 @@ watch(
         rtp_trans_mode: device.rtp_trans_mode ?? 0,
         enabled: device.enabled ?? 1,
         custom_lat: device.custom_lat || '',
-        custom_lng: device.custom_lng || ''
+        custom_lng: device.custom_lng || '',
+        subscribe_catalog: device.subscribe_catalog ?? 0,
+        subscribe_alarm: device.subscribe_alarm ?? 0,
+        subscribe_position: device.subscribe_position ?? 0,
+        subscribe_ptz: device.subscribe_ptz ?? 0,
+        subscribe_expires: device.subscribe_expires ?? 3600,
+        position_interval: device.position_interval ?? 5,
+        catalog_interval: device.catalog_interval ?? 60,
+        charset: device.charset || 'auto',
+        stream_index: device.stream_index || ''
       }
       deviceName.value = device.device_name
 
@@ -217,12 +354,30 @@ const handleSubmit = async () => {
         county_id?: string
         custom_lat?: string
         custom_lng?: string
+        subscribe_catalog?: number
+        subscribe_alarm?: number
+        subscribe_position?: number
+        subscribe_ptz?: number
+        subscribe_expires?: number
+        position_interval?: number
+        catalog_interval?: number
+        charset?: string
+        stream_index?: string
       } = {
         show_name: formData.value.show_name || undefined,
         rtp_trans_mode: formData.value.rtp_trans_mode,
         enabled: formData.value.enabled,
         custom_lat: formData.value.custom_lat || undefined,
-        custom_lng: formData.value.custom_lng || undefined
+        custom_lng: formData.value.custom_lng || undefined,
+        subscribe_catalog: formData.value.subscribe_catalog,
+        subscribe_alarm: formData.value.subscribe_alarm,
+        subscribe_position: formData.value.subscribe_position,
+        subscribe_ptz: formData.value.subscribe_ptz,
+        subscribe_expires: formData.value.subscribe_expires,
+        position_interval: formData.value.position_interval,
+        catalog_interval: formData.value.catalog_interval,
+        charset: formData.value.charset,
+        stream_index: formData.value.stream_index || undefined
       }
 
       if (areaValue.value.length > 0) {

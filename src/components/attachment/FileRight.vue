@@ -319,7 +319,7 @@ const getFiles = async () => {
     const data = await attachmentApi.files(params)
 
     if (!data.list.length && data.paginator.current_page > 1) {
-      listQuery.page = data.paginator.current_page - 1
+      listQuery.page = data.paginator.current_page
       getFiles()
       return
     }

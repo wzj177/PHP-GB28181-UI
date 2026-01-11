@@ -26,13 +26,24 @@
 
       <ElFormItem label="网络环境" prop="network_env">
         <ElSelect v-model="formData.network_env" placeholder="请选择网络环境" style="width: 100%;">
-          <ElOption label="内网" value="intranet" />
+          <ElOption label="内网" value="internal" />
           <ElOption label="公网" value="public" />
         </ElSelect>
       </ElFormItem>
 
       <ElFormItem label="服务器地址" prop="host">
         <ElInput v-model="formData.host" placeholder="请输入IP地址或域名" />
+      </ElFormItem>
+
+      <ElFormItem label="收流IP">
+        <ElInput v-model="formData.stream_ip" placeholder="可选，用于SDP，为空则使用服务器地址">
+          <template #append>
+            <ElTooltip content="收流IP用于SDP协商，为空则使用服务器地址">
+              <ElIcon><QuestionFilled /></ElIcon>
+            </ElTooltip>
+          </template>
+        </ElInput>
+        <div class="form-tip">可选，用于SDP协商，为空则使用服务器地址</div>
       </ElFormItem>
 
       <ElFormItem label="HTTP端口" prop="port">
@@ -43,10 +54,10 @@
         <ElInput v-model="formData.secret" type="password" show-password placeholder="请输入API密钥" :disabled="isEdit"/>
       </ElFormItem>
 
-      <ElFormItem label="访问地址">
-        <ElInput v-model="formData.access_url" placeholder="可选，如：https://media.example.com">
+      <ElFormItem label="访问域名">
+        <ElInput v-model="formData.access_domain" placeholder="可选，如：https://media.example.com">
           <template #append>
-            <ElTooltip content="当流媒体通过nginx反向代理时，填写此地址，播放地址将使用此域名">
+            <ElTooltip content="当流媒体通过nginx反向代理时，填写此域名，播放地址将使用此域名">
               <ElIcon><QuestionFilled /></ElIcon>
             </ElTooltip>
           </template>
@@ -101,8 +112,9 @@ const formData = ref<MediaServerFormData>({
   host: '',
   port: 8086,
   secret: '',
-  access_url: '',
-  network_env: 'intranet'
+  access_domain: '',
+  network_env: 'internal',
+  stream_ip: ''
 })
 
 const formRules: FormRules = {
@@ -122,8 +134,9 @@ const resetForm = () => {
     host: '',
     port: 8086,
     secret: '',
-    access_url: '',
-    network_env: 'intranet'
+    access_domain: '',
+    network_env: 'internal',
+    stream_ip: ''
   }
   formRef.value?.clearValidate()
 }
@@ -139,8 +152,9 @@ watch(
         host: server.host,
         port: server.port,
         secret: server.secret,
-        access_url: server.access_url || '',
-        network_env: server.network_env || 'intranet'
+        access_domain: server.access_domain || '',
+        network_env: server.network_env || 'internal',
+        stream_ip: server.stream_ip || ''
       }
     } else {
       resetForm()

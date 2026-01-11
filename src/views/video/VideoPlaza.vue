@@ -308,14 +308,15 @@ const playVideo = async (card: VideoCard) => {
         videoUrl: card.play_url
       }
     } else {
-      const response = await recordPlanApi.play({
+      // API returns play_urls directly (unwrapped by request.ts interceptor)
+      const data = await recordPlanApi.play({
         device_id: card.device_id,
         channel_id: card.channel_id
       })
 
-      if (response?.code === 0 && response.data?.play_urls) {
-        const urls = response.data.play_urls
-        const firstUrl = urls[Object.keys(urls)[0]] || urls[0]
+      if (data?.play_urls) {
+        const urls = data.play_urls
+        const firstUrl = urls.hls || urls.http_flv || urls.ws_flv || urls.flv || urls.rtsp || Object.values(urls)[0]
 
         playDialog.value = {
           visible: true,
@@ -323,7 +324,7 @@ const playVideo = async (card: VideoCard) => {
           videoUrl: firstUrl
         }
       } else {
-        throw new Error(response?.message || '启动播放失败')
+        throw new Error('启动播放失败')
       }
     }
   } catch (error: any) {

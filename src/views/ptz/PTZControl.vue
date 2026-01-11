@@ -53,8 +53,7 @@ interface Cell {
 const playerTypes = [
   { label: 'Jessibuca (FLV)', value: 'jessibuca' },
   { label: 'H265Web (通用)', value: 'h265web' },
-  { label: 'XGPlayer (HLS)', value: 'xgplayer' },
-  { label: 'WebRTC', value: 'webrtc' }
+  { label: 'XGPlayer (HLS)', value: 'xgplayer' }
 ]
 
 // State
@@ -66,7 +65,7 @@ const selectedChannel = ref<string | null>(null)
 
 // 分屏状态
 const cells = ref<Cell[]>(
-  Array.from({ length: 6 }, (_, i) => ({
+  Array.from({ length: 9 }, (_, i) => ({
     id: i,
     channelId: null,
     channelName: '',
@@ -74,20 +73,19 @@ const cells = ref<Cell[]>(
     url: '',
     playerType: 'jessibuca',
     playing: false,
-    ready: false
+    ready: false,
+    playerVersion: 0  // Version number to force iframe reload when player changes
   }))
 )
 
-// Test stream URL
-const testStreamUrl = ref('https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-720p.flv')
 const showPlayerDialog = ref(false)
 const playerStreamInfo = ref<any>(null)
 
 // Layout options
 const layoutOptions = [1, 4, 6, 9]
 
-// 生成 iframe URL
-const getIframeUrl = (cell: Cell) => {
+// Generate iframe URL
+const getIframeUrl = (cell: Cell, cellIndex: number) => {
   if (!cell.url) return ''
 
   // Calculate actual cell dimensions in pixels
@@ -99,7 +97,7 @@ const getIframeUrl = (cell: Cell) => {
     const gap = 4 // gap from CSS
     const padding = 4 // padding from CSS
     const availableWidth = gridRect.width - (padding * 2)
-    const availableHeight = gridRect.height - (padding * 2)
+    const availableHeight = gridRef.value.clientHeight - (padding * 2)
 
     // Calculate cell size based on layout
     if (currentLayout.value === 1) {
@@ -109,8 +107,7 @@ const getIframeUrl = (cell: Cell) => {
       cellWidth = (availableWidth - gap) / 2
       cellHeight = (availableHeight - gap) / 2
     } else if (currentLayout.value === 6) {
-      // Layout 6: 1 large cell (2x2) + 5 small cells
-      const cellIndex = cells.value.findIndex(c => c.id === cell.id)
+      // cellIndex is the index in the sliced array
       if (cellIndex === 0) {
         // Large cell spans 2x2
         cellWidth = (availableWidth - gap * 2) / 3 * 2 + gap
@@ -125,7 +122,7 @@ const getIframeUrl = (cell: Cell) => {
       cellHeight = (availableHeight - gap * 2) / 3
     }
 
-    console.log(`PTZ: Cell ${cell.id} size - layout: ${currentLayout.value}, width: ${cellWidth.toFixed(0)}px, height: ${cellHeight.toFixed(0)}px`)
+    console.log(`PTZ: Cell ${cellIndex} size - layout: ${currentLayout.value}, width: ${cellWidth.toFixed(0)}px, height: ${cellHeight.toFixed(0)}px`)
   }
 
   const params = new URLSearchParams({
@@ -135,7 +132,8 @@ const getIframeUrl = (cell: Cell) => {
     hasAudio: 'true',
     isLive: 'true',
     width: `${Math.round(cellWidth)}px`,
-    height: `${Math.round(cellHeight)}px`
+    height: `${Math.round(cellHeight)}px`,
+    v: `${(cell as any).playerVersion || 0}`  // Version to force reload
   })
 
   return `/play/player?${params.toString()}`
@@ -201,92 +199,75 @@ const handleNodeClick = (data: DeviceNode | Channel) => {
   }
 }
 
-// ============================================================================
-// ⚠️ TEST MODE - TODO: DELETE THIS SECTION WHEN API IS READY
-// ============================================================================
-// 临时测试模式：直接使用测试流地址播放，不调用后端API
-// 对接API后删除此函数，使用下面的 playChannelWithAPI
+// Stop live stream API call
+const stopLiveStream = async (cell: Cell) => {
+  if (!cell.channelId || !cell.deviceId) return
 
-// 根据 URL 检测最佳播放器
-const detectBestPlayer = (url: string): 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc' => {
-  if (!url) return 'jessibuca'
-
-  const urlPath = url.split('?')[0].split('#')[0].toLowerCase()
-  const extension = urlPath.substring(urlPath.lastIndexOf('.'))
-
-  console.log('Detecting best player for', url, 'extension:', extension)
-
-  // WebRTC 优先
-  if (url.includes('rtc://') || url.includes('webrtc://')) {
-    return 'webrtc'
+  try {
+    await gb28181Api.stopLive({
+      device_id: cell.deviceId,
+      channel_id: cell.channelId
+    })
+    console.log(`Stopped live stream for device ${cell.deviceId}, channel ${cell.channelId}`)
+  } catch (error: any) {
+    console.error('Failed to stop live stream:', error)
   }
-  // FLV → Jessibuca (性能最好)
-  else if (extension === '.flv') {
-    return 'jessibuca'
-  }
-  // HLS → H265Web 或 XGPlayer
-  else if (extension === '.m3u8') {
-    return 'xgplayer'
-  }
-  // MP4/MOV/MKV/TS → H265Web (通用性好)
-  else if (['.mp4', '.mov', '.mkv', '.ts'].includes(extension)) {
-    return 'h265web'
-  }
-
-  return 'jessibuca' // 默认
 }
 
-const playChannelTestMode = (cellIndex: number, channelId: string, deviceId: string, channelName: string = '') => {
-  if (!testStreamUrl.value) {
-    ElMessage.warning('请输入测试流地址')
-    return
+// Play channel with API
+const playChannelWithAPI = async (cellIndex: number, channelId: string, deviceId: string, channelName: string = '') => {
+  try {
+    const data = await gb28181Api.startLive({
+      device_id: deviceId,
+      channel_id: channelId
+    })
+
+    if (data?.play_urls) {
+      const cell = cells.value[cellIndex]
+      // Select stream URL based on player type priority and page protocol
+      let streamUrl = ''
+      const playerType = cell.playerType || 'jessibuca'
+      const isSecurePage = location.protocol === 'https:'
+
+      if (playerType === 'jessibuca' || playerType === 'h265web') {
+        // Jessibuca and H265Web support: ws_flv, wss_flv, http_flv, https_flv
+        if (isSecurePage) {
+          // Prefer secure streams on HTTPS page
+          streamUrl = data.play_urls.wss_flv || data.play_urls.https_flv || ''
+        } else {
+          streamUrl = data.play_urls.ws_flv || data.play_urls.wss_flv || data.play_urls.http_flv || data.play_urls.https_flv || ''
+        }
+      } else if (playerType === 'xgplayer') {
+        // XGPlayer only supports HTTP protocols: http_flv, https_flv, hls, https_hls, hls_fmp4, https_hls_fmp4
+        // Does NOT support WebSocket protocols (ws_flv, wss_flv)
+        if (isSecurePage) {
+          // Prefer secure streams on HTTPS page
+          streamUrl = data.play_urls.https_flv || data.play_urls.https_hls || data.play_urls.https_hls_fmp4 || ''
+        } else {
+          streamUrl = data.play_urls.http_flv || data.play_urls.https_flv || data.play_urls.hls || data.play_urls.https_hls || data.play_urls.hls_fmp4 || data.play_urls.https_hls_fmp4 || ''
+        }
+      }
+
+      if (!streamUrl) {
+        throw new Error('无可用的播放地址')
+      }
+
+      cell.channelId = channelId
+      cell.channelName = channelName || `通道 ${channelId}`
+      cell.deviceId = deviceId
+      cell.url = streamUrl
+      cell.playing = true
+      cell.ready = false
+
+      ElMessage.success(`格 ${cellIndex + 1} 开始播放`)
+    } else {
+      throw new Error('启动实时播放失败')
+    }
+  } catch (error: any) {
+    console.error('Failed to start live playback:', error)
+    ElMessage.error(error.message || '启动实时播放失败')
   }
-
-  const cell = cells.value[cellIndex]
-
-  // 根据 URL 自动检测最佳播放器
-  const detectedPlayerType = detectBestPlayer(testStreamUrl.value)
-
-  cell.channelId = channelId
-  cell.channelName = channelName || `通道 ${channelId}`
-  cell.deviceId = deviceId
-  cell.url = testStreamUrl.value
-  cell.playerType = detectedPlayerType
-  cell.playing = true
-  cell.ready = false
-
-  console.log(`格 ${cellIndex + 1} 使用播放器: ${detectedPlayerType}`)
-  ElMessage.success(`格 ${cellIndex + 1} 开始播放（${getPlayerTypeLabel(detectedPlayerType)}）`)
 }
-
-// ============================================================================
-// ✅ PRODUCTION MODE - TODO: UNCOMMENT WHEN API IS READY
-// ============================================================================
-// const playChannelWithAPI = async (cellIndex: number, channelId: string, deviceId: string) => {
-//   try {
-//     const data = await gb28181Api.startLive({
-//       device_id: deviceId,
-//       channel_id: channelId
-//     })
-//
-//     if (data?.play_urls) {
-//       const cell = cells.value[cellIndex]
-//       cell.channelId = channelId
-//       cell.channelName = `通道 ${channelId}`
-//       cell.deviceId = deviceId
-//       cell.url = data.play_urls.ws_flv || data.play_urls.hls || data.play_urls.testUrl
-//       cell.playerType = 'jessibuca'
-//       cell.playing = true
-//       cell.ready = false
-//     } else {
-//       throw new Error('启动实时播放失败')
-//     }
-//   } catch (error: any) {
-//     console.error('Failed to start live playback:', error)
-//     ElMessage.error(error.message || '启动实时播放失败')
-//   }
-// }
-// ============================================================================
 
 // Handle channel selection and play in active cell
 const handleSelectChannel = async (channelId: string) => {
@@ -301,7 +282,7 @@ const handleSelectChannel = async (channelId: string) => {
 
   for (const device of deviceTree.value) {
     if (device.children) {
-      const channel = device.children.find((ch: DeviceNode) => ch.id === channelId)
+      const channel = device.children.find((ch: DeviceNode) => ch.channel_id === channelId)
       if (channel) {
         deviceId = channel.device_id || device.device_id || ''
         channelName = channel.label
@@ -315,34 +296,15 @@ const handleSelectChannel = async (channelId: string) => {
     return
   }
 
-  // TODO: Switch to playChannelWithAPI when backend is ready
-  playChannelTestMode(activeCell.value, channelId, deviceId, channelName)
-}
-
-// Legacy function - kept for backward compatibility
-const playTestStream = (cellIndex: number, channelId?: string, deviceId?: string) => {
-  if (!testStreamUrl.value) {
-    ElMessage.warning('请输入测试流地址')
-    return
-  }
-
-  const cell = cells.value[cellIndex]
-  const currentPlayerType = cell.playerType || 'jessibuca'
-
-  cell.channelId = channelId || null
-  cell.channelName = channelId || `测试流 ${cellIndex + 1}`
-  cell.deviceId = deviceId || null
-  cell.url = testStreamUrl.value
-  cell.playerType = currentPlayerType
-  cell.playing = true
-  cell.ready = false
-
-  ElMessage.success(`格 ${cellIndex + 1} 开始播放`)
+  await playChannelWithAPI(activeCell.value, channelId, deviceId, channelName)
 }
 
 // Stop playing in a cell
-const stopPlay = (cellIndex: number) => {
+const stopPlay = async (cellIndex: number) => {
   const cell = cells.value[cellIndex]
+
+  // Stop live stream via API
+  await stopLiveStream(cell)
 
   if (cell.url) {
     // 发送停止消息给 iframe
@@ -369,22 +331,12 @@ const switchPlayerType = (cellIndex: number, playerType: 'jessibuca' | 'h265web'
     return
   }
 
-  // 保存 URL 和其他信息
-  const { url, channelId, channelName, deviceId } = cell
+  // Only change player type and increment version to force iframe reload
+  // Don't stop the stream or destroy the iframe unnecessarily
+  cell.playerType = playerType
+  ;(cell as any).playerVersion = ((cell as any).playerVersion || 0) + 1
 
-  // 先停止当前播放
-  stopPlay(cellIndex)
-
-  // 使用 nextTick 确保 iframe 已销毁
-  setTimeout(() => {
-    // 重新开始播放
-    cell.channelId = channelId
-    cell.channelName = channelName
-    cell.deviceId = deviceId
-    cell.url = url
-    cell.playerType = playerType
-    cell.playing = true
-  }, 100)
+  console.log(`Cell ${cellIndex + 1}: Switched to ${playerType} player`)
 }
 
 // Change layout
@@ -398,10 +350,33 @@ const activateCell = (index: number) => {
   activeCell.value = index
 }
 
+// Handle cell hover for showing controls
+const hoveredCell = ref<number | null>(null)
+
+const handleCellMouseEnter = (index: number) => {
+  hoveredCell.value = index
+}
+
+const handleCellMouseLeave = () => {
+  hoveredCell.value = null
+}
+
+// Check if cell should show controls
+const shouldShowCellOverlay = (index: number) => {
+  const cell = cells.value[index]
+  // Show overlay if cell is playing and being hovered
+  return cell.playing && hoveredCell.value === index
+}
+
 // Show PTZ controls for a specific channel
 const showPTZControls = (channelId: string, deviceId: string) => {
   selectedChannel.value = channelId
   showPTZPanel.value = true
+}
+
+// Check if a channel is currently playing in any cell
+const isChannelPlaying = (channelId: string) => {
+  return cells.value.some(cell => cell.channelId === channelId && cell.playing)
 }
 
 // Get status class for display
@@ -465,19 +440,23 @@ const getChannelName = (cell: Cell) => {
   return `格 ${cell.id + 1} 未播放`
 }
 
-// Get truncated URL for display
-const getTruncatedUrl = () => {
-  if (!testStreamUrl.value) return ''
-  const maxLength = 30
-  if (testStreamUrl.value.length <= maxLength) return testStreamUrl.value
-  return testStreamUrl.value.substring(0, maxLength) + '...'
-}
-
 // Cleanup on unmount
-onBeforeUnmount(() => {
-  // Stop all players
+onBeforeUnmount(async () => {
+  // Stop all playing cells and call stop-live API
+  const stopPromises = cells.value
+    .filter(cell => cell.channelId && cell.deviceId)
+    .map(cell => stopLiveStream(cell))
+
+  await Promise.allSettled(stopPromises)
+
+  // Also destroy iframe players
   cells.value.forEach((cell, index) => {
-    stopPlay(index)
+    if (cell.url) {
+      const iframe = document.querySelector(`iframe[data-cell-id="${index}"]`) as HTMLIFrameElement
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ action: 'destroy' }, '*')
+      }
+    }
   })
 })
 
@@ -508,13 +487,19 @@ onMounted(() => {
             </div>
 
             <!-- Channel -->
-            <div v-else-if="data.type === 'channel'" class="channel" @click.stop="handleSelectChannel(data.id)">
+            <div v-else-if="data.type === 'channel'" class="channel" @click.stop="handleSelectChannel(data.channel_id)">
               <div class="channel-left">
                 <span class="status-dot" :class="getStatusClass(data.status || 'offline')" />
                 <span class="node-label">{{ data.label }}</span>
               </div>
 
-              <ElButton size="small" type="primary" plain @click.stop="showPTZControls(data.channel_id, data.device_id)">
+              <ElButton
+                v-if="isChannelPlaying(data.channel_id)"
+                size="small"
+                type="primary"
+                plain
+                @click.stop="showPTZControls(data.channel_id, data.device_id)"
+              >
                 云台
               </ElButton>
             </div>
@@ -527,14 +512,6 @@ onMounted(() => {
     <main class="main">
       <!-- Top toolbar -->
       <div class="toolbar">
-        <div class="test-stream-input">
-          <span class="label">测试流地址：</span>
-          <ElInput
-            v-model="testStreamUrl"
-            placeholder="https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-720p.flv"
-            style="width: 400px; margin-right: 10px;"
-          />
-        </div>
         <div class="layout-buttons">
           <ElButton
             v-for="layout in layoutOptions"
@@ -552,15 +529,17 @@ onMounted(() => {
         <div
           v-for="(cell, index) in cells.slice(0, currentLayout)"
           :key="cell.id"
-          :class="['cell', { active: activeCell === cell.id, playing: cell.playing }]"
+          :class="['cell', { active: activeCell === index, playing: cell.playing }]"
           :style="currentLayout === 6 ? getGridItemStyle(index) : {}"
-          @click="activateCell(cell.id)"
+          @click="activateCell(index)"
+          @mouseenter="handleCellMouseEnter(index)"
+          @mouseleave="handleCellMouseLeave"
         >
           <!-- iframe player -->
           <iframe
             v-if="cell.url"
             :data-cell-id="cell.id"
-            :src="getIframeUrl(cell)"
+            :src="getIframeUrl(cell, index)"
             class="player-iframe"
             frameborder="0"
             allow="autoplay; fullscreen"
@@ -574,16 +553,15 @@ onMounted(() => {
             </template>
           </div>
 
-          <!-- Cell overlay (active cell) -->
-          <div v-if="activeCell === cell.id" class="cell-overlay">
+          <!-- Cell overlay (show on hover when playing) -->
+          <div v-if="cell.playing" class="cell-overlay" :class="{ show: shouldShowCellOverlay(index) }">
             <div class="cell-info">
               <span class="channel-name">{{ getChannelName(cell) }}</span>
-              <span v-if="cell.url" class="stream-url">{{ getTruncatedUrl() }}</span>
             </div>
 
             <div v-if="cell.url" class="cell-controls">
               <!-- 播放器切换 -->
-              <ElDropdown trigger="click" @command="(cmd) => switchPlayerType(cell.id, cmd)">
+              <ElDropdown trigger="click" @command="(cmd) => switchPlayerType(index, cmd)">
                 <ElButton size="small" :icon="Monitor">
                   {{ getPlayerTypeLabel(cell.playerType) }}
                 </ElButton>
@@ -617,7 +595,7 @@ onMounted(() => {
                 v-if="cell.url"
                 size="small"
                 type="danger"
-                @click.stop="stopPlay(cell.id)"
+                @click.stop="stopPlay(index)"
               >
                 停止
               </ElButton>
@@ -846,20 +824,6 @@ const getPlayerTypeLabel = (type: string) => {
   overflow: visible; /* 不需要内部滚动 */
 }
 
-.test-stream-input {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 300px;
-
-  .label {
-    white-space: nowrap;
-    color: $text-muted;
-    font-size: 13px;
-  }
-}
-
 .layout-buttons {
   display: flex;
   align-items: center;
@@ -954,6 +918,20 @@ const getPlayerTypeLabel = (type: string) => {
   inset: 0;
   pointer-events: none;
   z-index: 20;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.show {
+    opacity: 1;
+
+    .cell-info {
+      opacity: 1;
+    }
+
+    .cell-controls {
+      opacity: 1;
+    }
+  }
 
   .cell-info {
     position: absolute;
@@ -962,6 +940,9 @@ const getPlayerTypeLabel = (type: string) => {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 
     .channel-name {
       font-size: 12px;
@@ -985,11 +966,14 @@ const getPlayerTypeLabel = (type: string) => {
     right: 8px;
     display: flex;
     gap: 6px;
-    pointer-events: auto;
+    pointer-events: auto;  // Always clickable regardless of parent's pointer-events
+    opacity: 0;
+    transition: opacity 0.2s ease;
 
     .el-button {
       font-size: 12px;
       padding: 4px 8px;
+      pointer-events: auto;  // Ensure buttons are always clickable
     }
   }
 }

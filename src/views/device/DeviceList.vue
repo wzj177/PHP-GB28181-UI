@@ -24,6 +24,16 @@
 
         <ElButton type="primary" @click="searchDevices">搜索</ElButton>
         <ElButton @click="resetFilters">重置</ElButton>
+        <ElButton @click="getDeviceList">刷新</ElButton>
+        <div class="auto-refresh-toggle">
+          <span class="refresh-label">自动刷新：</span>
+          <ElSwitch
+            v-model="autoRefreshEnabled"
+            @change="toggleAutoRefresh"
+            active-text="开"
+            inactive-text="关"
+          />
+        </div>
       </div>
 
       <!-- Batch actions -->
@@ -263,6 +273,54 @@
           <el-descriptions-item label="行政区域" :span="2">
             {{ getAreaName(detailDialog.device) }}
           </el-descriptions-item>
+          <el-descriptions-item label="字符集">
+            {{ getCharsetLabel(detailDialog.device.charset) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="流索引">
+            {{ detailDialog.device.stream_index || '-' }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-divider content-position="left">订阅配置</el-divider>
+
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订阅目录">
+            <ElTag :type="detailDialog.device.subscribe_catalog ? 'success' : 'info'" size="small">
+              {{ detailDialog.device.subscribe_catalog ? '已启用' : '未启用' }}
+            </ElTag>
+          </el-descriptions-item>
+          <el-descriptions-item label="订阅报警">
+            <ElTag :type="detailDialog.device.subscribe_alarm ? 'success' : 'info'" size="small">
+              {{ detailDialog.device.subscribe_alarm ? '已启用' : '未启用' }}
+            </ElTag>
+          </el-descriptions-item>
+          <el-descriptions-item label="订阅位置">
+            <ElTag :type="detailDialog.device.subscribe_position ? 'success' : 'info'" size="small">
+              {{ detailDialog.device.subscribe_position ? '已启用' : '未启用' }}
+            </ElTag>
+          </el-descriptions-item>
+          <el-descriptions-item label="订阅云台">
+            <ElTag :type="detailDialog.device.subscribe_ptz ? 'success' : 'info'" size="small">
+              {{ detailDialog.device.subscribe_ptz ? '已启用' : '未启用' }}
+            </ElTag>
+          </el-descriptions-item>
+          <el-descriptions-item label="订阅有效期">
+            {{ detailDialog.device.subscribe_expires ? detailDialog.device.subscribe_expires + '秒' : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="位置间隔">
+            {{ detailDialog.device.position_interval ? detailDialog.device.position_interval + '秒' : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="目录间隔">
+            {{ detailDialog.device.catalog_interval ? detailDialog.device.catalog_interval + '秒' : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="最后目录同步">
+            {{ detailDialog.device.last_catalog_at || '-' }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-divider content-position="left">系统信息</el-divider>
+
+        <el-descriptions :column="2" border>
           <el-descriptions-item label="创建时间" :span="2">
             {{ detailDialog.device.created_at || '-' }}
           </el-descriptions-item>
@@ -279,7 +337,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 // @ts-ignore - Icons exist but type definitions are incorrect
 import { Monitor, CloseBold, CircleClose,CircleCheck } from '@element-plus/icons-vue'
@@ -337,6 +395,20 @@ const getAreaName = (device: Device): string => {
   return parts.length > 0 ? parts.join(' / ') : '-'
 }
 
+// Get charset label
+const getCharsetLabel = (charset?: string): string => {
+  switch (charset) {
+    case 'auto':
+      return '自动识别'
+    case 'gb2312':
+      return 'GB2312'
+    case 'utf8':
+      return 'UTF-8'
+    default:
+      return charset || '-'
+  }
+}
+
 interface Device {
   id: number
   device_id: string
@@ -367,6 +439,19 @@ interface Device {
   county_id?: string
   created_at?: string
   updated_at?: string
+  // Subscription fields
+  subscribe_catalog?: number
+  subscribe_alarm?: number
+  subscribe_position?: number
+  subscribe_ptz?: number
+  subscribe_expires?: number
+  position_interval?: number
+  catalog_interval?: number
+  last_catalog_at?: string
+  charset?: 'auto' | 'gb2312' | 'utf8'
+  stream_index?: string
+  filter_channel_types?: any
+  subscription_status?: any
   [key: string]: any
 }
 
@@ -396,6 +481,39 @@ const pagination = ref({
   total: 0
 })
 const selectedDevices = ref<Device[]>([])
+
+// Auto-refresh timer
+const autoRefreshEnabled = ref(true)
+const refreshTimer = ref<number | null>(null)
+const REFRESH_INTERVAL = 10000 // 10 seconds
+
+// Start auto-refresh timer
+const startAutoRefresh = () => {
+  if (refreshTimer.value) return
+  refreshTimer.value = window.setInterval(() => {
+    if (autoRefreshEnabled.value) {
+      getDeviceList()
+    }
+  }, REFRESH_INTERVAL)
+}
+
+// Stop auto-refresh timer
+const stopAutoRefresh = () => {
+  if (refreshTimer.value) {
+    clearInterval(refreshTimer.value)
+    refreshTimer.value = null
+  }
+}
+
+// Toggle auto-refresh
+const toggleAutoRefresh = (enabled: boolean) => {
+  autoRefreshEnabled.value = enabled
+  if (enabled) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+}
 
 // Edit dialog
 const editDialog = ref({
@@ -640,6 +758,12 @@ const deleteDevice = async (device: Device) => {
 // Initialize
 onMounted(() => {
   getDeviceList()
+  startAutoRefresh()
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
 
@@ -663,6 +787,19 @@ onMounted(() => {
       align-items: center;
       flex-wrap: wrap;
       gap: 10px;
+    }
+
+    .auto-refresh-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 16px;
+      border-left: 1px solid var(--border-base);
+
+      .refresh-label {
+        font-size: 14px;
+        color: var(--text-secondary);
+      }
     }
 
     .batch-actions {

@@ -3,18 +3,6 @@
     <!-- Channel filters -->
     <div class="channel-filters">
       <div class="filters-left">
-        <!-- ⚠️ TEST MODE UI - TODO: DELETE THIS SECTION WHEN API IS READY -->
-        <div class="test-stream-section">
-          <span class="label">测试流地址：</span>
-          <ElInput
-            v-model="testStreamUrl"
-            placeholder="https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-720p.flv"
-            style="width: 350px; margin-right: 10px;"
-          />
-          <ElSwitch v-model="useTestStream" active-text="测试模式" inactive-text="API模式" style="margin-right: 20px;" />
-        </div>
-        <!-- ⚠️ END TEST MODE UI -->
-
         <ElSelect
           v-model="filters.status"
           placeholder="通道状态"
@@ -103,7 +91,6 @@
           <template #default="{ row }">
             <ElButton size="small" type="primary" @click="startPlay(row)">播放</ElButton>
             <ElButton size="small" type="success" @click="startRecord(row)">录像</ElButton>
-            <ElButton size="small" type="warning" @click="ptzCtrl(row)">PTZ</ElButton>
             <ElButton size="small" type="info" @click="getPlayback(row)">回放</ElButton>
             <ElButton size="small" @click="getPicture(row)">抓拍</ElButton>
             <ElButton size="small" @click="openEditDialog(row)">编辑</ElButton>
@@ -152,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElSwitch } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { gb28181Api } from '@/api/gb28181Api'
@@ -203,13 +190,6 @@ const pagination = ref({
   total: 0
 })
 const selectedChannels = ref<Channel[]>([])
-
-// ============================================================================
-// ⚠️ TEST MODE STATE - TODO: DELETE THIS SECTION WHEN API IS READY
-// ============================================================================
-const testStreamUrl = ref('https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-720p.flv')
-const useTestStream = ref(false)
-// ============================================================================
 
 // Play dialog
 const playDialog = ref({
@@ -376,56 +356,8 @@ const onEditSuccess = () => {
 
 // ============================================================================
 // ⚠️ TEST MODE - TODO: DELETE THIS SECTION WHEN API IS READY
-// ============================================================================
-// 临时测试模式：使用测试流地址，不调用后端API
-// 对接API后删除这个 if 分支
-const startPlayTestMode = async (channel: Channel) => {
-  if (!testStreamUrl.value) {
-    ElMessage.warning('请输入测试流地址')
-    return
-  }
-
-  // Replace .flv with .m3u8 for HLS
-  const hlsUrl = testStreamUrl.value.replace('/flv/', '/hls/').replace('.flv', '.m3u8')
-  const mp4Url = testStreamUrl.value.replace('/flv/', '/mp4/').replace('.flv', '.mp4')
-
-  const mockStreamInfo = {
-    testUrl: testStreamUrl.value, // 保存原始测试 URL，所有播放器都使用这个
-    ws_flv: testStreamUrl.value,
-    wss_flv: testStreamUrl.value.replace('ws://', 'wss://'),
-    flv: testStreamUrl.value.replace('ws://', 'http://').replace('.flv', '.flv'),
-    https_flv: testStreamUrl.value.replace('ws://', 'https://').replace('.flv', '.flv'),
-    hls: hlsUrl,
-    https_hls: hlsUrl.replace('http://', 'https://'),
-    mp4: mp4Url,
-    https_mp4: mp4Url.replace('http://', 'https://'),
-    app: 'live',
-    stream: 'test'
-  }
-
-  playDialog.value = {
-    visible: true,
-    deviceId: channel.device_id,
-    channelId: channel.channel_id,
-    streamInfo: mockStreamInfo,
-    hasAudio: false
-  }
-}
-
-// ============================================================================
-// ✅ PRODUCTION MODE - ALREADY IMPLEMENTED BELOW
-// ============================================================================
-
 // Start live playback
 const startPlay = async (channel: Channel) => {
-  // TODO: DELETE THIS if BLOCK WHEN API IS READY
-  // ⚠️ TEST MODE - 临时测试模式开关
-  if (useTestStream.value) {
-    await startPlayTestMode(channel)
-    return
-  }
-
-  // ✅ API MODE - 调用后端API获取播放地址
   try {
     const data = await gb28181Api.startLive({
       device_id: channel.device_id,
@@ -438,7 +370,7 @@ const startPlay = async (channel: Channel) => {
         deviceId: channel.device_id,
         channelId: channel.channel_id,
         streamInfo: data.play_urls,
-        hasAudio: data.has_audio || false
+        hasAudio: false  // API doesn't return has_audio field
       }
     } else {
       throw new Error('启动实时播放失败')
@@ -464,38 +396,44 @@ const startRecord = async (channel: Channel) => {
   }
 }
 
-// PTZ control
-const ptzCtrl = (channel: Channel) => {
-  router.push(`/ptz-control/${channel.device_id}/${channel.channel_id}`)
-}
-
 // Get playback
 const getPlayback = (channel: Channel) => {
-  router.push(`/playback/${channel.device_id}/${channel.channel_id}`)
+  return ElMessage.info('正在开发中...')
+  // router.push(`/playback/${channel.device_id}/${channel.channel_id}`)
 }
 
 // Get picture/snapshot
 const getPicture = async (channel: Channel) => {
-  try {
-    const data = await gb28181Api.snapshot({
-      device_id: channel.device_id,
-      channel_id: channel.channel_id
-    })
+  await setTimeout(() => {}, 500)
+   return ElMessage.info('正在开发中...')
+  // try {
+  //   const data = await gb28181Api.snapshot({
+  //     device_id: channel.device_id,
+  //     channel_id: channel.channel_id
+  //   })
 
-    if (data?.snapshot_url) {
-      window.open(data.snapshot_url, '_blank')
-      ElMessage.success('抓拍成功')
-    } else {
-      throw new Error('抓拍失败')
-    }
-  } catch (error: any) {
-    console.error('Failed to get snapshot:', error)
-    ElMessage.error(error.message || '抓拍失败')
-  }
+  //   if (data?.snapshot_url) {
+  //     window.open(data.snapshot_url, '_blank')
+  //     ElMessage.success('抓拍成功')
+  //   } else {
+  //     throw new Error('抓拍失败')
+  //   }
+  // } catch (error: any) {
+  //   console.error('Failed to get snapshot:', error)
+  //   ElMessage.error(error.message || '抓拍失败')
+  // }
 }
 
 // Initialize
 onMounted(() => {
+  getChannelList()
+})
+
+// Watch for device_id changes in route query
+watch(() => route.query.device_id, (newDeviceId, oldDeviceId) => {
+  // Reset pagination when device changes
+  pagination.value.currentPage = 1
+  // Reload channel list with new device_id
   getChannelList()
 })
 </script>
@@ -526,23 +464,6 @@ onMounted(() => {
       gap: 12px;
       flex: 1;
       flex-wrap: wrap;
-    }
-
-    .test-stream-section {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      background: rgba(var(--el-color-primary), 0.08);
-      border: 1px solid var(--el-color-primary);
-      border-radius: 6px;
-
-      .label {
-        white-space: nowrap;
-        font-size: 13px;
-        color: var(--text-secondary);
-        font-weight: 500;
-      }
     }
 
     .filters {

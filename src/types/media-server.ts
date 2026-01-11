@@ -42,8 +42,9 @@ export interface MediaServer {
   secret: string                    // API密钥
   server_id: string                 // 网关编号（uuid）
   status: MediaServerStatus         // 运行状态
-  access_url?: string               // 访问地址（nginx反向代理场景）
-  network_env?: 'intranet' | 'public'  // 网络环境：内网、公网
+  access_domain?: string            // 访问域名（nginx反向代理场景）
+  network_env?: 'internal' | 'public'  // 网络环境：内网、公网
+  stream_ip?: string                // 收流IP（用于SDP，为空则使用host）
   default_config?: string           // 默认配置JSON
   created_at: string                // 创建时间
   updated_at: string                // 更新时间
@@ -58,8 +59,9 @@ export interface MediaServerFormData {
   host: string
   port: number
   secret: string
-  access_url?: string      // 访问地址（用于nginx反向代理场景）
-  network_env?: 'intranet' | 'public'  // 网络环境：内网、公网
+  access_domain?: string   // 访问域名（用于nginx反向代理场景）
+  network_env?: 'internal' | 'public'  // 网络环境：内网、公网
+  stream_ip?: string       // 收流IP（用于SDP，为空则使用host）
 }
 
 /**

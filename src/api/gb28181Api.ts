@@ -156,16 +156,15 @@ export const gb28181Api = {
 
   /**
    * PTZ 云台控制
-   * POST /admin/gb28181/ptz
+   * POST /api/admin/gb28181/devices/ptz
    */
   ptzControl: (params: {
     device_id: string;
     channel_id: string;
-    command: string; // up, down, left, right, zoom_in, zoom_out, focus_near, focus_far, iris_open, iris_close, etc.
-    speed?: number; // 1-255, default 5
-    preset_id?: number; // for preset operations
+    command: string; // up, down, left, right, zoom_in, zoom_out, stop
+    speed: number; // 1-255
   }) => {
-    return request.post('/admin/gb28181/ptz', params);
+    return request.post('/api/admin/gb28181/devices/ptz', params);
   },
 
   // ================= 流媒体控制 =================

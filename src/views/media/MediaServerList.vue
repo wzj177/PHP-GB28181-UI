@@ -56,6 +56,11 @@
         </ElTableColumn>
         <ElTableColumn prop="host" label="IP地址" width="150" />
         <ElTableColumn prop="port" label="端口" width="80" />
+        <ElTableColumn label="收流IP" width="150">
+          <template #default="{ row }">
+            {{ row.stream_ip || '-' }}
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="网络环境" width="100">
           <template #default="{ row }">
             <ElTag :type="row.network_env === 'public' ? 'warning' : 'success'" size="small">
@@ -64,7 +69,7 @@
           </template>
         </ElTableColumn>
         <ElTableColumn prop="server_id" label="网关编号" width="200" show-overflow-tooltip />
-        <ElTableColumn prop="access_url" label="访问地址" width="200" show-overflow-tooltip />
+        <ElTableColumn prop="access_domain" label="访问域名" width="200" show-overflow-tooltip />
         <ElTableColumn label="运行状态" width="100">
           <template #default="{ row }">
             <ElTag :type="getStatusTagType(row.status)">

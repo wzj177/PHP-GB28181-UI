@@ -122,85 +122,25 @@
     <!-- Bottom tabs -->
     <ElTabs v-model="activeTab" @tab-change="handleTabChange">
       <ElTabPane label="实时视频" name="media">
-        <div class="media-info">
-          <div class="info-row">
-            <span class="label">播放地址：</span>
-            <ElInput v-model="playUrl" readonly>
-              <template #append>
-                <ElButton @click="copyUrl(playUrl)" icon="DocumentCopy" />
-              </template>
-            </ElInput>
-          </div>
-          <div class="info-row">
-            <span class="label">iframe：</span>
-            <ElInput v-model="iframeUrl" readonly>
-              <template #append>
-                <ElButton @click="copyUrl(iframeUrl)" icon="DocumentCopy" />
-              </template>
-            </ElInput>
-          </div>
-          <div v-if="streamInfo" class="info-row">
-            <span class="label">资源地址：</span>
-            <ElInput v-model="resourceUrl" readonly>
-              <template #append>
-                <ElDropdown @command="copyUrl" trigger="click">
-                  <ElButton icon="ArrowDown" />
-                  <template #dropdown>
-                    <ElDropdownMenu>
-                      <ElDropdownItem v-if="streamInfo.flv" :command="streamInfo.flv">
-                        <ElTag>FLV:</ElTag>
-                        <span class="url-text">{{ streamInfo.flv }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.https_flv" :command="streamInfo.https_flv">
-                        <ElTag>FLV(HTTPS):</ElTag>
-                        <span class="url-text">{{ streamInfo.https_flv }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.ws_flv" :command="streamInfo.ws_flv">
-                        <ElTag>FLV(WS):</ElTag>
-                        <span class="url-text">{{ streamInfo.ws_flv }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.wss_flv" :command="streamInfo.wss_flv">
-                        <ElTag>FLV(WSS):</ElTag>
-                        <span class="url-text">{{ streamInfo.wss_flv }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.hls" :command="streamInfo.hls">
-                        <ElTag>HLS:</ElTag>
-                        <span class="url-text">{{ streamInfo.hls }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.https_hls" :command="streamInfo.https_hls">
-                        <ElTag>HLS(HTTPS):</ElTag>
-                        <span class="url-text">{{ streamInfo.https_hls }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.rtc" :command="streamInfo.rtc">
-                        <ElTag>RTC:</ElTag>
-                        <span class="url-text">{{ streamInfo.rtc }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.rtcs" :command="streamInfo.rtcs">
-                        <ElTag>RTCS:</ElTag>
-                        <span class="url-text">{{ streamInfo.rtcs }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.rtmp" :command="streamInfo.rtmp">
-                        <ElTag>RTMP:</ElTag>
-                        <span class="url-text">{{ streamInfo.rtmp }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.rtsp" :command="streamInfo.rtsp">
-                        <ElTag>RTSP:</ElTag>
-                        <span class="url-text">{{ streamInfo.rtsp }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.mp4" :command="streamInfo.mp4">
-                        <ElTag>MP4:</ElTag>
-                        <span class="url-text">{{ streamInfo.mp4 }}</span>
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="streamInfo.https_mp4" :command="streamInfo.https_mp4">
-                        <ElTag>MP4(HTTPS):</ElTag>
-                        <span class="url-text">{{ streamInfo.https_mp4 }}</span>
-                      </ElDropdownItem>
-                    </ElDropdownMenu>
-                  </template>
-                </ElDropdown>
-              </template>
-            </ElInput>
-          </div>
+        <!-- Stream URL selector -->
+        <div v-if="availableStreams.length > 0" class="stream-selector">
+          <span class="label">播放地址：</span>
+          <ElSelect
+            v-model="selectedStreamUrl"
+            placeholder="选择播放地址"
+            @change="handleStreamChange"
+            style="flex: 1"
+          >
+            <ElOption
+              v-for="stream in availableStreams"
+              :key="stream.key"
+              :label="stream.label"
+              :value="stream.url"
+            >
+              <span class="stream-option-label">{{ stream.label }}</span>
+              <span class="stream-option-url">{{ stream.url }}</span>
+            </ElOption>
+          </ElSelect>
         </div>
       </ElTabPane>
 
@@ -221,16 +161,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-// @ts-ignore - Icons exist but type definitions are incorrect
-import { DocumentCopy, ArrowDown } from '@element-plus/icons-vue'
 import JessibucaPlayer from './JessibucaPlayer.vue'
 import WebRTCPlayer from './WebRTCPlayer.vue'
 import H265WebPlayer from './H265WebPlayer.vue'
 import XGPlayer from './XGPlayer.vue'
 import PTZControlPanel from '@/components/ptz/PTZControlPanel.vue'
 import MediaInfo from './MediaInfo.vue'
+import { gb28181Api } from '@/api/gb28181Api'
 
 // Player container ref for size calculations
 const playerContainerRef = ref<HTMLDivElement>()
@@ -288,6 +227,120 @@ const visible = computed({
   set: (val) => emit('update:modelValue', val)
 })
 
+// Track if we started a live stream (for cleanup)
+const hasStartedLive = ref(false)
+
+// Active player state - must be defined before availableStreams
+const activePlayer = ref<'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'>('jessibuca')
+const activeTab = ref('media')
+const isSwitching = ref(false)
+
+// Available stream URLs (excluding rtsp) - filtered by current player capability and page protocol
+const availableStreams = computed(() => {
+  if (!props.streamInfo) return []
+
+  const streams: Array<{ key: string; label: string; url: string }> = []
+
+  // Detect current page protocol
+  const isSecurePage = location.protocol === 'https:'
+
+  // Define stream configs with player compatibility
+  // ws_flv, wss_flv: only for jessibuca, h265web
+  // http_flv, https_flv: for jessibuca, h265web, xgplayer
+  // hls, https_hls: for h265web, xgplayer
+  // hls_fmp4, https_hls_fmp4: for h265web, xgplayer
+  // rtc, rtcs: only for webrtc
+  const allStreamConfigs = [
+    { key: 'http_flv', label: 'FLV (HTTP)', players: ['jessibuca', 'h265web', 'xgplayer'], secure: false },
+    { key: 'https_flv', label: 'FLV (HTTPS)', players: ['jessibuca', 'h265web', 'xgplayer'], secure: true },
+    { key: 'ws_flv', label: 'FLV (WS)', players: ['jessibuca', 'h265web'], secure: false },
+    { key: 'wss_flv', label: 'FLV (WSS)', players: ['jessibuca', 'h265web'], secure: true },
+    { key: 'flv', label: 'FLV', players: ['jessibuca', 'h265web', 'xgplayer'], secure: false },
+    { key: 'hls', label: 'HLS', players: ['h265web', 'xgplayer'], secure: false },
+    { key: 'https_hls', label: 'HLS (HTTPS)', players: ['h265web', 'xgplayer'], secure: true },
+    { key: 'hls_fmp4', label: 'HLS-FMP4', players: ['h265web', 'xgplayer'], secure: false },
+    { key: 'https_hls_fmp4', label: 'HLS-FMP4 (HTTPS)', players: ['h265web', 'xgplayer'], secure: true },
+    { key: 'rtc', label: 'WebRTC', players: ['webrtc'], secure: false },
+    { key: 'rtcs', label: 'WebRTC (Secure)', players: ['webrtc'], secure: true },
+    { key: 'rtmp', label: 'RTMP', players: ['h265web', 'xgplayer'], secure: false },
+    { key: 'mp4', label: 'MP4', players: ['h265web', 'xgplayer'], secure: false },
+    { key: 'https_mp4', label: 'MP4 (HTTPS)', players: ['h265web', 'xgplayer'], secure: true }
+  ]
+
+  for (const config of allStreamConfigs) {
+    // Only include streams that:
+    // 1. Exist in streamInfo
+    // 2. Are compatible with current active player
+    // 3. Match page security protocol (https page only shows secure streams, http page shows all)
+    if (props.streamInfo[config.key] && config.players.includes(activePlayer.value)) {
+      // Filter by protocol: if page is HTTPS, only show HTTPS streams
+      if (isSecurePage && !config.secure) continue
+
+      streams.push({
+        key: config.key,
+        label: config.label,
+        url: props.streamInfo[config.key]
+      })
+    }
+  }
+
+  return streams
+})
+
+// Current selected stream URL (can be switched by user)
+const selectedStreamUrl = ref<string>('')
+
+// Watch for stream changes
+watch(() => availableStreams.value, (streams) => {
+  if (streams.length > 0 && !selectedStreamUrl.value) {
+    const isSecurePage = location.protocol === 'https:'
+
+    // Select default stream based on player type and page protocol
+    if (activePlayer.value === 'xgplayer') {
+      // XGPlayer: prefer http_flv/https_flv or hls/https_hls
+      if (isSecurePage) {
+        // HTTPS page: prefer https_flv, then https_hls, then https_hls_fmp4
+        const httpsFlvStream = streams.find(s => s.key === 'https_flv')
+        const httpsHlsStream = streams.find(s => s.key === 'https_hls')
+        const httpsHlsFmp4Stream = streams.find(s => s.key === 'https_hls_fmp4')
+        selectedStreamUrl.value = httpsFlvStream?.url || httpsHlsStream?.url || httpsHlsFmp4Stream?.url || streams[0].url
+      } else {
+        // HTTP page: prefer http_flv, then hls, then hls_fmp4
+        const httpFlvStream = streams.find(s => s.key === 'http_flv')
+        const hlsStream = streams.find(s => s.key === 'hls')
+        const hlsFmp4Stream = streams.find(s => s.key === 'hls_fmp4')
+        selectedStreamUrl.value = httpFlvStream?.url || hlsStream?.url || hlsFmp4Stream?.url || streams[0].url
+      }
+    } else {
+      // Jessibuca/H265Web: prefer ws_flv/wss_flv
+      if (isSecurePage) {
+        // HTTPS page: prefer wss_flv
+        const wssFlvStream = streams.find(s => s.key === 'wss_flv')
+        const httpsFlvStream = streams.find(s => s.key === 'https_flv')
+        selectedStreamUrl.value = wssFlvStream?.url || httpsFlvStream?.url || streams[0].url
+      } else {
+        // HTTP page: prefer ws_flv
+        const wsFlvStream = streams.find(s => s.key === 'ws_flv')
+        selectedStreamUrl.value = wsFlvStream?.url || streams[0].url
+      }
+    }
+  }
+}, { immediate: true })
+
+// Reset selected stream when player changes
+watch(activePlayer, () => {
+  // Clear the selected URL so it will be re-selected based on new player
+  selectedStreamUrl.value = ''
+})
+
+// Watch for stream info changes (when drawer opens)
+watch(() => props.streamInfo, (newStreamInfo) => {
+  if (newStreamInfo && props.isLive) {
+    // Mark that we started a live stream
+    hasStartedLive.value = true
+  }
+}, { immediate: true })
+
 // Player configuration
 const playerConfigs = {
   jessibuca: ['ws_flv', 'wss_flv', 'flv', 'https_flv'],
@@ -335,10 +388,6 @@ const showPlayerTabs = computed(() => {
   return availablePlayers.value.length > 1
 })
 
-const activePlayer = ref<'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'>('jessibuca')
-const activeTab = ref('media')
-const isSwitching = ref(false)
-
 const jessibucaRef = ref()
 const webrtcRef = ref()
 const h265webRef = ref()
@@ -368,8 +417,13 @@ const isPlayerVisible = (playerName: string) => {
   return visible.value && activePlayer.value === playerName && !isSwitching.value
 }
 
-// Compute current URL based on active player
+// Compute current URL based on active player (or use user-selected stream)
 const currentUrl = computed(() => {
+  // If user manually selected a stream, use it
+  if (selectedStreamUrl.value) {
+    return selectedStreamUrl.value
+  }
+
   if (!props.streamInfo) return ''
 
   // 优先使用 testUrl（测试模式下所有播放器使用同一个 URL）
@@ -402,20 +456,6 @@ const currentUrl = computed(() => {
 
   console.warn('No available URL for', activePlayer.value, 'protocols:', protocols)
   return ''
-})
-
-// Shared URLs
-const playUrl = computed(() => {
-  return currentUrl.value || ''
-})
-
-const iframeUrl = computed(() => {
-  if (!currentUrl.value) return ''
-  return `<iframe src="${window.location.origin}/#/play/wasm/${encodeURIComponent(currentUrl.value)}"></iframe>`
-})
-
-const resourceUrl = computed(() => {
-  return currentUrl.value || ''
 })
 
 // PTZ Control Panel - combine device_id and channel_id
@@ -527,37 +567,11 @@ const handleTabChange = (tabName: string) => {
   }
 }
 
-// Copy URL to clipboard
-const copyUrl = (url: string) => {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => {
-      ElMessage.success('已复制到剪贴板')
-    }).catch(() => {
-      fallbackCopy(url)
-    })
-  } else {
-    fallbackCopy(url)
-  }
-}
-
-const fallbackCopy = (url: string) => {
-  const textarea = document.createElement('textarea')
-  textarea.value = url
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  try {
-    document.execCommand('copy')
-    ElMessage.success('已复制到剪贴板')
-  } catch (err) {
-    ElMessage.error('复制失败')
-  }
-  document.body.removeChild(textarea)
-}
-
 // Handle close
-const handleClose = () => {
+const handleClose = async () => {
+  // Stop live stream if we started one
+  await stopLiveStream()
+
   // Destroy all players to prevent memory leaks
   if (jessibucaRef.value?.destroy) {
     jessibucaRef.value.destroy()
@@ -582,6 +596,31 @@ const handleClose = () => {
   }
 
   visible.value = false
+}
+
+// Stop live stream API call
+const stopLiveStream = async () => {
+  if (!hasStartedLive.value || !props.deviceId || !props.channelId || !props.isLive) {
+    return
+  }
+
+  try {
+    await gb28181Api.stopLive({
+      device_id: props.deviceId,
+      channel_id: props.channelId
+    })
+    console.log('Live stream stopped successfully')
+    hasStartedLive.value = false
+  } catch (error: any) {
+    console.error('Failed to stop live stream:', error)
+    // Don't show error message on close, just log it
+  }
+}
+
+// Handle stream URL change
+const handleStreamChange = (url: string) => {
+  selectedStreamUrl.value = url
+  // Player will automatically use the new URL via the computed currentUrl
 }
 
 // Handle open
@@ -677,6 +716,11 @@ watch(() => availablePlayers.value, (newAvailablePlayers) => {
     activePlayer.value = fallbackPlayer
   }
 })
+
+// Cleanup on unmount - stop live stream
+onUnmounted(async () => {
+  await stopLiveStream()
+})
 </script>
 
 <style scoped lang="scss">
@@ -705,33 +749,30 @@ watch(() => availablePlayers.value, (newAvailablePlayers) => {
   }
 }
 
-.media-info {
-  padding: 16px 0;
+.stream-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
 
-  .info-row {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12px;
-    gap: 12px;
-
-    .label {
-      white-space: nowrap;
-      min-width: 80px;
-      text-align: right;
-      color: var(--el-text-color-secondary);
-    }
-
-    .el-input {
-      flex: 1;
-    }
+  .label {
+    white-space: nowrap;
+    min-width: 80px;
+    font-weight: 500;
   }
 }
 
-.url-text {
-  margin-left: 8px;
-  font-size: 12px;
+.stream-option-label {
+  font-weight: 500;
+  margin-right: 12px;
+}
+
+.stream-option-url {
   color: var(--el-text-color-secondary);
-  max-width: 400px;
+  font-size: 12px;
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

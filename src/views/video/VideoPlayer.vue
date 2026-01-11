@@ -318,31 +318,20 @@ const startLiveStream = async () => {
   }
 
   try {
-    const response = await gb28181Api.startLive({
+    // API already returns play_urls directly (unwrapped by request.ts interceptor)
+    const data = await gb28181Api.startLive({
       device_id: deviceId.value,
       channel_id: selectedChannel.value
     });
 
-    if (response.code === 0) {
-      // Get the play URLs
-      const urlsResponse = await gb28181Api.getPlayUrls({
-        device_id: deviceId.value,
-        channel_id: selectedChannel.value
-      });
+    if (data?.play_urls) {
+      // Prefer HLS, FLV, or other formats in order
+      const urls = data.play_urls;
+      videoSrc.value = urls.hls || urls.http_flv || urls.ws_flv || urls.flv || urls.rtsp || Object.values(urls)[0];
 
-      if (urlsResponse.code === 0 && urlsResponse.data.play_urls) {
-        // Assuming the API returns different stream formats (HLS, RTMP, WebRTC, etc.)
-        // Using the first available URL for now
-        const urls = urlsResponse.data.play_urls;
-        // Use the first available URL - might be HLS or another format
-        videoSrc.value = urls[Object.keys(urls)[0]] || urls[0];
-
-        ElMessage.success('实时视频开始播放');
-      } else {
-        ElMessage.error('获取播放地址失败');
-      }
+      ElMessage.success(data.message || '实时视频开始播放');
     } else {
-      ElMessage.error(response.message || '启动实时视频失败');
+      ElMessage.error('获取播放地址失败');
     }
   } catch (error: any) {
     console.error('启动实时视频失败:', error);
@@ -358,22 +347,19 @@ const stopLiveStream = async () => {
   }
 
   try {
-    const response = await gb28181Api.stopLive({
+    // API returns { message: "实时视频已停止" } directly (unwrapped by request.ts)
+    const data = await gb28181Api.stopLive({
       device_id: deviceId.value,
       channel_id: selectedChannel.value
     });
 
-    if (response.code === 0) {
-      // Stop video playback
-      if (videoRef.value) {
-        videoRef.value.pause();
-        videoRef.value.src = '';
-      }
+    // Stop video playback
+    if (videoRef.value) {
+      videoRef.value.pause();
       videoSrc.value = '';
-      ElMessage.success('实时视频已停止');
-    } else {
-      ElMessage.error(response.message || '停止实时视频失败');
     }
+
+    ElMessage.success(data.message || '实时视频已停止');
   } catch (error: any) {
     console.error('停止实时视频失败:', error);
     ElMessage.error(error.message || '停止实时视频失败');
@@ -388,29 +374,21 @@ const startPlayback = async (recording: Recording) => {
   }
 
   try {
-    const response = await gb28181Api.startPlayback({
+    // API returns play_urls directly (unwrapped by request.ts interceptor)
+    const data = await gb28181Api.startPlayback({
       device_id: recording.device_id,
       channel_id: recording.channel_id,
       start_time: recording.start_time,
       end_time: recording.end_time
     });
 
-    if (response.code === 0) {
-      // Get the play URLs
-      const urlsResponse = await gb28181Api.getPlayUrls({
-        device_id: recording.device_id,
-        channel_id: recording.channel_id
-      });
-
-      if (urlsResponse.code === 0 && urlsResponse.data.play_urls) {
-        const urls = urlsResponse.data.play_urls;
-        videoSrc.value = urls[Object.keys(urls)[0]] || urls[0];
-        ElMessage.success('录像回放开始');
-      } else {
-        ElMessage.error('获取播放地址失败');
-      }
+    if (data?.play_urls) {
+      // Prefer HLS, FLV, or other formats in order
+      const urls = data.play_urls;
+      videoSrc.value = urls.hls || urls.http_flv || urls.ws_flv || urls.flv || urls.rtsp || Object.values(urls)[0];
+      ElMessage.success('录像回放开始');
     } else {
-      ElMessage.error(response.message || '启动录像回放失败');
+      ElMessage.error('获取播放地址失败');
     }
   } catch (error: any) {
     console.error('启动录像回放失败:', error);
