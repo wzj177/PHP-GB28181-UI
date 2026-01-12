@@ -71,6 +71,18 @@
         </ElSelect>
       </ElFormItem>
 
+      <ElFormItem label="通道类型过滤" prop="filter_channel_types">
+        <ElCheckboxGroup v-model="formData.filter_channel_types">
+          <ElCheckbox
+            v-for="item in channelTypeOptions"
+            :key="item.code"
+            :label="item.code"
+          >
+            {{ item.code }} - {{ item.name }}
+          </ElCheckbox>
+        </ElCheckboxGroup>
+      </ElFormItem>
+
       <!-- 位置信息 -->
       <ElDivider content-position="left">位置信息</ElDivider>
 
@@ -148,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { gb28181Api } from '@/api/gb28181Api'
@@ -189,6 +201,7 @@ interface Props {
     catalog_interval?: number
     charset?: string
     stream_index?: string
+    filter_channel_types?: number[]
   } | null
 }
 
@@ -233,6 +246,7 @@ const formData = ref<DeviceEditData & {
   catalog_interval?: number
   charset?: string
   stream_index?: string
+  filter_channel_types?: number[]
 }>({
   id: undefined,
   device_id: '',
@@ -249,11 +263,25 @@ const formData = ref<DeviceEditData & {
   position_interval: 5,
   catalog_interval: 60,
   charset: 'auto',
-  stream_index: ''
+  stream_index: '',
+  filter_channel_types: []
 })
 
 // 区域选择器的值（用于Cascader）
 const areaValue = ref<string[]>([])
+
+// 设备类型选项列表
+const channelTypeOptions = ref<Array<{ code: number; name: string }>>([])
+
+// 获取设备类型统计数据
+const fetchChannelFilterTypes = async () => {
+  try {
+    const data = await gb28181Api.getChannelFilterTypes()
+    channelTypeOptions.value = data || []
+  } catch (error) {
+    console.error('Failed to fetch device stats:', error)
+  }
+}
 
 const formRules: FormRules = {
   rtp_trans_mode: [{ required: true, message: '请选择流传输类型', trigger: 'change' }]
@@ -277,7 +305,8 @@ const resetForm = () => {
     position_interval: 5,
     catalog_interval: 60,
     charset: 'auto',
-    stream_index: ''
+    stream_index: '',
+    filter_channel_types: []
   }
   areaValue.value = []
   deviceName.value = ''
@@ -305,7 +334,8 @@ watch(
         position_interval: device.position_interval ?? 5,
         catalog_interval: device.catalog_interval ?? 60,
         charset: device.charset || 'auto',
-        stream_index: device.stream_index || ''
+        stream_index: device.stream_index || '',
+        filter_channel_types: device.filter_channel_types || []
       }
       deviceName.value = device.device_name
 
@@ -325,6 +355,11 @@ watch(
   },
   { immediate: true }
 )
+
+// 组件挂载时获取设备类型数据
+onMounted(() => {
+  fetchChannelFilterTypes()
+})
 
 // Open coordinate picker
 const openCoordinatePicker = () => {
@@ -363,6 +398,7 @@ const handleSubmit = async () => {
         catalog_interval?: number
         charset?: string
         stream_index?: string
+        filter_channel_types?: number[]
       } = {
         show_name: formData.value.show_name || undefined,
         rtp_trans_mode: formData.value.rtp_trans_mode,
@@ -377,7 +413,10 @@ const handleSubmit = async () => {
         position_interval: formData.value.position_interval,
         catalog_interval: formData.value.catalog_interval,
         charset: formData.value.charset,
-        stream_index: formData.value.stream_index || undefined
+        stream_index: formData.value.stream_index || undefined,
+        filter_channel_types: formData.value.filter_channel_types?.length
+          ? formData.value.filter_channel_types
+          : undefined
       }
 
       if (areaValue.value.length > 0) {

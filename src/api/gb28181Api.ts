@@ -70,6 +70,7 @@ export const gb28181Api = {
     county_id?: string;
     custom_lat?: string;
     custom_lng?: string;
+    filter_channel_types?: number[];
   }) => {
     return request.put(`/admin/gb28181/devices/${id}`, data);
   },
@@ -92,6 +93,22 @@ export const gb28181Api = {
     county_id: string;
   }) => {
     return request.put('/admin/gb28181/devices/batch/area', { ids, ...area });
+  },
+
+  /**
+   * 获取设备类型统计数据
+   * GET /admin/gb28181/device-stats
+   */
+  getDeviceStats: () => {
+    return request.get('/admin/gb28181/device-stats');
+  },
+
+  /**
+   * 更新设备信息（发送命令）
+   * POST /admin/gb28181/{id}/cmd
+   */
+  updateDeviceInfo: (id: string, cmd: string) => {
+    return request.post(`/admin/gb28181/devices/${id}/cmd`, { cmd });
   },
 
   // ================= 通道管理 =================
@@ -130,6 +147,10 @@ export const gb28181Api = {
     return request.get(`/admin/gb28181/channels/${id}/channel/${channelId}`);
   },
 
+  getChannelFilterTypes: () => {
+    return request.get('/admin/gb28181/channels/type/filters');
+  },
+
   /**
    * 更新通道信息
    * PUT /admin/gb28181/channels/{id}
@@ -164,7 +185,11 @@ export const gb28181Api = {
     command: string; // up, down, left, right, zoom_in, zoom_out, stop
     speed: number; // 1-255
   }) => {
-    return request.post('/api/admin/gb28181/devices/ptz', params);
+    return request.post('/admin/gb28181/devices/ptz', params, {
+      headers: {
+        'X-Silent': 1
+      }
+    });
   },
 
   // ================= 流媒体控制 =================
@@ -263,6 +288,56 @@ export const gb28181Api = {
     channel_id: string;
   }) => {
     return request.post('/admin/gb28181/recordings/snapshot', params);
+  },
+
+  // ================= 预置位管理 =================
+
+  /**
+   * 获取预置位列表
+   * GET /admin/gb28181/presets
+   */
+  getPresetList: (params: {
+    device_id: string;
+    channel_id: string;
+  }) => {
+    return request.get('/admin/gb28181/presets', { params });
+  },
+
+  /**
+   * 设置预置位
+   * POST /admin/gb28181/presets
+   */
+  setPreset: (params: {
+    device_id: string;
+    channel_id: string;
+    value: number;
+    name: string;
+  }) => {
+    return request.post('/admin/gb28181/presets', params);
+  },
+
+  /**
+   * 调用预置位
+   * POST /admin/gb28181/presets/call
+   */
+  callPreset: (params: {
+    device_id: string;
+    channel_id: string;
+    value: number;
+  }) => {
+    return request.post('/admin/gb28181/presets/call', params);
+  },
+
+  /**
+   * 删除预置位
+   * POST /admin/gb28181/presets/delete
+   */
+  deletePreset: (params: {
+    device_id: string;
+    channel_id: string;
+    value: number;
+  }) => {
+    return request.post('/admin/gb28181/presets/delete', params);
   }
 };
 

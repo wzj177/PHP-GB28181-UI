@@ -139,10 +139,11 @@
         <ElTableColumn prop="port" label="端口" width="80" />
         <ElTableColumn prop="registered_at" label="注册时间" width="180" fixed="right" />
         <ElTableColumn prop="last_heartbeat_at" label="最后心跳时间" width="180" fixed="right" />
-        <ElTableColumn label="操作" width="280" fixed="right">
+        <ElTableColumn label="操作" width="380" fixed="right">
           <template #default="{ row }">
             <ElButton size="small" @click="viewDetail(row)">详情</ElButton>
             <ElButton size="small" @click="viewChannels(row)">通道列表</ElButton>
+            <ElButton size="small" type="primary" @click="updateDevice(row)">更新设备</ElButton>
             <ElButton size="small" type="warning" @click="openEditDialog(row)">编辑</ElButton>
             <ElButton size="small" type="danger" @click="deleteDevice(row)">删除</ElButton>
           </template>
@@ -751,6 +752,30 @@ const deleteDevice = async (device: Device) => {
     if (error !== 'cancel') {
       console.error('Failed to delete device:', error)
       ElMessage.error(error.message || '删除设备失败')
+    }
+  }
+}
+
+// Update device info
+const updateDevice = async (device: Device) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要更新设备 "${device.device_name}" 的信息吗？`,
+      '更新设备确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    )
+
+    await gb28181Api.updateDeviceInfo(String(device.id), 'query_device_info')
+    ElMessage.success('设备信息更新成功')
+    getDeviceList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('Failed to update device:', error)
+      ElMessage.error(error.message || '更新设备失败')
     }
   }
 }

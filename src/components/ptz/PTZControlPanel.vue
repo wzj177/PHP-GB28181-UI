@@ -106,13 +106,7 @@
               </ElButton>
               <ElButton
                 size="small"
-                @click="focusCommand('auto')"
-              >
-                自动对焦
-              </ElButton>
-              <ElButton
-                size="small"
-                @mousedown="startFocusCommand('far')"
+                @mousedown="startFocusCommand('focus_far')"
                 @mouseup="stopFocusCommand()"
                 @mouseleave="stopFocusCommand()"
               >
@@ -120,7 +114,7 @@
               </ElButton>
               <ElButton
                 size="small"
-                @mousedown="startFocusCommand('near')"
+                @mousedown="startFocusCommand('focus_near')"
                 @mouseup="stopFocusCommand()"
                 @mouseleave="stopFocusCommand()"
               >
@@ -128,9 +122,15 @@
               </ElButton>
               <ElButton
                 size="small"
-                @click="irisCommand('open')"
+                @click="irisCommand('iris_open')"
               >
-                光圈
+                光圈 +
+              </ElButton>
+              <ElButton
+                size="small"
+                @click="irisCommand('iris_close')"
+              >
+                光圈 -
               </ElButton>
             </div>
 
@@ -170,11 +170,11 @@
             :key="i"
             class="preset"
           >
-            <span>{{
-              presetNames[i] ? i + " · " + presetNames[i] : i + " · 未设置"
-            }}</span>
+            <span v-if="getPresetStatus(i) === 'set'">{{ i }} · {{ getPresetName(i) }}</span>
+            <span v-else>{{ i }} · 预置位{{ i }}</span>
             <div>
               <ElButton
+                v-if="getPresetStatus(i) === 'set'"
                 size="small"
                 type="primary"
                 @click="gotoPreset(i)"
@@ -182,7 +182,17 @@
                 调用
               </ElButton>
               <ElButton
+                v-if="getPresetStatus(i) === 'set'"
                 size="small"
+                type="danger"
+                @click="deletePreset(i)"
+              >
+                删除
+              </ElButton>
+              <ElButton
+                size="small"
+                type="success"
+                :loading="settingPresets.has(i)"
                 @click="setPreset(i)"
               >
                 设置
@@ -298,7 +308,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, defineProps } from "vue";
+import { ref, reactive, defineProps, onMounted, watch, computed } from "vue";
 import {
   ElSlider,
   ElButton,
@@ -307,7 +317,8 @@ import {
   ElOption,
   ElRow,
   ElCol,
-  ElMessage
+  ElMessage,
+  ElMessageBox
 } from 'element-plus';
 import { gb28181Api } from '@/api/gb28181Api';
 
@@ -320,19 +331,37 @@ const props = withDefaults(defineProps<Props>(), {
   channelId: "",
 });
 
+// 预置位数据接口
+interface Preset {
+  id: number;
+  device_id: string;
+  channel_id: string;
+  value: number;
+  status: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // State variables
 const speed = ref(5);  // Speed range: 1-255
 const isPtzActive = ref(false);  // Track if PTZ command is active (mouse was pressed)
-const presetNames = reactive({
-  1: "大门入口",
-  2: "停车场",
-  5: "走廊",
-});
+const presets = ref<Preset[]>([]);  // 从后端获取的预置位列表
+const settingPresets = ref<Set<number>>(new Set());  // 正在设置中的预置位
 const cruiseId = ref("1");
 const cruiseStay = ref(5);
 const cruiseSpeed = ref(4);
 const cruisePoints = ref<number[]>([]);
 const isTalkActive = ref(false);
+
+// 创建预置位映射表，方便查找
+const presetMap = computed(() => {
+  const map = new Map<number, Preset>();
+  presets.value.forEach(preset => {
+    map.set(preset.value, preset);
+  });
+  return map;
+});
 
 // Helper function to parse channelId
 // Format: {device_id}-{channel_id}
@@ -426,31 +455,178 @@ const stopZoomCommand = async () => {
   await stopPtzCommand();
 };
 
-// Focus commands (not implemented in current API)
-const focusCommand = async (focusType: string) => {
-  ElMessage.info('对焦功能暂未实现');
-};
-
+// Focus commands
 const startFocusCommand = async (focusDirection: string) => {
-  ElMessage.info('对焦功能暂未实现');
+  const ids = parseChannelId();
+  if (!ids) {
+    return;
+  }
+
+  try {
+    await gb28181Api.ptzControl({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      command: focusDirection,
+      speed: speed.value
+    });
+    isPtzActive.value = true;
+    console.log(`Focus ${focusDirection} started`);
+  } catch (error: any) {
+    console.error('对焦控制命令发送失败:', error);
+    ElMessage.error(error.message || '发送对焦控制命令失败');
+  }
 };
 
 const stopFocusCommand = async () => {
-  ElMessage.info('对焦功能暂未实现');
+  await stopPtzCommand();
 };
 
-// Iris commands (not implemented in current API)
+// Iris commands
 const irisCommand = async (irisType: string) => {
-  ElMessage.info('光圈功能暂未实现');
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  try {
+    await gb28181Api.ptzControl({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      command: irisType,
+      speed: speed.value
+    });
+    console.log(`Iris ${irisType} executed`);
+  } catch (error: any) {
+    console.error('光圈控制命令发送失败:', error);
+    ElMessage.error(error.message || '发送光圈控制命令失败');
+  }
 };
 
-// Preset commands (not implemented in current API)
-const gotoPreset = async (id: number) => {
-  ElMessage.info('预置位功能暂未实现');
+// Preset commands
+const getPresetName = (value: number): string => {
+  const preset = presetMap.value.get(value);
+  return preset?.name || '';
 };
 
-const setPreset = async (id: number) => {
-  ElMessage.info('预置位功能暂未实现');
+const getPresetStatus = (value: number): string => {
+  const preset = presetMap.value.get(value);
+  return preset?.status || 'unset';
+};
+
+// 加载预置位列表
+const loadPresetList = async () => {
+  const ids = parseChannelId();
+  if (!ids) {
+    return;
+  }
+
+  try {
+    const data = await gb28181Api.getPresetList({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId
+    });
+    presets.value = data || [];
+    console.log('预置位列表加载成功:', presets.value);
+    console.log('预置位状态示例:', presets.value.slice(0, 5).map(p => ({ value: p.value, status: p.status, name: p.name })));
+  } catch (error: any) {
+    console.error('加载预置位列表失败:', error);
+    presets.value = [];
+  }
+};
+
+// 调用预置位
+const gotoPreset = async (value: number) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  try {
+    await gb28181Api.callPreset({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      value
+    });
+    ElMessage.success(`预置位 ${value} 调用成功`);
+  } catch (error: any) {
+    console.error('调用预置位失败:', error);
+    ElMessage.error(error.message || '调用预置位失败');
+  }
+};
+
+// 设置预置位
+const setPreset = async (value: number) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  const name = `预置位${value}`;
+
+  try {
+    settingPresets.value.add(value);
+    console.log(`开始设置预置位 ${value}, 名称: ${name}`);
+    await gb28181Api.setPreset({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      value,
+      name
+    });
+    console.log(`预置位 ${value} 设置成功，开始刷新列表`);
+    ElMessage.success(`预置位 ${value} 设置成功`);
+    await loadPresetList();  // 重新加载预置位列表
+
+    // 调试：检查设置后的状态
+    const preset = presetMap.value.get(value);
+    console.log(`预置位 ${value} 设置后状态:`, {
+      found: !!preset,
+      preset,
+      status: preset?.status || 'unset',
+      mapSize: presetMap.value.size
+    });
+  } catch (error: any) {
+    console.error('设置预置位失败:', error);
+    ElMessage.error(error.message || '设置预置位失败');
+  } finally {
+    settingPresets.value.delete(value);
+  }
+};
+
+// 删除预置位
+const deletePreset = async (value: number) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除预置位 ${value} 吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+
+    await gb28181Api.deletePreset({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      value
+    });
+    ElMessage.success(`预置位 ${value} 删除成功`);
+    await loadPresetList();  // 重新加载预置位列表
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('删除预置位失败:', error);
+      ElMessage.error(error.message || '删除预置位失败');
+    }
+  }
 };
 
 // Cruise commands (not implemented in current API)
@@ -482,6 +658,29 @@ const startTalk = () => {
 const stopTalk = () => {
   ElMessage.info('语音对讲功能暂未实现');
 };
+
+// 监听 channelId 变化
+watch(() => props.channelId, (newChannelId) => {
+  if (newChannelId) {
+    loadPresetList();
+  }
+});
+
+// 监听 presets 变化，用于调试
+watch(presets, (newPresets) => {
+  console.log('预置位数据已更新:', newPresets.length, '个预置位');
+  console.log('预置位映射表大小:', presetMap.value.size);
+  if (newPresets.length > 0) {
+    console.log('预置位详情:', newPresets.map(p => ({ value: p.value, name: p.name, status: p.status })));
+  }
+}, { deep: true });
+
+// 组件挂载时加载预置位列表
+onMounted(() => {
+  if (props.channelId) {
+    loadPresetList();
+  }
+});
 </script>
 
 <style lang="scss" scoped>
