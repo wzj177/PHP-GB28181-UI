@@ -170,11 +170,11 @@
             :key="i"
             class="preset"
           >
-            <span v-if="getPresetStatus(i) === 'set'">{{ i }} · {{ getPresetName(i) }}</span>
+            <span v-if="isPresetSet(i)">{{ i }} · {{ getPresetName(i) }}</span>
             <span v-else>{{ i }} · 预置位{{ i }}</span>
             <div>
               <ElButton
-                v-if="getPresetStatus(i) === 'set'"
+                v-if="isPresetSet(i)"
                 size="small"
                 type="primary"
                 @click="gotoPreset(i)"
@@ -182,7 +182,7 @@
                 调用
               </ElButton>
               <ElButton
-                v-if="getPresetStatus(i) === 'set'"
+                v-if="isPresetSet(i)"
                 size="small"
                 type="danger"
                 @click="deletePreset(i)"
@@ -190,6 +190,7 @@
                 删除
               </ElButton>
               <ElButton
+                v-if="!isPresetSet(i)"
                 size="small"
                 type="success"
                 :loading="settingPresets.has(i)"
@@ -204,7 +205,7 @@
     </div>
 
     <!-- 巡航 -->
-    <div
+    <!-- <div
       class="panel"
       style="width: 100%; margin-top: 16px;"
     >
@@ -303,12 +304,12 @@
           </div>
         </ElCol>
       </ElRow>
-    </div>
+    </div> -->
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, defineProps, onMounted, watch, computed } from "vue";
+import { ref, defineProps, onMounted, watch, computed } from "vue";
 import {
   ElSlider,
   ElButton,
@@ -337,7 +338,6 @@ interface Preset {
   device_id: string;
   channel_id: string;
   value: number;
-  status: string;
   name: string;
   created_at: string;
   updated_at: string;
@@ -509,9 +509,9 @@ const getPresetName = (value: number): string => {
   return preset?.name || '';
 };
 
-const getPresetStatus = (value: number): string => {
-  const preset = presetMap.value.get(value);
-  return preset?.status || 'unset';
+// 检查预置位是否已设置（记录是否存在）
+const isPresetSet = (value: number): boolean => {
+  return presetMap.value.has(value);
 };
 
 // 加载预置位列表
@@ -527,8 +527,7 @@ const loadPresetList = async () => {
       channel_id: ids.channelId
     });
     presets.value = data || [];
-    console.log('预置位列表加载成功:', presets.value);
-    console.log('预置位状态示例:', presets.value.slice(0, 5).map(p => ({ value: p.value, status: p.status, name: p.name })));
+    console.log('预置位列表加载成功:', presets.value.length, '个预置位');
   } catch (error: any) {
     console.error('加载预置位列表失败:', error);
     presets.value = [];
@@ -568,25 +567,14 @@ const setPreset = async (value: number) => {
 
   try {
     settingPresets.value.add(value);
-    console.log(`开始设置预置位 ${value}, 名称: ${name}`);
     await gb28181Api.setPreset({
       device_id: ids.deviceId,
       channel_id: ids.channelId,
       value,
       name
     });
-    console.log(`预置位 ${value} 设置成功，开始刷新列表`);
     ElMessage.success(`预置位 ${value} 设置成功`);
     await loadPresetList();  // 重新加载预置位列表
-
-    // 调试：检查设置后的状态
-    const preset = presetMap.value.get(value);
-    console.log(`预置位 ${value} 设置后状态:`, {
-      found: !!preset,
-      preset,
-      status: preset?.status || 'unset',
-      mapSize: presetMap.value.size
-    });
   } catch (error: any) {
     console.error('设置预置位失败:', error);
     ElMessage.error(error.message || '设置预置位失败');
@@ -669,9 +657,8 @@ watch(() => props.channelId, (newChannelId) => {
 // 监听 presets 变化，用于调试
 watch(presets, (newPresets) => {
   console.log('预置位数据已更新:', newPresets.length, '个预置位');
-  console.log('预置位映射表大小:', presetMap.value.size);
   if (newPresets.length > 0) {
-    console.log('预置位详情:', newPresets.map(p => ({ value: p.value, name: p.name, status: p.status })));
+    console.log('预置位详情:', newPresets.map(p => ({ value: p.value, name: p.name })));
   }
 }, { deep: true });
 

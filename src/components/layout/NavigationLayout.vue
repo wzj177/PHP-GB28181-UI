@@ -104,6 +104,9 @@ const activeIndex = computed(() => route.name?.toString() || 'dashboard')
 // Sidebar collapsed state
 const sidebarCollapsed = ref(false)
 
+// ElMenu ref
+const menuRef = ref()
+
 // Handle menu select
 const handleSelect = (index: string, indexPath: string[]) => {
   // index: the selected menu item's id (e.g., "system-stats")
@@ -137,6 +140,16 @@ const userDropdownVisible = ref(false)
 // Toggle sidebar collapse
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value
+
+  // 收起侧边栏时，关闭所有展开的子菜单
+  if (sidebarCollapsed.value && menuRef.value) {
+    // 获取所有展开的子菜单索引
+    const openedMenus = menuRef.value.openedMenus || []
+    // 逐个关闭
+    openedMenus.forEach((menuIndex: string) => {
+      menuRef.value.closeMenu(menuIndex)
+    })
+  }
 }
 
 // Toggle theme
@@ -222,6 +235,7 @@ onUnmounted(() => {
 
       <div class="nav-menu-wrapper">
         <ElMenu
+          ref="menuRef"
           :default-active="activeIndex"
           class="nav-menu"
           :unique-opened="true"

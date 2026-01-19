@@ -13,6 +13,20 @@
           <ElOption label="离线" value="offline" />
         </ElSelect>
 
+        <ElSelect
+          v-model="filters.channel_type"
+          placeholder="通道类型"
+          clearable
+          style="width: 150px; margin-right: 10px;"
+        >
+          <ElOption
+            v-for="type in channelTypeOptions"
+            :key="type.code"
+            :label="type.name"
+            :value="type.code"
+          />
+        </ElSelect>
+
         <ElInput
           v-model="filters.keyword"
           placeholder="请输入通道名称或编号"
@@ -26,8 +40,8 @@
       </div>
 
       <!-- Batch actions -->
-      <div v-if="selectedChannels.length > 0" class="batch-actions">
-        <span class="selection-info">已选择 {{ selectedChannels.length }} 项</span>
+      <div v-if="validSelectedChannels.length > 0" class="batch-actions">
+        <span class="selection-info">已选择 {{ validSelectedChannels.length }} 项</span>
         <ElButton type="primary" @click="openBindDialog">批量绑定流媒体</ElButton>
         <ElButton @click="clearSelection">取消选择</ElButton>
       </div>
@@ -51,25 +65,22 @@
             </ElTag>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="device_id" label="设备ID" width="180" />
-        <ElTableColumn prop="manufacturer" label="厂商" width="120" />
-        <ElTableColumn prop="model" label="型号" width="120" />
         <ElTableColumn label="通道类型" width="100">
           <template #default="{ row }">
-            {{ row.channel_type === 'video' ? '视频' : '音频' }}
+            {{ row.channel_type_text || '-' }}
           </template>
         </ElTableColumn>
         <ElTableColumn label="通道状态" width="100">
           <template #default="{ row }">
             <ElTag :type="getStatusType(row.status)">
-              {{ getStatusLabel(row.status) }}
+              {{ row.status_text }}
             </ElTag>
           </template>
         </ElTableColumn>
         <ElTableColumn label="推流状态" width="100">
           <template #default="{ row }">
             <ElTag :type="row.stream_status === 'pushing' ? 'success' : 'info'" size="small">
-              {{ row.stream_status === 'pushing' ? '推流中' : '空闲' }}
+              {{ row.stream_status_text }}
             </ElTag>
           </template>
         </ElTableColumn>
@@ -81,19 +92,26 @@
           </template>
         </ElTableColumn>
         <ElTableColumn prop="stream_id" label="流ID" width="140" show-overflow-tooltip />
+        <ElTableColumn prop="device_id" label="设备ID" width="180" />
+        <ElTableColumn prop="manufacturer" label="厂商" width="120" />
+        <ElTableColumn prop="model" label="型号" width="120" />
         <ElTableColumn label="最后心跳" width="160">
           <template #default="{ row }">
             {{ row.last_heartbeat_at || '-' }}
           </template>
         </ElTableColumn>
         <ElTableColumn prop="created_at" label="创建时间" width="160" />
-        <ElTableColumn label="操作" width="380" fixed="right">
+        <ElTableColumn label="操作" width="400" fixed="right">
           <template #default="{ row }">
-            <ElButton size="small" type="primary" @click="startPlay(row)">播放</ElButton>
-            <ElButton size="small" type="success" @click="startRecord(row)">录像</ElButton>
-            <ElButton size="small" type="info" @click="getPlayback(row)">回放</ElButton>
-            <ElButton size="small" @click="getPicture(row)">抓拍</ElButton>
-            <ElButton size="small" @click="openEditDialog(row)">编辑</ElButton>
+            <!-- 只有通道类型为 131、132 时才显示视频操作按钮 -->
+            <template v-if="['131', '132'].includes(row.channel_type)">
+              <ElButton size="small" type="primary" @click="startPlay(row)">播放</ElButton>
+              <ElButton size="small" type="info" @click="getPlayback(row)">回放(本地录像)</ElButton>
+              <ElButton size="small" @click="getPicture(row)">抓拍</ElButton>
+              <ElButton size="small" @click="openEditDialog(row)">编辑</ElButton>
+            </template>
+            <!-- 删除按钮对所有通道类型都显示 -->
+            <ElButton size="small" type="danger" @click="handleDelete(row)">删除</ElButton>
           </template>
         </ElTableColumn>
       </ElTable>
@@ -135,6 +153,17 @@
       :channel="editDialog.channel"
       @success="onEditSuccess"
     />
+
+    <!-- Channel Playback Drawer -->
+    <ChannelPlaybackDrawer
+      v-model="playbackDialog.visible"
+      :device-id="playbackDialog.deviceId"
+      :device-pk-id="playbackDialog.devicePkId"
+      :channel-id="playbackDialog.channelId"
+      :channel-pk-id="playbackDialog.channelPkId"
+      :channel-name="playbackDialog.channelName"
+      :mode="playbackDialog.mode"
+    />
   </div>
 </template>
 
@@ -145,6 +174,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { gb28181Api } from '@/api/gb28181Api'
 import ChannelBindDialog from './ChannelBindDialog.vue'
 import ChannelEditDialog from './ChannelEditDialog.vue'
+import ChannelPlaybackDrawer from './ChannelPlaybackDrawer.vue'
 import { AggregatedPlayer } from '@/components/player'
 
 const router = useRouter()
@@ -155,8 +185,10 @@ interface Channel {
   id: number
   channel_id: string
   channel_name: string
-  device_id: string
-  channel_type: string
+  device_id: string      // 设备 GB28181 ID（字符串）
+  device_pk_id?: number  // 设备主键 ID（数字，用于 API 调用）
+  channel_type: string   // 通道类型字符串：'131', '132' 等
+  channel_type_text?: string  // 通道类型文本
   manufacturer: string
   owner: string
   model: string
@@ -177,11 +209,19 @@ interface Channel {
   [key: string]: any
 }
 
+// Channel type option
+interface ChannelTypeOption {
+  code: number
+  name: string
+}
+
 // State
 const channels = ref<Channel[]>([])
 const loading = ref(false)
+const channelTypeOptions = ref<ChannelTypeOption[]>([])
 const filters = ref({
   status: '',
+  channel_type: undefined as string | undefined,
   keyword: ''
 })
 const pagination = ref({
@@ -219,8 +259,24 @@ const editDialog = ref({
   } | null
 })
 
+// Playback dialog
+const playbackDialog = ref({
+  visible: false,
+  deviceId: '',         // 设备 GB28181 ID（字符串）
+  devicePkId: 0,        // 设备主键 ID（数字，用于 API 调用）
+  channelId: '',
+  channelPkId: 0,       // 通道主键 ID（数字，用于查询录像结果）
+  channelName: '',
+  mode: 'local' as 'local' | 'cloud'
+})
+
+// Filter selected channels that can be batch operated (only 131, 132 types)
+const validSelectedChannels = computed(() => {
+  return selectedChannels.value.filter(c => ['131', '132'].includes(c.channel_type))
+})
+
 const selectedChannelsForBind = computed(() => {
-  return selectedChannels.value.map(c => ({
+  return validSelectedChannels.value.map(c => ({
     id: c.id,
     channel_id: c.channel_id,
     channel_name: c.channel_name,
@@ -238,6 +294,7 @@ const getChannelList = async () => {
     const params = {
       device_id: deviceId || undefined,
       status: filters.value.status || undefined,
+      channel_type: filters.value.channel_type,
       page: pagination.value.currentPage,
       limit: pagination.value.pageSize,
       keyword: filters.value.keyword || undefined
@@ -266,6 +323,7 @@ const searchChannels = () => {
 const resetFilters = () => {
   filters.value = {
     status: '',
+    channel_type: undefined,
     keyword: ''
   }
   pagination.value.currentPage = 1
@@ -365,11 +423,17 @@ const startPlay = async (channel: Channel) => {
     })
 
     if (data?.play_urls) {
+      // 将通道的 stream_id 添加到 play_urls 中
+      const streamInfo = {
+        ...data.play_urls,
+        stream_id: channel.stream_id
+      }
+
       playDialog.value = {
         visible: true,
         deviceId: channel.device_id,
         channelId: channel.channel_id,
-        streamInfo: data.play_urls,
+        streamInfo: streamInfo,
         hasAudio: false  // API doesn't return has_audio field
       }
     } else {
@@ -381,25 +445,18 @@ const startPlay = async (channel: Channel) => {
   }
 }
 
-// Start recording
-const startRecord = async (channel: Channel) => {
-  try {
-    await gb28181Api.startRecord({
-      device_id: channel.device_id,
-      channel_id: channel.channel_id
-    })
-
-    ElMessage.success('录像已开始')
-  } catch (error: any) {
-    console.error('Failed to start recording:', error)
-    ElMessage.error(error.message || '开始录像失败')
-  }
-}
 
 // Get playback
-const getPlayback = (channel: Channel) => {
-  return ElMessage.info('正在开发中...')
-  // router.push(`/playback/${channel.device_id}/${channel.channel_id}`)
+const getPlayback = (channel: Channel, mode: 'local' | 'cloud' = 'local') => {
+  playbackDialog.value = {
+    visible: true,
+    deviceId: channel.device_id,
+    devicePkId: channel.device_pk_id || 0,
+    channelId: channel.channel_id,
+    channelPkId: channel.id,  // 通道主键 ID
+    channelName: channel.channel_name,
+    mode
+  }
 }
 
 // Get picture/snapshot
@@ -424,8 +481,44 @@ const getPicture = async (channel: Channel) => {
   // }
 }
 
+// Delete channel
+const handleDelete = async (channel: Channel) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除通道"${channel.channel_name}"吗？此操作不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    await gb28181Api.deleteChannel(channel.id)
+    ElMessage.success('删除成功')
+    getChannelList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete channel:', error)
+      ElMessage.error(error.message || '删除通道失败')
+    }
+  }
+}
+
+// Get channel type options
+const getChannelTypeOptions = async () => {
+  try {
+    const data = await gb28181Api.getChannelTypeOptions()
+    channelTypeOptions.value = data || []
+  } catch (error: any) {
+    console.error('Failed to fetch channel type options:', error)
+    ElMessage.error(error.message || '获取通道类型选项失败')
+  }
+}
+
 // Initialize
 onMounted(() => {
+  getChannelTypeOptions()
   getChannelList()
 })
 

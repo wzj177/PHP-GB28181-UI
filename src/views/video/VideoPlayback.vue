@@ -5,6 +5,8 @@ import {
   ElCard,
   ElButton,
   ElInput,
+  ElSelect,
+  ElOption,
   ElTable,
   ElTableColumn,
   ElMessage,
@@ -12,12 +14,14 @@ import {
 } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { gb28181Api } from '@/api/gb28181Api'
+import ChannelPlaybackDrawer from '@/views/device/ChannelPlaybackDrawer.vue'
 
 const router = useRouter()
 
 // Define interfaces for the new table structure
 interface DeviceTableItem {
   id: string
+  pkId?: number  // 设备主键 ID
   name: string
   channelName?: string,
   type: 'video-channel' | 'group' | 'device',
@@ -30,6 +34,25 @@ interface DeviceTableItem {
 const tableData = ref<DeviceTableItem[]>([])
 const loading = ref(false)
 const searchKeyword = ref('')
+
+// 筛选条件
+const filters = ref({
+  status: '',      // 在线/离线
+  keyword: ''      // 搜索关键字
+})
+
+// 原始数据（用于筛选）
+const originalTableData = ref<DeviceTableItem[]>([])
+
+// Playback drawer state
+const playbackDrawer = ref({
+  visible: false,
+  deviceId: '',
+  devicePkId: 0,   // 设备主键 ID
+  channelId: '',
+  channelPkId: 0,  // 通道主键 ID（VideoPlayback 页面可能没有）
+  channelName: ''
+})
 
 // Load device data
 const loadDeviceTree = async () => {
@@ -62,6 +85,7 @@ const loadDeviceTree = async () => {
     // Transform the device data to match the expected table structure
     const transformedData: DeviceTableItem[] = devices.map((device: any) => ({
       id: device.device_id || device.id,
+      pkId: device.id,  // 设备主键 ID
       name: device.device_name || device.name || '未知设备',
       type: 'video-channel',
       status: device.status || 'offline',
@@ -69,7 +93,8 @@ const loadDeviceTree = async () => {
       hasChildren: false
     }));
 
-    tableData.value = transformedData;
+    originalTableData.value = transformedData
+    applyFilters()  // 应用筛选
     console.log('Device list loaded:', transformedData.length, 'items')
   } catch (error: any) {
     console.error('❌ Failed to load device tree:', error)
@@ -77,6 +102,40 @@ const loadDeviceTree = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 应用筛选条件
+const applyFilters = () => {
+  let filtered = [...originalTableData.value]
+
+  // 按状态筛选
+  if (filters.value.status) {
+    filtered = filtered.filter(item => item.status === filters.value.status)
+  }
+
+  // 按关键字筛选
+  if (filters.value.keyword) {
+    const keyword = filters.value.keyword.toLowerCase()
+    filtered = filtered.filter(item =>
+      item.name.toLowerCase().includes(keyword) ||
+      item.id.toLowerCase().includes(keyword)
+    )
+  }
+
+  tableData.value = filtered
+}
+
+// 搜索按钮点击
+const handleSearch = () => {
+  filters.value.keyword = searchKeyword.value
+  applyFilters()
+}
+
+// 重置筛选
+const handleReset = () => {
+  filters.value.status = ''
+  searchKeyword.value = ''
+  applyFilters()
 }
 
 // Get status tag
@@ -95,8 +154,15 @@ const getStatusTag = (status: string) => {
 
 // Navigate to playback view
 const goToPlayback = (row: DeviceTableItem) => {
-  // Navigate to the new playback route with device info
-  router.push(`/video-playback/${row.id}`)
+  // Open the cloud playback drawer
+  playbackDrawer.value = {
+    visible: true,
+    deviceId: row.id,
+    devicePkId: row.pkId || 0,
+    channelId: row.id,
+    channelPkId: 0,  // VideoPlayback 页面没有通道主键 ID
+    channelName: row.name
+  }
 }
 
 // Navigate to recordings list view
@@ -119,20 +185,34 @@ onMounted(() => {
         <!-- Search controls -->
         <ElCard class="search-card">
           <div class="search-controls">
+            <ElSelect
+              v-model="filters.status"
+              placeholder="设备状态"
+              clearable
+              style="width: 120px; margin-right: 10px;"
+              @change="applyFilters"
+            >
+              <ElOption label="在线" value="online" />
+              <ElOption label="离线" value="offline" />
+            </ElSelect>
+
             <ElInput
               v-model="searchKeyword"
-              placeholder="设备名称/通道号搜索"
-              style="width: 250px; margin-right: 1rem;"
+              placeholder="设备名称/设备号搜索"
+              style="width: 200px; margin-right: 10px;"
               clearable
+              @keyup.enter="handleSearch"
             />
 
             <ElButton
               type="primary"
               :icon="Search"
-              @click="loadDeviceTree"
+              @click="handleSearch"
             >
-              查询
+              搜索
             </ElButton>
+            <ElButton @click="handleReset">重置</ElButton>
+            <ElButton @click="loadDeviceTree">刷新</ElButton>
           </div>
         </ElCard>
 
@@ -203,6 +283,17 @@ onMounted(() => {
         </ElCard>
       </div>
     </div>
+
+    <!-- Cloud Playback Drawer -->
+    <ChannelPlaybackDrawer
+      v-model="playbackDrawer.visible"
+      :device-id="playbackDrawer.deviceId"
+      :device-pk-id="playbackDrawer.devicePkId"
+      :channel-id="playbackDrawer.channelId"
+      :channel-pk-id="playbackDrawer.channelPkId"
+      :channel-name="playbackDrawer.channelName"
+      mode="cloud"
+    />
   </div>
 </template>
 

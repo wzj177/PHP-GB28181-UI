@@ -148,12 +148,11 @@
         <PTZControlPanel :channel-id="ptzChannelId" />
       </ElTabPane>
 
-      <ElTabPane label="编码信息" name="codec" v-if="props.streamInfo">
+      <ElTabPane label="编码信息" name="codec" v-if="currentUrl">
         <MediaInfo
           ref="mediaInfoRef"
-          :app="streamApp"
-          :stream="streamId"
-          :media-server-id="mediaServerId"
+          :url="currentUrl"
+          :stream-id="props.streamInfo?.stream_id"
         />
       </ElTabPane>
     </ElTabs>
@@ -176,6 +175,7 @@ const playerContainerRef = ref<HTMLDivElement>()
 
 interface StreamInfo {
   testUrl?: string // 测试模式下所有播放器使用的原始 URL
+  stream_id?: string // 流 ID
   flv?: string
   https_flv?: string
   ws_flv?: string
@@ -463,22 +463,6 @@ const ptzChannelId = computed(() => {
   if (!props.deviceId || !props.channelId) return ''
   // PTZControlPanel expects format: {device_id}-{channel_id}
   return `${props.deviceId}-${props.channelId}`
-})
-
-// MediaInfo parameters - extract from stream info
-const streamApp = computed(() => {
-  // Try to extract app from stream info or use default
-  return props.streamInfo?.app || 'live'
-})
-
-const streamId = computed(() => {
-  // Try to extract stream from stream info or use channelId
-  return props.streamInfo?.stream || props.channelId || ''
-})
-
-const mediaServerId = computed(() => {
-  // Try to extract media server ID from stream info
-  return props.streamInfo?.mediaServerId || ''
 })
 
 // Handle player change with proper cleanup

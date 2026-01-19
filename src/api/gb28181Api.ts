@@ -111,6 +111,48 @@ export const gb28181Api = {
     return request.post(`/admin/gb28181/devices/${id}/cmd`, { cmd });
   },
 
+  /**
+   * 发送设备命令（通用接口）
+   * POST /admin/gb28181/devices/{id}/cmd
+   * @param params 命令参数
+   * @param params.device_id 设备ID
+   * @param params.cmd 命令类型 (query_record, device_info, etc.)
+   * @param params.params 命令参数
+   */
+  sendDeviceCommand: (params: {
+    device_id: string;
+    cmd: string;
+    params?: Record<string, any>;
+  }) => {
+    return request.post(`/admin/gb28181/devices/${params.device_id}/cmd`, {
+      cmd: params.cmd,
+      params: params.params || {}
+    });
+  },
+
+  /**
+   * 查询录像（新接口）
+   * POST /admin/gb28181/channels/{id}/playback/query
+   * @param id 通道主键 ID
+   */
+  queryPlayback: (id: string | number, params: {
+    start_time: string;
+    end_time: string;
+  }) => {
+    return request.post(`/admin/gb28181/channels/${id}/playback/query`, params);
+  },
+
+  /**
+   * 获取录像查询结果（轮询接口）
+   * GET /admin/gb28181/channels/{id}/record-info-result
+   */
+  getRecordInfoResult: (channelId: string, params?: {
+    start_time?: string;
+    end_time?: string;
+  }) => {
+    return request.get(`/admin/gb28181/channels/${channelId}/record-info-result`, { params });
+  },
+
   // ================= 通道管理 =================
 
   /**
@@ -152,6 +194,14 @@ export const gb28181Api = {
   },
 
   /**
+   * 获取通道类型选项
+   * GET /admin/gb28181/channels/type/options
+   */
+  getChannelTypeOptions: () => {
+    return request.get('/admin/gb28181/channels/type/options');
+  },
+
+  /**
    * 更新通道信息
    * PUT /admin/gb28181/channels/{id}
    * @param id 通道主键ID
@@ -171,6 +221,15 @@ export const gb28181Api = {
    */
   batchBindChannelsToMedia: (ids: number[], server_id: string) => {
     return request.put('/admin/gb28181/channels/batch/bind-media', { ids, server_id });
+  },
+
+  /**
+   * 删除通道
+   * DELETE /admin/gb28181/channels/{id}
+   * @param id 通道主键ID
+   */
+  deleteChannel: (id: number) => {
+    return request.delete(`/admin/gb28181/channels/${id}`);
   },
 
   // ================= 云台控制 (PTZ) =================
@@ -231,7 +290,7 @@ export const gb28181Api = {
 
   /**
    * 开始录像回放
-   * POST /admin/gb28181/streams/playback
+   * POST /admin/gb28181/streams/playback/start
    */
   startPlayback: (params: {
     device_id: string;
@@ -239,9 +298,20 @@ export const gb28181Api = {
     start_time: string; // ISO format: 2024-01-01T00:00:00
     end_time: string;
   }) => {
-    return request.post('/admin/gb28181/streams/playback', params);
+    return request.post('/admin/gb28181/streams/playback/start', params);
   },
 
+  /**
+   * 停止录像回放
+   * POST /admin/gb28181/streams/playback/stop
+   */
+  stopPlayback: (params: {
+    device_id: string;
+    channel_id: string;
+    stream_id?: string;
+  }) => {
+    return request.post('/admin/gb28181/streams/playback/stop', params);
+  },
   // ================= 录像管理 =================
 
   /**
@@ -338,6 +408,17 @@ export const gb28181Api = {
     value: number;
   }) => {
     return request.post('/admin/gb28181/presets/delete', params);
+  },
+
+  /**
+   * 获取流编码信息
+   * POST /admin/gb28181/channels/codec-info
+   */
+  getCodecInfo: (params: {
+    url: string;
+    stream_id?: string;
+  }) => {
+    return request.post('/admin/gb28181/channels/codec-info', params);
   }
 };
 

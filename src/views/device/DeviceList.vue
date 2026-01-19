@@ -99,13 +99,11 @@
           <template #default="{ row }">
             <div class="device-name-cell">
               <div v-if="row.device_name" class="device-name">{{ row.device_name }}</div>
-              <div v-if="row.show_name" class="show-name">{{ row.show_name }}</div>
+              <div v-if="row.device_name && row.show_name" class="show-name">{{ row.show_name }}</div>
               <div v-if="!row.device_name && row.show_name" class="device-name">{{ row.show_name }}</div>
             </div>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="manufacturer" label="厂商" width="120" />
-        <ElTableColumn prop="model" label="型号" width="120" />
         <ElTableColumn label="设备状态" width="100">
           <template #default="{ row }">
             <ElTag :type="getStatusType(row.status)">
@@ -130,6 +128,8 @@
             {{ row.sum_num || 0 }}
           </template>
         </ElTableColumn>
+        <ElTableColumn prop="manufacturer" label="厂商" width="120" />
+        <ElTableColumn prop="model" label="型号" width="120" />
         <ElTableColumn label="行政区域" width="200">
           <template #default="{ row }">
             {{ getAreaName(row) }}
@@ -139,12 +139,13 @@
         <ElTableColumn prop="port" label="端口" width="80" />
         <ElTableColumn prop="registered_at" label="注册时间" width="180" fixed="right" />
         <ElTableColumn prop="last_heartbeat_at" label="最后心跳时间" width="180" fixed="right" />
-        <ElTableColumn label="操作" width="380" fixed="right">
+        <ElTableColumn label="操作" width="450" fixed="right">
           <template #default="{ row }">
             <ElButton size="small" @click="viewDetail(row)">详情</ElButton>
             <ElButton size="small" @click="viewChannels(row)">通道列表</ElButton>
             <ElButton size="small" type="primary" @click="updateDevice(row)">更新设备</ElButton>
             <ElButton size="small" type="warning" @click="openEditDialog(row)">编辑</ElButton>
+            <ElButton size="small" type="info" @click="openGatewayLog(row)">网关日志</ElButton>
             <ElButton size="small" type="danger" @click="deleteDevice(row)">删除</ElButton>
           </template>
         </ElTableColumn>
@@ -334,6 +335,13 @@
         <ElButton @click="detailDialog.visible = false">关闭</ElButton>
       </template>
     </ElDialog>
+
+    <!-- Gateway Log Drawer -->
+    <GatewayLogDrawer
+      v-model="gatewayLogDrawer.visible"
+      :device-id="gatewayLogDrawer.deviceId"
+      :device-name="gatewayLogDrawer.deviceName"
+    />
   </div>
 </template>
 
@@ -346,6 +354,7 @@ import { Monitor, CloseBold, CircleClose,CircleCheck } from '@element-plus/icons
 import { useRouter } from 'vue-router'
 import { gb28181Api } from '@/api/gb28181Api'
 import DeviceEditDialog from './DeviceEditDialog.vue'
+import GatewayLogDrawer from './GatewayLogDrawer.vue'
 import { regionData } from 'element-china-area-data'
 
 // Use available icons as replacements
@@ -536,6 +545,13 @@ const detailDialog = ref({
   device: null as Device | null
 })
 
+// Gateway log drawer
+const gatewayLogDrawer = ref({
+  visible: false,
+  deviceId: '',
+  deviceName: ''
+})
+
 // Get device list
 const getDeviceList = async () => {
   loading.value = true
@@ -662,6 +678,13 @@ const openEditDialog = (device: Device) => {
 const viewDetail = (device: Device) => {
   detailDialog.value.device = device
   detailDialog.value.visible = true
+}
+
+// Open gateway log drawer
+const openGatewayLog = (device: Device) => {
+  gatewayLogDrawer.value.deviceId = String(device.id)
+  gatewayLogDrawer.value.deviceName = device.device_name || device.device_id
+  gatewayLogDrawer.value.visible = true
 }
 
 // Edit success handler

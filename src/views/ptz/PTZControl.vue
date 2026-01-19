@@ -195,7 +195,7 @@ const loadDeviceTree = async () => {
 // Handle node click in the tree
 const handleNodeClick = (data: DeviceNode | Channel) => {
   if ('type' in data && data.type === 'channel') {
-    selectedChannel.value = data.id
+    selectedChannel.value = data.channel_id  // Use channel_id instead of tree node id
   }
 }
 
@@ -430,7 +430,7 @@ const getChannelName = (cell: Cell) => {
   // Find the channel by ID
   for (const device of deviceTree.value) {
     if (device.children) {
-      const channel = device.children.find((ch: DeviceNode) => ch.id === cell.channelId)
+      const channel = device.children.find((ch: DeviceNode) => ch.channel_id === cell.channelId)
       if (channel) {
         return `${device.label} - ${channel.label}`
       }
