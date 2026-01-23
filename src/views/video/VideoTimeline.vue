@@ -134,10 +134,10 @@ const playerIframeUrl = computed(() => {
     url: props.playUrl,
     player_type: 'easyplayer',  // 默认使用 easyplayer
     autoplay: 'true',
-    isLive: 'true',  // 回放模式
+    isLive: 'false',  // 回放模式（注意：应该是 false）
     width: `${playerWidth}px`,
-    height: `${playerHeight}px`,
-    speed: String(props.playbackSpeed)  // 添加倍速参数
+    height: `${playerHeight}px`
+    // 移除 speed 参数，倍速变化通过 API 控制，不需要刷新 iframe
   })
 
   // 添加 channel_id 参数，用于回放控制
@@ -557,7 +557,7 @@ defineExpose({
     <div class="player">
       <template v-if="props.playUrl && props.isPlaying">
         <iframe
-          :key="`${props.streamId || 'default'}-${props.playbackSpeed}`"
+          :key="props.streamId || 'default'"
           :src="playerIframeUrl"
           class="player-iframe"
           frameborder="0"

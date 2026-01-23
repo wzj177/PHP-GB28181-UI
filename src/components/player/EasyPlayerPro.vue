@@ -21,6 +21,7 @@ declare global {
   }
 }
 
+// 自定义控制按钮配置（EasyPlayerPro 使用内置按钮，不需要外部传入）
 interface Props {
   visible?: boolean
   width?: string
@@ -30,6 +31,10 @@ interface Props {
   isLive?: boolean // 是否为直播流
   hasAudio?: boolean
   debug?: boolean
+  channelId?: string | number  // 通道 ID（用于回放控制）
+  streamId?: string  // 回放流 ID（用于回放控制）
+  customControls?: any  // 保留接口兼容性，EasyPlayerPro 使用内置按钮
+  controls?: string[]  // 要显示的控制按钮，如 ['scale', 'playback_download']
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -40,7 +45,11 @@ const props = withDefaults(defineProps<Props>(), {
   autoplay: true,
   isLive: true,
   hasAudio: true,
-  debug: false
+  debug: false,
+  channelId: '',
+  streamId: '',
+  customControls: undefined,
+  controls: () => []  // 默认为空数组，不显示任何自定义按钮
 })
 
 const emit = defineEmits<{
@@ -48,11 +57,16 @@ const emit = defineEmits<{
   (e: 'pause'): void
   (e: 'error', message: string): void
   (e: 'timeout'): void
+  (e: 'speedChange', speed: number, streamId: string): void  // 倍速变化
+  (e: 'download', params: { start_time: string; end_time: string }, streamId: string): void  // 下载录像
 }>()
 
 const containerRef = ref<HTMLDivElement>()
 const error = ref(false)
 const errorMessage = ref('')
+
+// 当前倍速状态
+const currentSpeed = ref(1)
 
 // 全局存储播放器实例，使用组件唯一标识
 const instanceId = ref(Math.random().toString(36).substring(2, 15))
@@ -150,6 +164,11 @@ const showOrReplaceControlBox = (parent, content) => {
 }
 
 const generateScaleBoxHTML = () => {
+  // 根据当前倍速设置默认选中状态
+  const getActiveClass = (rate: number) => {
+    return rate === currentSpeed.value ? 'control-active' : ''
+  }
+
   return `
     <div class="easyplayer-scale-btns" style="
       display: flex;
@@ -159,52 +178,90 @@ const generateScaleBoxHTML = () => {
       border-radius: 4px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     ">
-      <button class="el-button  el-button--small" data-rate="0.5">0.5x</button>
-      <button class="el-button  el-button--small control-active" data-rate="1">1x</button>
-      <button class="el-button  el-button--small" data-rate="2">2x</button>
-      <button class="el-button  el-button--small" data-rate="4">4x</button>
+      <button class="el-button el-button--small ${getActiveClass(0.5)}" data-rate="0.5">0.5x</button>
+      <button class="el-button el-button--small ${getActiveClass(1)}" data-rate="1">1x</button>
+      <button class="el-button el-button--small ${getActiveClass(2)}" data-rate="2">2x</button>
+      <button class="el-button el-button--small ${getActiveClass(4)}" data-rate="4">4x</button>
     </div>
   `;
 }
 
 const addCustomControls = (playerInstance: any) => {
+  // 获取当前播放器实例和 streamId
+  const player = playerInstance
+  const currentStreamId = props.streamId || ''
+  const controls = props.controls || []
+
+  // 如果 controls 为空，不添加任何自定义按钮
+  if (!controls || controls.length === 0) {
+    console.log('EasyPlayerPro: controls 为空，不添加自定义按钮')
+    return
+  }
+
+  console.log('EasyPlayerPro: 添加自定义按钮', controls)
+
   // 可以在这里添加自定义控制按钮的逻辑
-  const ctrl = playerInstance.player.control;
-  ctrl.addExtendBtn({
-    name: 'scale',
-    icon: '/static/images/scale.png',         // 默认图标
-    iconTitle: '倍速切换',                           // 提示文字
-    click: function (event) {
-      const box = showOrReplaceControlBox(event.target.parentElement, generateScaleBoxHTML())
-      const btnsContainer = box.querySelector('.easyplayer-scale-btns');
-      if (btnsContainer) {
-        const handleScaleClick = (e) => {
-          const btn = e.target.closest('button[data-rate]');
-          if (!btn) return
+  const ctrl = player.player.control;
 
-          const rate = parseFloat(btn.dataset.rate)
-          console.log('设置播放倍速为:', rate)
+  // 倍速按钮
+  if (controls.includes('scale')) {
+    ctrl.addExtendBtn({
+      name: 'scale',
+      icon: '/static/images/scale.png',         // 默认图标
+      iconTitle: '倍速切换',                           // 提示文字
+      click: function (event) {
+        const box = showOrReplaceControlBox(event.target.parentElement, generateScaleBoxHTML())
+        const btnsContainer = box.querySelector('.easyplayer-scale-btns');
+        if (btnsContainer) {
+          const handleScaleClick = (e) => {
+            const btn = e.target.closest('button[data-rate]');
+            if (!btn) return
 
-          // 更新选中状态
-          btnsContainer.querySelectorAll('button').forEach(b => {
-            b.classList.toggle('control-active', b === btn)
-          })
+            const rate = parseFloat(btn.dataset.rate)
+            console.log('设置播放倍速为:', rate)
+
+            // 更新当前倍速状态
+            currentSpeed.value = rate
+
+            // 调用播放器的 setRate 方法（如果支持）
+            if (typeof player.setRate === 'function') {
+              player.setRate(rate)
+            }
+
+            // 触发 speedChange 事件
+            emit('speedChange', rate, currentStreamId)
+
+            // 更新选中状态
+            btnsContainer.querySelectorAll('button').forEach(b => {
+              b.classList.toggle('control-active', b === btn)
+            })
+          }
+          btnsContainer.removeEventListener('click', handleScaleClick)
+          btnsContainer.addEventListener('click', handleScaleClick)
         }
-        btnsContainer.removeEventListener('click', handleScaleClick)
-        btnsContainer.addEventListener('click', handleScaleClick)
       }
-    }
-  })
+    })
+  }
 
-  ctrl.addExtendBtn({
-    name: 'download_cloud',
-    icon: '/static/images/download.png',         // 默认图标
-    iconTitle: '回放下载',                           // 提示文字
-    click: function (event) {
-      console.log('回放下载被点击');
-      // 你的截图逻辑
-    }
-  })
+  // 下载按钮
+  if (controls.includes('playback_download')) {
+    ctrl.addExtendBtn({
+      name: 'playback_download',
+      icon: '/static/images/playback_download.png',         // 默认图标
+      iconTitle: '回放下载',                           // 提示文字
+      click: function (event) {
+        console.log('回放下载被点击')
+
+        // 触发 download 事件
+        // 注意：开始和结束时间需要从父组件传入或从当前播放状态获取
+        // 这里暂时使用空字符串，父组件需要补充实际的时间参数
+        emit('download', {
+          start_time: '',
+          end_time: ''
+        }, currentStreamId)
+      }
+    })
+  }
 }
 
 // 销毁播放器
@@ -363,5 +420,12 @@ defineExpose({
   border-radius: 2px;
   width: 320px;
   background: rgba(33, 33, 33, .9);
+}
+
+/* 倍速按钮激活状态 */
+.easyplayer-scale-btns .control-active {
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+  color: #ffffff !important;
 }
 </style>

@@ -48,9 +48,14 @@
         :has-audio="hasAudio"
         :is-live="isLive"
         :autoplay="autoplay"
+        :channel-id="channelId"
+        :stream-id="streamId"
+        :controls="['scale', 'playback_download']"
         @play="handlePlay"
         @pause="handlePause"
         @error="handleError"
+        @speed-change="handleSpeedChange"
+        @download="handleDownload"
       />
 
       <!-- 无效播放器 -->
