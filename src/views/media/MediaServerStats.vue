@@ -59,8 +59,8 @@
         </template>
         <div class="stream-stats">
           <div class="stat-item">
-            <div class="stat-value">{{ stats.snapshot?.stream_count || 0 }}</div>
-            <div class="stat-label">流数量</div>
+            <div class="stat-value">{{ stats.snapshot?.rtp_count ?? stats.snapshot?.stream_count ?? 0 }}</div>
+            <div class="stat-label">国标流端口数</div>
           </div>
           <div class="stat-item">
             <div class="stat-value">{{ stats.snapshot?.total_connection_count || 0 }}</div>

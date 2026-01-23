@@ -19,6 +19,12 @@ const staticRoutes: Array<RouteRecordRaw> = [
     name: 'PlayerView',
     component: () => import('../views/play/PlayerView.vue'),
     meta: { title: '播放器' }
+  },
+  {
+    path: '/play/record',
+    name: 'RecordPlayer',
+    component: () => import('../views/play/RecordPlayer.vue'),
+    meta: { title: '录像回放' }
   }
 ]
 

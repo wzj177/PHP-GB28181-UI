@@ -140,16 +140,6 @@ const userDropdownVisible = ref(false)
 // Toggle sidebar collapse
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value
-
-  // 收起侧边栏时，关闭所有展开的子菜单
-  if (sidebarCollapsed.value && menuRef.value) {
-    // 获取所有展开的子菜单索引
-    const openedMenus = menuRef.value.openedMenus || []
-    // 逐个关闭
-    openedMenus.forEach((menuIndex: string) => {
-      menuRef.value.closeMenu(menuIndex)
-    })
-  }
 }
 
 // Toggle theme
@@ -238,6 +228,7 @@ onUnmounted(() => {
           ref="menuRef"
           :default-active="activeIndex"
           class="nav-menu"
+          :collapse="sidebarCollapsed"
           :unique-opened="true"
           @select="handleSelect"
         >

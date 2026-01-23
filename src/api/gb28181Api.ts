@@ -139,7 +139,9 @@ export const gb28181Api = {
     start_time: string;
     end_time: string;
   }) => {
-    return request.post(`/admin/gb28181/channels/${id}/playback/query`, params);
+    return request.post(`/admin/gb28181/channels/${id}/playback/query`, params, {
+      headers: { 'X-Silent': '1' }  // 关闭全局 loading
+    });
   },
 
   /**
@@ -150,7 +152,10 @@ export const gb28181Api = {
     start_time?: string;
     end_time?: string;
   }) => {
-    return request.get(`/admin/gb28181/channels/${channelId}/record-info-result`, { params });
+    return request.get(`/admin/gb28181/channels/${channelId}/record-info-result`, {
+      params,
+      headers: { 'X-Silent': '1' }  // 关闭全局 loading
+    });
   },
 
   // ================= 通道管理 =================
@@ -298,7 +303,9 @@ export const gb28181Api = {
     start_time: string; // ISO format: 2024-01-01T00:00:00
     end_time: string;
   }) => {
-    return request.post('/admin/gb28181/streams/playback/start', params);
+    return request.post('/admin/gb28181/streams/playback/start', params, {
+      headers: { 'X-Silent': '1' }  // 关闭全局 loading
+    });
   },
 
   /**
@@ -310,7 +317,41 @@ export const gb28181Api = {
     channel_id: string;
     stream_id?: string;
   }) => {
-    return request.post('/admin/gb28181/streams/playback/stop', params);
+    return request.post('/admin/gb28181/streams/playback/stop', params, {
+      headers: { 'X-Silent': '1' }  // 关闭全局 loading
+    });
+  },
+
+  /**
+   * 录像回放控制
+   * POST /admin/gb28181/channels/{id}/playback/control
+   * @param id 通道主键 ID
+   */
+  playbackControl: (id: string | number, params: {
+    action: 'fast_forward' | 'play' | 'pause' | 'slow_forward' | 'seek' | 'scale';
+    speed?: string;  // 倍速（1-4）
+    seek_time?: string;  // 拖动时间（2024-01-01T10:30:00）
+    stream_id?: string;  // 回放流 ID
+    scale?: string;  // 缩放比例
+  }) => {
+    return request.post(`/admin/gb28181/channels/${id}/playback/control`, params, {
+      headers: { 'X-Silent': '1' }  // 关闭全局 loading
+    });
+  },
+
+  /**
+   * 录像回放下载
+   * POST /admin/gb28181/channels/{id}/playback/download
+   * @param id 通道主键 ID
+   */
+  playbackDownload: (id: string | number, params: {
+    start_time: string;  // ISO format: 2024-01-01T00:00:00
+    end_time: string;
+    stream_id?: string;  // 回放流 ID
+  }) => {
+    return request.post(`/admin/gb28181/channels/${id}/playback/download`, params, {
+      headers: { 'X-Silent': '1' }  // 关闭全局 loading
+    });
   },
   // ================= 录像管理 =================
 

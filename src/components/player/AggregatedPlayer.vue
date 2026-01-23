@@ -12,6 +12,21 @@
     <div class="aggregated-player">
       <!-- Player tabs -->
       <ElTabs v-if="showPlayerTabs" v-model="activePlayer" type="card" @tab-change="handlePlayerChange">
+        <ElTabPane v-if="availablePlayers.includes('easyplayer')" label="EasyPlayer" name="easyplayer">
+          <div ref="playerContainerRef" class="player-container">
+            <EasyPlayerPro
+              v-if="isPlayerVisible('easyplayer')"
+              ref="easyplayerRef"
+              :url="currentUrl"
+              :width="playerWidth"
+              :height="playerHeight"
+              :has-audio="true"
+              :is-live="isLive"
+              autoplay
+              @error="handlePlayerError"
+            />
+          </div>
+        </ElTabPane>
         <ElTabPane v-if="availablePlayers.includes('jessibuca')" label="Jessibuca" name="jessibuca">
           <div ref="playerContainerRef" class="player-container">
             <JessibucaPlayer
@@ -76,6 +91,16 @@
       <!-- Single player (if only one is configured) -->
       <template v-else>
         <div ref="playerContainerRef" class="player-container">
+          <EasyPlayerPro
+            v-if="availablePlayers.includes('easyplayer') && activePlayer === 'easyplayer'"
+            ref="easyplayerRef"
+            :url="currentUrl"
+            :width="playerWidth"
+            :height="playerHeight"
+            :has-audio="true"
+            :is-live="isLive"
+            autoplay
+          />
           <JessibucaPlayer
             v-if="availablePlayers.includes('jessibuca') && activePlayer === 'jessibuca'"
             ref="jessibucaRef"
@@ -166,6 +191,7 @@ import JessibucaPlayer from './JessibucaPlayer.vue'
 import WebRTCPlayer from './WebRTCPlayer.vue'
 import H265WebPlayer from './H265WebPlayer.vue'
 import XGPlayer from './XGPlayer.vue'
+import EasyPlayerPro from './EasyPlayerPro.vue'
 import PTZControlPanel from '@/components/ptz/PTZControlPanel.vue'
 import MediaInfo from './MediaInfo.vue'
 import { gb28181Api } from '@/api/gb28181Api'
@@ -231,7 +257,7 @@ const visible = computed({
 const hasStartedLive = ref(false)
 
 // Active player state - must be defined before availableStreams
-const activePlayer = ref<'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'>('jessibuca')
+const activePlayer = ref<'easyplayer' | 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'>('easyplayer')
 const activeTab = ref('media')
 const isSwitching = ref(false)
 
@@ -296,7 +322,24 @@ watch(() => availableStreams.value, (streams) => {
     const isSecurePage = location.protocol === 'https:'
 
     // Select default stream based on player type and page protocol
-    if (activePlayer.value === 'xgplayer') {
+    if (activePlayer.value === 'easyplayer') {
+      // EasyPlayer: supports all protocols, prefer WebSocket-based streams
+      if (isSecurePage) {
+        // HTTPS page: prefer wss_flv, then https_flv, then https_hls
+        const wssFlvStream = streams.find(s => s.key === 'wss_flv')
+        const httpsFlvStream = streams.find(s => s.key === 'https_flv')
+        const httpsHlsStream = streams.find(s => s.key === 'https_hls')
+        const rtcsStream = streams.find(s => s.key === 'rtcs')
+        selectedStreamUrl.value = wssFlvStream?.url || httpsFlvStream?.url || httpsHlsStream?.url || rtcsStream?.url || streams[0].url
+      } else {
+        // HTTP page: prefer ws_flv, then http_flv, then hls
+        const wsFlvStream = streams.find(s => s.key === 'ws_flv')
+        const httpFlvStream = streams.find(s => s.key === 'http_flv')
+        const hlsStream = streams.find(s => s.key === 'hls')
+        const rtcStream = streams.find(s => s.key === 'rtc')
+        selectedStreamUrl.value = wsFlvStream?.url || httpFlvStream?.url || hlsStream?.url || rtcStream?.url || streams[0].url
+      }
+    } else if (activePlayer.value === 'xgplayer') {
       // XGPlayer: prefer http_flv/https_flv or hls/https_hls
       if (isSecurePage) {
         // HTTPS page: prefer https_flv, then https_hls, then https_hls_fmp4
@@ -343,6 +386,7 @@ watch(() => props.streamInfo, (newStreamInfo) => {
 
 // Player configuration
 const playerConfigs = {
+  easyplayer: ['ws_flv', 'wss_flv', 'flv', 'https_flv', 'hls', 'https_hls', 'rtc', 'rtcs', 'hls_fmp4', 'https_hls_fmp4'],
   jessibuca: ['ws_flv', 'wss_flv', 'flv', 'https_flv'],
   webrtc: ['rtc', 'rtcs'],
   h265web: ['ws_flv', 'wss_flv'],
@@ -351,24 +395,24 @@ const playerConfigs = {
 
 // 根据可用的流协议判断哪些播放器应该显示
 const availablePlayers = computed(() => {
-  if (!props.streamInfo) return ['h265web'] // 默认显示 h265web
+  if (!props.streamInfo) return ['easyplayer'] // 默认显示 easyplayer
 
-  const players: string[] = []
+  const players: string[] = ['easyplayer'] // EasyPlayerPro 始终显示（支持所有协议）
 
   // 检查 WebRTC
   if (props.streamInfo.rtc || props.streamInfo.rtcs) {
-    players.push('webrtc')
+    if (!players.includes('webrtc')) players.push('webrtc')
   }
 
   // 检查 Jessibuca (FLV)
   if (props.streamInfo.ws_flv || props.streamInfo.wss_flv || props.streamInfo.flv || props.streamInfo.https_flv) {
-    players.push('jessibuca')
+    if (!players.includes('jessibuca')) players.push('jessibuca')
   }
 
   // 检查 XGPlayer 支持的格式
   if (props.streamInfo.hls || props.streamInfo.https_hls || props.streamInfo.mp4 || props.streamInfo.https_mp4 ||
       props.streamInfo.fmp4 || props.streamInfo.https_fmp4 || props.streamInfo.ts || props.streamInfo.https_ts) {
-    players.push('xgplayer')
+    if (!players.includes('xgplayer')) players.push('xgplayer')
   }
 
   // H265Web 支持几乎所有格式，只要有任何流就显示
@@ -380,7 +424,7 @@ const availablePlayers = computed(() => {
 
   console.log('Available players:', players)
 
-  return players.length > 0 ? players : ['h265web']
+  return players.length > 0 ? players : ['easyplayer']
 })
 
 // Check if only one player is configured
@@ -392,6 +436,7 @@ const jessibucaRef = ref()
 const webrtcRef = ref()
 const h265webRef = ref()
 const xgplayerRef = ref()
+const easyplayerRef = ref()
 const mediaInfoRef = ref()
 
 // Drawer dimensions - use percentage for better responsiveness
@@ -484,7 +529,9 @@ const handlePlayerChange = async (newPlayerName: string) => {
   }
 
   // 清空 ref
-  if (activePlayer.value === 'jessibuca') {
+  if (activePlayer.value === 'easyplayer') {
+    easyplayerRef.value = null
+  } else if (activePlayer.value === 'jessibuca') {
     jessibucaRef.value = null
   } else if (activePlayer.value === 'webrtc') {
     webrtcRef.value = null
@@ -516,6 +563,8 @@ const handlePlayerChange = async (newPlayerName: string) => {
 // Get current player ref
 const getCurrentPlayerRef = () => {
   switch (activePlayer.value) {
+    case 'easyplayer':
+      return easyplayerRef
     case 'jessibuca':
       return jessibucaRef
     case 'webrtc':
@@ -525,7 +574,7 @@ const getCurrentPlayerRef = () => {
     case 'xgplayer':
       return xgplayerRef
     default:
-      return jessibucaRef
+      return easyplayerRef
   }
 }
 
@@ -557,6 +606,10 @@ const handleClose = async () => {
   await stopLiveStream()
 
   // Destroy all players to prevent memory leaks
+  if (easyplayerRef.value?.destroy) {
+    easyplayerRef.value.destroy()
+    easyplayerRef.value = null
+  }
   if (jessibucaRef.value?.destroy) {
     jessibucaRef.value.destroy()
     jessibucaRef.value = null
@@ -614,8 +667,8 @@ const handleOpen = () => {
 }
 
 // 根据 URL 判断最佳播放器
-const detectBestPlayer = (url: string): 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer' => {
-  if (!url) return 'h265web'
+const detectBestPlayer = (url: string): 'easyplayer' | 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer' => {
+  if (!url) return 'easyplayer'
 
   // 提取 URL 路径（去掉查询参数和 hash）
   const urlPath = url.split('?')[0].split('#')[0].toLowerCase()
@@ -628,50 +681,21 @@ const detectBestPlayer = (url: string): 'jessibuca' | 'webrtc' | 'h265web' | 'xg
     return 'webrtc'
   }
 
-  // 根据文件扩展名判断
-  if (extension === '.flv') {
-    // FLV 格式优先使用 Jessibuca（性能最好）
-    return 'jessibuca'
-  } else if (extension === '.m3u8') {
-    // HLS 格式优先使用 h265web，其次 XGPlayer
-    return 'h265web'
-  } else if (extension === '.mp4' || extension === '.mov' || extension === '.mkv') {
-    // MP4 等格式使用 h265web 或 XGPlayer
-    return 'h265web'
-  } else if (extension === '.ts') {
-    // MPEG-TS 格式使用 h265web
-    return 'h265web'
-  }
-
-  // 默认使用 h265web（支持格式最广）
-  return 'h265web'
+  // 默认使用 easyplayer（支持格式最广）
+  return 'easyplayer'
 }
 
 // Initialize active player
 watch(() => props.streamInfo, (newStreamInfo) => {
   if (newStreamInfo && visible.value) {
-    let bestPlayer: 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer' = 'h265web'
+    let bestPlayer: 'easyplayer' | 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer' = 'easyplayer'
 
     // 测试模式：根据 testUrl 判断
     if (newStreamInfo.testUrl) {
       bestPlayer = detectBestPlayer(newStreamInfo.testUrl)
     } else {
-      // API 模式：根据可用流判断
-      if (newStreamInfo.rtc || newStreamInfo.rtcs) {
-        bestPlayer = 'webrtc'
-      } else if (newStreamInfo.ws_flv || newStreamInfo.wss_flv || newStreamInfo.flv || newStreamInfo.https_flv) {
-        // FLV 格式优先使用 Jessibuca
-        bestPlayer = 'jessibuca'
-      } else if (newStreamInfo.hls || newStreamInfo.https_hls) {
-        // HLS 格式使用 h265web
-        bestPlayer = 'h265web'
-      } else if (newStreamInfo.mp4 || newStreamInfo.https_mp4) {
-        // MP4 格式使用 h265web
-        bestPlayer = 'h265web'
-      } else if (newStreamInfo.ts || newStreamInfo.https_ts) {
-        // TS 格式使用 h265web
-        bestPlayer = 'h265web'
-      }
+      // API 模式：默认使用 easyplayer（支持所有协议）
+      bestPlayer = 'easyplayer'
     }
 
     console.log('Auto-selected player:', bestPlayer, 'available:', availablePlayers.value)
@@ -683,7 +707,7 @@ watch(() => props.streamInfo, (newStreamInfo) => {
       }
     } else {
       // 如果检测到的播放器不可用，使用可用列表中的第一个
-      const fallbackPlayer = availablePlayers.value[0] as 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'
+      const fallbackPlayer = availablePlayers.value[0] as 'easyplayer' | 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'
       console.log('Best player not available, using fallback:', fallbackPlayer)
       if (activePlayer.value !== fallbackPlayer) {
         activePlayer.value = fallbackPlayer
@@ -695,7 +719,7 @@ watch(() => props.streamInfo, (newStreamInfo) => {
 // 监听可用播放器列表变化，确保当前播放器始终可用
 watch(() => availablePlayers.value, (newAvailablePlayers) => {
   if (!newAvailablePlayers.includes(activePlayer.value)) {
-    const fallbackPlayer = newAvailablePlayers[0] as 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'
+    const fallbackPlayer = newAvailablePlayers[0] as 'easyplayer' | 'jessibuca' | 'webrtc' | 'h265web' | 'xgplayer'
     console.log('Current player no longer available, switching to:', fallbackPlayer)
     activePlayer.value = fallbackPlayer
   }

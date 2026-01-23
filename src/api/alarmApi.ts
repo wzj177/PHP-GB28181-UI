@@ -1,11 +1,20 @@
 import request from '@/utils/request';
+import type {
+  AlarmPlan,
+  AlarmPlanListResponse,
+  AlarmEvent,
+  AlarmEventListResponse,
+  AlarmEventQueryParams,
+  BindChannelsParams
+} from '@/types/alarm';
 
 /**
- * 告警管理 API 服务
- * 对应后端路由：
- * GET /api/admin/gb28181/alarms - 获取告警列表
- * GET /api/admin/gb28181/alarms/{id} - 获取告警详情
- * PUT /api/admin/gb28181/alarms/{id} - 更新告警状态
+ * 报警管理 API 服务
+ *
+ * 包含三个部分：
+ * 1. GB28181 告警管理（原有）
+ * 2. 报警计划管理（新增）
+ * 3. 报警事件查询（新增）
  */
 export const alarmApi = {
   /**
@@ -40,6 +49,86 @@ export const alarmApi = {
     remark?: string;
   }) => {
     return request.put(`/admin/gb28181/alarms/${id}`, data);
+  },
+
+  // ==================== 报警计划管理 ====================
+
+  /**
+   * 获取报警计划列表
+   * GET /api/admin/alarm-plan
+   */
+  getAlarmPlans: (params?: {
+    page?: number
+    limit?: number
+    status?: number
+  }) => {
+    return request.get<AlarmPlanListResponse>('/admin/alarm-plan', { params })
+  },
+
+  /**
+   * 获取报警计划详情
+   * GET /api/admin/alarm-plan/{id}
+   */
+  getAlarmPlanDetail: (id: number) => {
+    return request.get<AlarmPlan>(`/admin/alarm-plan/${id}`)
+  },
+
+  /**
+   * 创建报警计划
+   * POST /api/admin/alarm-plan
+   */
+  createAlarmPlan: (data: AlarmPlan) => {
+    return request.post<AlarmPlan>('/admin/alarm-plan', data)
+  },
+
+  /**
+   * 更新报警计划
+   * PUT /api/admin/alarm-plan/{id}
+   */
+  updateAlarmPlan: (id: number, data: Partial<AlarmPlan>) => {
+    return request.put<AlarmPlan>(`/admin/alarm-plan/${id}`, data)
+  },
+
+  /**
+   * 删除报警计划
+   * DELETE /api/admin/alarm-plan/{id}
+   */
+  deleteAlarmPlan: (id: number) => {
+    return request.delete(`/admin/alarm-plan/${id}`)
+  },
+
+  /**
+   * 绑定通道到报警计划
+   * POST /api/admin/alarm-plan/{id}/channels
+   */
+  bindChannels: (id: number, data: BindChannelsParams) => {
+    return request.post(`/admin/alarm-plan/${id}/channels`, data)
+  },
+
+  /**
+   * 解绑通道
+   * DELETE /api/admin/alarm-plan/{id}/channels/{channelId}
+   */
+  unbindChannel: (id: number, channelId: string) => {
+    return request.delete(`/admin/alarm-plan/${id}/channels/${channelId}`)
+  },
+
+  // ==================== 报警事件查询 ====================
+
+  /**
+   * 获取报警事件列表
+   * GET /api/v2/alarm/events
+   */
+  getAlarmEvents: (params?: AlarmEventQueryParams) => {
+    return request.get<AlarmEventListResponse>('/v2/alarm/events', { params })
+  },
+
+  /**
+   * 获取报警事件详情
+   * GET /api/v2/alarm/events/{id}
+   */
+  getAlarmEventDetail: (id: number) => {
+    return request.get<{ data: AlarmEvent }>(`/v2/alarm/events/${id}`)
   }
 };
 

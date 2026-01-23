@@ -24,6 +24,7 @@ export const pages: Record<string, () => Promise<any>> = {
   // 流媒体管理
   'MediaServerList': () => import('@/views/media/MediaServerList.vue'),
   'MediaServerConfig': () => import('@/views/media/MediaServerConfig.vue'),
+  'MediaServerStats': () => import('@/views/media/MediaServerStats.vue'),
 
   // 设备管理
   'DeviceList': () => import('@/views/device/DeviceList.vue'),
@@ -43,6 +44,8 @@ export const pages: Record<string, () => Promise<any>> = {
 
   // 报警管理
   'AlarmManagement': () => import('@/views/alarms/AlarmManagement.vue'),
+  'AlarmPlanList': () => import('@/views/alarm/AlarmPlanList.vue'),
+  'AlarmEventList': () => import('@/views/alarm/AlarmEventList.vue'),
 
   // 电子地图
   'ElectronicMap': () => import('@/views/map/ElectronicMap.vue'),

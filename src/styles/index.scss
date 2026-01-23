@@ -9,11 +9,11 @@
   --bg-panel: #0F172A;
   --bg-hover: #162033;
   --bg-active: #1E293B;
-  
+
   --border-base: #243047;
   --border-primary: #3B82F6;
   --border-light: #2F3C57;
-  
+
   --text-main: #E5E7EB;
   --text-muted: #9CA3AF;
   --text-disabled: #6B7280;
@@ -25,11 +25,11 @@
   --bg-panel: #FFFFFF;
   --bg-hover: #F9FAFB;
   --bg-active: #E5E7EB;
-  
+
   --border-base: #E5E7EB;
   --border-primary: #3B82F6;
   --border-light: #F3F4F6;
-  
+
   --text-main: #1F2937;
   --text-muted: #6B7280;
   --text-disabled: #9CA3AF;
@@ -164,7 +164,7 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--border-base);
   border-radius: 4px;
-  
+
   &:hover {
     background: var(--text-muted);
   }
@@ -183,10 +183,34 @@ body {
 
 .el-input__inner {
   &:focus {
-     box-shadow: none !important;
+    box-shadow: none !important;
   }
 }
 
+
+.easyplayer-controls-item-wrap{
+  .el-button {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: scale(1.05);
+    }
+
+    &.control-active {
+      background: #409EFF;
+      color: #fff;
+      border-color: #409EFF;
+
+      &:hover {
+        background: #66B1FF;
+      }
+    }
+  }
+}
 
 
 // Responsive adjustments
@@ -202,15 +226,23 @@ body {
 
 // Utility functions
 @function theme-color($color, $opacity: 1) {
-  @if $color == "primary" {
+  @if $color=="primary" {
     @return rgba(variables.$primary, $opacity);
-  } @else if $color == "success" {
+  }
+
+  @else if $color=="success" {
     @return rgba(variables.$success, $opacity);
-  } @else if $color == "warning" {
+  }
+
+  @else if $color=="warning" {
     @return rgba(variables.$warning, $opacity);
-  } @else if $color == "danger" {
+  }
+
+  @else if $color=="danger" {
     @return rgba(variables.$danger, $opacity);
-  } @else {
+  }
+
+  @else {
     @return rgba(variables.$text-main, $opacity);
   }
 }

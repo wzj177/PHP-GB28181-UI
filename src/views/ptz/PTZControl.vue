@@ -44,13 +44,14 @@ interface Cell {
   channelName: string
   deviceId: string | null
   url: string
-  playerType: 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc'
+  playerType: 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc' | 'easyplayer'
   playing: boolean
   ready: boolean
 }
 
 // 播放器类型选项
 const playerTypes = [
+  { label: 'EasyPlayer (推荐)', value: 'easyplayer' },
   { label: 'Jessibuca (FLV)', value: 'jessibuca' },
   { label: 'H265Web (通用)', value: 'h265web' },
   { label: 'XGPlayer (HLS)', value: 'xgplayer' }
@@ -71,7 +72,7 @@ const cells = ref<Cell[]>(
     channelName: '',
     deviceId: null,
     url: '',
-    playerType: 'jessibuca',
+    playerType: 'easyplayer',
     playing: false,
     ready: false,
     playerVersion: 0  // Version number to force iframe reload when player changes
@@ -226,10 +227,17 @@ const playChannelWithAPI = async (cellIndex: number, channelId: string, deviceId
       const cell = cells.value[cellIndex]
       // Select stream URL based on player type priority and page protocol
       let streamUrl = ''
-      const playerType = cell.playerType || 'jessibuca'
+      const playerType = cell.playerType || 'easyplayer'
       const isSecurePage = location.protocol === 'https:'
 
-      if (playerType === 'jessibuca' || playerType === 'h265web') {
+      if (playerType === 'easyplayer') {
+        // EasyPlayerPro supports ALL protocols - prefer WebSocket, fallback to HTTP
+        if (isSecurePage) {
+          streamUrl = data.play_urls.wss_flv || data.play_urls.https_flv || data.play_urls.rtcs || data.play_urls.ws_flv || data.play_urls.http_flv || data.play_urls.https_hls || Object.values(data.play_urls).find(url => url)?.url || ''
+        } else {
+          streamUrl = data.play_urls.ws_flv || data.play_urls.wss_flv || data.play_urls.rtc || data.play_urls.http_flv || data.play_urls.hls || Object.values(data.play_urls).find(url => url)?.url || ''
+        }
+      } else if (playerType === 'jessibuca' || playerType === 'h265web') {
         // Jessibuca and H265Web support: ws_flv, wss_flv, http_flv, https_flv
         if (isSecurePage) {
           // Prefer secure streams on HTTPS page
@@ -246,6 +254,9 @@ const playChannelWithAPI = async (cellIndex: number, channelId: string, deviceId
         } else {
           streamUrl = data.play_urls.http_flv || data.play_urls.https_flv || data.play_urls.hls || data.play_urls.https_hls || data.play_urls.hls_fmp4 || data.play_urls.https_hls_fmp4 || ''
         }
+      } else if (playerType === 'webrtc') {
+        // WebRTC uses rtc/rtcs protocols
+        streamUrl = data.play_urls.rtcs || data.play_urls.rtc || ''
       }
 
       if (!streamUrl) {
@@ -323,7 +334,7 @@ const stopPlay = async (cellIndex: number) => {
 }
 
 // Switch player type for a cell
-const switchPlayerType = (cellIndex: number, playerType: 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc') => {
+const switchPlayerType = (cellIndex: number, playerType: 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc' | 'easyplayer') => {
   const cell = cells.value[cellIndex]
 
   if (!cell.url) {
@@ -618,6 +629,7 @@ onMounted(() => {
 // Helper function to get player type label
 const getPlayerTypeLabel = (type: string) => {
   const labels: Record<string, string> = {
+    easyplayer: 'EasyPlayer',
     jessibuca: 'Jessibuca',
     h265web: 'H265Web',
     xgplayer: 'XGPlayer',

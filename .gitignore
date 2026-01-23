@@ -92,3 +92,5 @@ desktop.ini
 # Lock files
 pnpm-lock.yaml
 yarn.lock
+
+docs/EasyPlayer.js

@@ -91,6 +91,7 @@ export interface SnapshotData {
   cpu_usage: number
   memory_usage: number
   stream_count: number
+  rtp_count?: number  // RTP流数量（新增字段）
   total_connection_count: number
   bytes_speed: number
   network_thread_count: number

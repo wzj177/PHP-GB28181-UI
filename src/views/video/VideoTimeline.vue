@@ -8,6 +8,8 @@ interface RecordingSegment {
   start: number
   end: number
   type: 'normal' | 'alarm'
+  originalStartTime?: number  // 原始 Unix 时间戳，用于回放 API
+  originalEndTime?: number    // 原始 Unix 时间戳，用于回放 API
 }
 
 interface Props {
@@ -30,7 +32,12 @@ interface Props {
   // 播放器相关
   playUrl?: string
   deviceId?: string
-  channelId?: string
+  channelId?: string,
+  channelPkId?: number,
+  streamId?: string
+
+  // 回放倍速
+  playbackSpeed?: number
 }
 
 interface Emits {
@@ -54,7 +61,10 @@ const props = withDefaults(defineProps<Props>(), {
   pollResult: null,
   playUrl: '',
   deviceId: '',
-  channelId: ''
+  channelId: '',
+  channelPkId: 0,
+  streamId: '',
+  playbackSpeed: 1
 })
 
 const emit = defineEmits<Emits>()
@@ -64,6 +74,9 @@ const emit = defineEmits<Emits>()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const labelRef = ref<HTMLDivElement | null>(null)
 const currentSecond = ref(props.currentTime)
+const hoveredSegment = ref<RecordingSegment | null>(null)  // 鼠标悬浮的录像段
+const mouseTime = ref<number | null>(null)  // 鼠标位置对应的时间
+const lastDrawnRecords = ref<RecordingSegment[] | null>(null)  // 上次绘制的录像，用于调试日志
 
 // 日期选择状态
 const selectedDate = ref<string>(formatDate(new Date()))
@@ -110,27 +123,35 @@ const handleClear = () => {
   emit('clear')
 }
 
-// 生成播放器 iframe URL
-const getPlayerIframeUrl = () => {
+// 生成播放器 iframe URL（回放模式使用 RecordPlayer）
+const playerIframeUrl = computed(() => {
   if (!props.playUrl) return ''
 
-  // 计算播放器尺寸
-  const containerRef = ref<HTMLDivElement | null>(null)
   const playerWidth = 800
   const playerHeight = 600
 
   const params = new URLSearchParams({
     url: props.playUrl,
-    playerType: 'jessibuca',  // 默认使用 jessibuca 播放器
+    player_type: 'easyplayer',  // 默认使用 easyplayer
     autoplay: 'true',
-    hasAudio: 'true',
-    isLive: 'false',  // 回放模式
+    isLive: 'true',  // 回放模式
     width: `${playerWidth}px`,
-    height: `${playerHeight}px`
+    height: `${playerHeight}px`,
+    speed: String(props.playbackSpeed)  // 添加倍速参数
   })
 
-  return `/play/player?${params.toString()}`
-}
+  // 添加 channel_id 参数，用于回放控制
+  if(props.channelPkId) {
+    params.append('channel_id', String(props.channelPkId))
+  }
+
+  // 添加 stream_id 参数，用于回放控制
+  if(props.streamId) {
+    params.append('stream_id', props.streamId)
+  }
+
+  return `/play/record?${params.toString()}`
+})
 
 const format = (sec: number): string => {
   if (isNaN(sec) || sec < 0) return '--:--:--'
@@ -240,11 +261,67 @@ const draw = () => {
 
   /* ===== 录像段 ===== */
   const recordsToDraw = props.mode === 'cloud' ? cloudDemoRecords.value : displayRecords.value
+
+  // 调试日志（只在录像数据变化时输出一次）
+  if (recordsToDraw.length > 0 && recordsToDraw !== lastDrawnRecords.value) {
+    console.log('绘制录像段:', recordsToDraw.map(r => ({
+      start: r.start,
+      end: r.end,
+      duration: r.end - r.start,
+      format: `${format(r.start)} - ${format(r.end)}`,
+      x1: timeToX(r.start),
+      x2: timeToX(r.end),
+      width: timeToX(r.end) - timeToX(r.start)
+    })))
+    lastDrawnRecords.value = recordsToDraw
+  }
+
+  const recordHeight = 40  // 录像段高度（进一步增加可点击区域）
+  const minRecordWidth = 2  // 录像段最小宽度（像素），确保短视频像也能看见
+
   recordsToDraw.forEach(r => {
-    const x1 = timeToX(r.start)
-    const x2 = timeToX(r.end)
-    ctx.fillStyle = r.type === 'alarm' ? '#ef4444' : '#22c55e'
-    ctx.fillRect(x1, axisY - 6, x2 - x1, 12)
+    let x1 = timeToX(r.start)
+    let x2 = timeToX(r.end)
+
+    // 确保录像段至少有最小宽度
+    if (x2 - x1 < minRecordWidth) {
+      const centerX = (x1 + x2) / 2
+      x1 = centerX - minRecordWidth / 2
+      x2 = centerX + minRecordWidth / 2
+    }
+
+    const y = axisY - recordHeight / 2
+
+    // 检查是否是悬浮的录像段
+    const isHovered = hoveredSegment.value === r
+
+    // 绘制录像段背景
+    if (isHovered) {
+      // 悬浮时使用更亮的颜色
+      ctx.fillStyle = r.type === 'alarm' ? '#f87171' : '#4ade80'
+      // 添加发光效果
+      ctx.shadowColor = r.type === 'alarm' ? '#ef4444' : '#22c55e'
+      ctx.shadowBlur = 10
+    } else {
+      ctx.fillStyle = r.type === 'alarm' ? '#ef4444' : '#22c55e'
+      ctx.shadowBlur = 0
+    }
+
+    // 居中绘制录像段
+    ctx.fillRect(x1, y, x2 - x1, recordHeight)
+
+    // 重置阴影
+    ctx.shadowBlur = 0
+
+    // 如果悬浮，显示录像段的时间信息
+    if (isHovered) {
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 11px sans-serif'
+      ctx.textAlign = 'center'
+      const timeText = `${format(r.start)} - ${format(r.end)}`
+      // 在录像段上方显示时间
+      ctx.fillText(timeText, (x1 + x2) / 2, y - 8)
+    }
   })
 
   /* ===== 当前时间指针 ===== */
@@ -266,6 +343,28 @@ const draw = () => {
   if (labelRef.value) {
     labelRef.value.textContent = format(safeTime)
   }
+
+  /* ===== 鼠标悬停时间指针 ===== */
+  if (mouseTime.value !== null) {
+    const mouseSafeTime = Math.max(0, Math.min(mouseTime.value, props.totalSeconds))
+    const mouseX = timeToX(mouseSafeTime)
+
+    // 鼠标指针使用半透明的白色
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'
+    ctx.lineWidth = 1
+    ctx.setLineDash([5, 5])  // 虚线
+    ctx.beginPath()
+    ctx.moveTo(mouseX, 0)
+    ctx.lineTo(mouseX, h)
+    ctx.stroke()
+    ctx.setLineDash([])  // 重置虚线
+
+    // 在底部显示时间
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.font = '11px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(format(mouseSafeTime), mouseX, h - 8)
+  }
 }
 
 /* ================= 时间轴交互 ================= */
@@ -282,6 +381,12 @@ const xToTime = (x: number, rect: DOMRect): number => {
   return Math.floor((clamped / usableWidth) * props.totalSeconds)
 }
 
+// 根据鼠标位置查找悬浮的录像段
+const findHoveredSegment = (x: number, rect: DOMRect): RecordingSegment | null => {
+  const time = xToTime(x, rect)
+  return findSegmentByTime(time)
+}
+
 // 处理鼠标按下
 const handleMouseDown = (e: MouseEvent) => {
   if (!canvasRef.value) return
@@ -291,20 +396,40 @@ const handleMouseDown = (e: MouseEvent) => {
   const x = e.clientX - rect.left
   const newTime = xToTime(x, rect)
 
-  currentSecond.value = newTime
+  // 更新鼠标预览时间（虚线指针），不更新当前时间
+  mouseTime.value = newTime
   draw()
 }
 
 // 处理鼠标移动
 const handleMouseMove = (e: MouseEvent) => {
-  if (!isDragging.value || !canvasRef.value) return
+  if (!canvasRef.value) return
 
   const rect = canvasRef.value.getBoundingClientRect()
   const x = e.clientX - rect.left
-  const newTime = xToTime(x, rect)
+  const newMouseTime = xToTime(x, rect)
 
-  currentSecond.value = newTime
-  draw()
+  // 更新鼠标位置对应的时间（预览）
+  if (mouseTime.value !== newMouseTime) {
+    mouseTime.value = newMouseTime
+    draw()
+  }
+
+  // 检测悬浮的录像段
+  const prevHovered = hoveredSegment.value
+  hoveredSegment.value = findHoveredSegment(x, rect)
+
+  // 如果悬浮状态改变，重新绘制
+  if (prevHovered !== hoveredSegment.value) {
+    draw()
+  }
+
+  // 更新鼠标样式
+  if (hoveredSegment.value) {
+    canvasRef.value.style.cursor = 'pointer'
+  } else {
+    canvasRef.value.style.cursor = isDragging.value ? 'grabbing' : 'grab'
+  }
 }
 
 // 处理鼠标释放
@@ -317,11 +442,18 @@ const handleMouseUp = (e: MouseEvent) => {
   const x = e.clientX - rect.left
   const newTime = xToTime(x, rect)
 
+  // 更新当前时间到选中的位置
+  currentSecond.value = newTime
+
+  // 清除鼠标预览
+  mouseTime.value = null
+
   // 查找对应的录像段
   const segment = findSegmentByTime(newTime)
 
   // 只在有录像的区域触发时间变化事件
   if (segment) {
+    console.log('拖动结束，触发回放:', format(newTime))
     emit('timeChange', newTime, segment)
   } else {
     console.log('选择的位置没有录像，不触发回放操作')
@@ -330,32 +462,16 @@ const handleMouseUp = (e: MouseEvent) => {
   draw()
 }
 
-const handleCanvasClick = (e: MouseEvent) => {
-  if (!canvasRef.value) return
-  const rect = canvasRef.value.getBoundingClientRect()
-  const x = e.clientX - rect.left
-
-  const leftPadding = 10
-  const rightPadding = 10
-  const usableWidth = rect.width - leftPadding - rightPadding
-
-  const clamped = Math.min(Math.max(x - leftPadding, 0), usableWidth)
-  const newTime = Math.floor((clamped / usableWidth) * props.totalSeconds)
-
-  currentSecond.value = newTime
-
-  // 查找对应的录像段
-  const segment = findSegmentByTime(newTime)
-
-  // 只在有录像的区域触发时间变化事件
-  if (segment) {
-    // 触发时间变化事件（父组件处理停止旧回放→开始新回放）
-    emit('timeChange', newTime, segment)
-  } else {
-    console.log('点击的位置没有录像，不触发回放操作')
+// 处理鼠标离开
+const handleMouseLeave = () => {
+  if (hoveredSegment.value) {
+    hoveredSegment.value = null
+    draw()
   }
-
-  draw()
+  if (mouseTime.value !== null) {
+    mouseTime.value = null
+    draw()
+  }
 }
 
 /* ================= 生命周期 ================= */
@@ -441,7 +557,8 @@ defineExpose({
     <div class="player">
       <template v-if="props.playUrl && props.isPlaying">
         <iframe
-          :src="getPlayerIframeUrl()"
+          :key="`${props.streamId || 'default'}-${props.playbackSpeed}`"
+          :src="playerIframeUrl"
           class="player-iframe"
           frameborder="0"
           allow="autoplay; fullscreen"
@@ -496,7 +613,7 @@ defineExpose({
         @mousedown="handleMouseDown"
         @mousemove="handleMouseMove"
         @mouseup="handleMouseUp"
-        @mouseleave="isDragging = false"
+        @mouseleave="handleMouseLeave"
       />
 
       <div class="legend">
@@ -576,7 +693,7 @@ defineExpose({
 
 .timeline-canvas {
   width: 100%;
-  height: 72px;
+  height: 100px; 
   cursor: grab;
 
   &:active {

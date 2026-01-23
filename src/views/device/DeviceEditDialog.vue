@@ -57,6 +57,23 @@
         </ElCol>
       </ElRow>
 
+      <ElRow :gutter="20">
+        <ElCol :span="12">
+          <ElFormItem label="扩展SDP" prop="senior_sdp">
+            <ElSwitch
+              v-model="formData.senior_sdp"
+              :active-value="1"
+              :inactive-value="0"
+              active-text="扩展"
+              inactive-text="不扩展"
+            />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="12">
+          <!-- 预留空间 -->
+        </ElCol>
+      </ElRow>
+
       <ElFormItem label="流索引" prop="stream_index">
         <ElSelect v-model="formData.stream_index" placeholder="请选择流索引" style="width: 100%;">
           <ElOption label="自动" value="auto" />
@@ -187,6 +204,7 @@ interface Props {
     show_name?: string
     rtp_trans_mode?: number
     enabled?: number
+    senior_sdp?: number
     province_id?: string
     city_id?: string
     county_id?: string
@@ -237,6 +255,7 @@ const formData = ref<DeviceEditData & {
   custom_lng?: string
   id?: number
   enabled?: number
+  senior_sdp?: number
   subscribe_catalog?: number
   subscribe_alarm?: number
   subscribe_position?: number
@@ -253,6 +272,7 @@ const formData = ref<DeviceEditData & {
   show_name: '',
   rtp_trans_mode: undefined,
   enabled: 1,
+  senior_sdp: 0,
   custom_lat: '',
   custom_lng: '',
   subscribe_catalog: 0,
@@ -295,6 +315,7 @@ const resetForm = () => {
     show_name: '',
     rtp_trans_mode: 0,
     enabled: 1,
+    senior_sdp: 0,
     custom_lat: '',
     custom_lng: '',
     subscribe_catalog: 0,
@@ -324,6 +345,7 @@ watch(
         show_name: device.show_name || '',
         rtp_trans_mode: device.rtp_trans_mode ?? 0,
         enabled: device.enabled ?? 1,
+        senior_sdp: device.senior_sdp ?? 0,
         custom_lat: device.custom_lat || '',
         custom_lng: device.custom_lng || '',
         subscribe_catalog: device.subscribe_catalog ?? 0,
@@ -384,6 +406,7 @@ const handleSubmit = async () => {
         show_name?: string
         rtp_trans_mode?: number
         enabled?: number
+        senior_sdp?: number
         province_id?: string
         city_id?: string
         county_id?: string
@@ -403,6 +426,7 @@ const handleSubmit = async () => {
         show_name: formData.value.show_name || undefined,
         rtp_trans_mode: formData.value.rtp_trans_mode,
         enabled: formData.value.enabled,
+        senior_sdp: formData.value.senior_sdp,
         custom_lat: formData.value.custom_lat || undefined,
         custom_lng: formData.value.custom_lng || undefined,
         subscribe_catalog: formData.value.subscribe_catalog,

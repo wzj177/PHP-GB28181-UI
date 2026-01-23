@@ -341,13 +341,28 @@ const scrollToBottom = () => {
 // Handle drawer close
 const handleClose = () => {
   stopStream()
+  // 重置所有状态
+  logs.value = []
+  error.value = ''
+  progress.value = { index: 0, total: 0 }
+  xmlBuffer.value = ''
+  loading.value = false
+  // 重置日期为今天
+  selectedDate.value = formatDate(new Date())
   emit('update:modelValue', false)
 }
 
 // Watch for drawer open/close
 watch(() => props.modelValue, (newVal) => {
   if (!newVal) {
+    // 关闭时清理所有状态
     stopStream()
+    logs.value = []
+    error.value = ''
+    progress.value = { index: 0, total: 0 }
+    xmlBuffer.value = ''
+    loading.value = false
+    selectedDate.value = formatDate(new Date())
   }
 })
 

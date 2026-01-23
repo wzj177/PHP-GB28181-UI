@@ -20,6 +20,24 @@
           size="small"
           @click="togglePlay"
         />
+
+        <!-- 自定义控制按钮（左侧） -->
+        <template v-if="customControls && customControls.left">
+          <el-button
+            v-for="(ctrl, index) in customControls.left"
+            :key="`left-${index}`"
+            :icon="ctrl.icon"
+            :size="ctrl.props?.size || 'small'"
+            :class="{ 'control-active': ctrl.active }"
+            v-bind="ctrl.props"
+            @click="handleCustomControl(ctrl)"
+          >
+            {{ ctrl.label || ctrl.text }}
+          </el-button>
+        </template>
+
+        <!-- 左侧插槽 -->
+        <slot name="controls-left"></slot>
       </div>
 
       <div class="controls-center">
@@ -40,9 +58,29 @@
             style="width: 80px; margin: 0 8px;"
           />
         </div>
+
+        <!-- 中间插槽 -->
+        <slot name="controls-center"></slot>
       </div>
 
       <div class="controls-right">
+        <!-- 右侧插槽 -->
+        <slot name="controls-right"></slot>
+
+        <!-- 自定义控制按钮（右侧） -->
+        <template v-if="customControls && customControls.right">
+          <el-button
+            v-for="(ctrl, index) in customControls.right"
+            :key="`right-${index}`"
+            :icon="ctrl.icon"
+            :size="ctrl.props?.size || 'small'"
+            v-bind="ctrl.props"
+            @click="handleCustomControl(ctrl)"
+          >
+            {{ ctrl.label || ctrl.text }}
+          </el-button>
+        </template>
+
         <!-- 截图 -->
         <el-button
           :icon="Camera"
@@ -80,6 +118,23 @@ declare global {
   }
 }
 
+// 自定义控制按钮配置
+interface CustomControlButton {
+  component?: string  // 组件名，默认 'el-button'
+  icon?: any  // 图标组件
+  label?: string  // 按钮文本
+  text?: string  // 按钮文本（别名）
+  props?: Record<string, any>  // 组件 props
+  action?: string  // 操作类型
+  active?: boolean  // 是否为选中状态
+  onClick?: () => void  // 点击回调
+}
+
+interface CustomControls {
+  left?: CustomControlButton[]  // 左侧按钮
+  right?: CustomControlButton[]  // 右侧按钮
+}
+
 interface Props {
   visible?: boolean
   width?: string
@@ -90,6 +145,9 @@ interface Props {
   isLive?: boolean // 是否为直播流
   showButton?: boolean
   debug?: boolean
+  channelId?: string | number  // 通道 ID（用于回放控制）
+  streamId?: string  // 回放流 ID（用于回放控制）
+  customControls?: CustomControls  // 自定义控制按钮配置
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -101,13 +159,19 @@ const props = withDefaults(defineProps<Props>(), {
   hasAudio: false,
   isLive: true,
   showButton: true,
-  debug: false
+  debug: false,
+  channelId: '',
+  streamId: '',
+  customControls: undefined
 })
 
 const emit = defineEmits<{
   (e: 'play'): void
   (e: 'pause'): void
   (e: 'error', message: string): void
+  (e: 'speedChange', speed: number, streamId: string): void  // 倍速变化
+  (e: 'seek', time: string, streamId: string): void  // 拖动进度
+  (e: 'download', params: { start_time: string; end_time: string }, streamId: string): void  // 下载录像
 }>()
 
 const containerRef = ref<HTMLDivElement>()
@@ -489,6 +553,48 @@ const destroy = () => {
   destroyPlayer()
 }
 
+// 处理自定义控制按钮点击
+const handleCustomControl = (ctrl: CustomControlButton) => {
+  console.log('Custom control clicked:', ctrl)
+
+  // 如果有自定义回调，先执行
+  if (ctrl.onClick) {
+    ctrl.onClick()
+    return
+  }
+
+  const currentStreamId = props.streamId || ''
+
+  // 根据操作类型执行默认逻辑
+  switch (ctrl.action) {
+    case 'speed-0.5':
+      emit('speedChange', 0.5, currentStreamId)
+      break
+    case 'speed-1':
+      emit('speedChange', 1, currentStreamId)
+      break
+    case 'speed-2':
+      emit('speedChange', 2, currentStreamId)
+      break
+    case 'speed-4':
+      emit('speedChange', 4, currentStreamId)
+      break
+    case 'seek':
+      // seek 需要额外的参数，这里只触发事件，具体由父组件处理
+      emit('seek', ctrl.props?.seekTime || '', currentStreamId)
+      break
+    case 'download':
+      // 下载录像
+      emit('download', {
+        start_time: ctrl.props?.startTime || '',
+        end_time: ctrl.props?.endTime || ''
+      }, currentStreamId)
+      break
+    default:
+      console.warn('Unknown control action:', ctrl.action)
+  }
+}
+
 // 监听 url 变化
 watch(() => props.url, (newUrl) => {
   console.log('H265Web url changed:', newUrl, 'visible:', props.visible)
@@ -637,6 +743,17 @@ defineExpose({
       &:hover {
         background: rgba(255, 255, 255, 0.25);
         transform: scale(1.05);
+      }
+
+      // 自定义控制按钮选中状态
+      &.control-active {
+        background: #409EFF;
+        color: #fff;
+        border-color: #409EFF;
+
+        &:hover {
+          background: #66B1FF;
+        }
       }
     }
 

@@ -61,6 +61,21 @@
         @error="handleError"
       />
 
+      <!-- EasyPlayerPro 播放器 -->
+      <EasyPlayerPro
+        v-else-if="playerType === 'easyplayer'"
+        ref="playerRef"
+        :url="currentUrl"
+        :width="width"
+        :height="height"
+        :has-audio="hasAudio"
+        :is-live="isLive"
+        :autoplay="autoplay"
+        @play="handlePlay"
+        @pause="handlePause"
+        @error="handleError"
+      />
+
       <!-- 无效播放器 -->
       <div v-else class="error-placeholder">
         <el-icon><WarningFilled /></el-icon>
@@ -75,14 +90,14 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 // @ts-ignore - Icons exist but type definitions are incorrect
 import { WarningFilled } from '@element-plus/icons-vue'
-import { JessibucaPlayer, H265WebPlayer, XGPlayer, WebRTCPlayer } from '@/components/player'
+import { JessibucaPlayer, H265WebPlayer, XGPlayer, WebRTCPlayer, EasyPlayerPro } from '@/components/player'
 
 // 从路由参数获取配置
 const route = useRoute()
 
 interface PlayerConfig {
   url: string
-  playerType?: 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc'
+  playerType?: 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc' | 'easyplayer'
   width?: string
   height?: string
   autoplay?: boolean
@@ -134,27 +149,16 @@ const isLive = computed(() => {
 const playerRef = ref()
 
 // 根据 URL 检测最佳播放器
-const detectBestPlayer = (url: string): 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc' => {
-  if (!url) return 'jessibuca'
+const detectBestPlayer = (url: string): 'jessibuca' | 'h265web' | 'xgplayer' | 'webrtc' | 'easyplayer' => {
+  if (!url) return 'easyplayer'
 
   const urlPath = url.split('?')[0].split('#')[0].toLowerCase()
   const extension = urlPath.substring(urlPath.lastIndexOf('.'))
 
   console.log('PlayerView: Detecting best player for', url, 'extension:', extension)
 
-  if (url.includes('rtc://') || url.includes('webrtc://')) {
-    return 'webrtc'
-  } else if (extension === '.flv') {
-    return 'jessibuca'
-  } else if (extension === '.m3u8') {
-    return 'h265web'
-  } else if (extension === '.mp4' || extension === '.mov' || extension === '.mkv') {
-    return 'h265web'
-  } else if (extension === '.ts') {
-    return 'h265web'
-  }
-
-  return 'jessibuca'
+  // 默认使用 easyplayer
+  return 'easyplayer'
 }
 
 // 事件处理
