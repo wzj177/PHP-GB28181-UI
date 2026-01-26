@@ -64,6 +64,17 @@
         </ElInput>
         <div class="form-tip">可选，用于nginx反向代理场景，播放地址将使用此域名</div>
       </ElFormItem>
+
+      <ElFormItem label="录像存储目录">
+        <ElInput v-model="formData.record_path" placeholder="默认：/www/wwwroot/zlm/records">
+          <template #append>
+            <ElTooltip content="录像文件存储路径，为空则使用流媒体服务器默认配置">
+              <ElIcon><QuestionFilled /></ElIcon>
+            </ElTooltip>
+          </template>
+        </ElInput>
+        <div class="form-tip">可选，录像文件存储路径，为空则使用流媒体服务器默认配置</div>
+      </ElFormItem>
     </ElForm>
 
     <template #footer>
@@ -114,7 +125,8 @@ const formData = ref<MediaServerFormData>({
   secret: '',
   access_domain: '',
   network_env: 'internal',
-  stream_ip: ''
+  stream_ip: '',
+  record_path: '/www/wwwroot/zlm/records'
 })
 
 const formRules: FormRules = {
@@ -136,7 +148,8 @@ const resetForm = () => {
     secret: '',
     access_domain: '',
     network_env: 'internal',
-    stream_ip: ''
+    stream_ip: '',
+    record_path: '/www/wwwroot/zlm/records'
   }
   formRef.value?.clearValidate()
 }
@@ -154,7 +167,8 @@ watch(
         secret: server.secret,
         access_domain: server.access_domain || '',
         network_env: server.network_env || 'internal',
-        stream_ip: server.stream_ip || ''
+        stream_ip: server.stream_ip || '',
+        record_path: server.record_path || ''
       }
     } else {
       resetForm()

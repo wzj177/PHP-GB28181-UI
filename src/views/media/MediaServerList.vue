@@ -69,6 +69,11 @@
           </template>
         </ElTableColumn>
         <ElTableColumn prop="server_id" label="网关编号" width="200" show-overflow-tooltip />
+        <ElTableColumn label="录像存储目录" width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.record_path || '-' }}
+          </template>
+        </ElTableColumn>
         <ElTableColumn prop="access_domain" label="访问域名" width="200" show-overflow-tooltip />
         <ElTableColumn label="运行状态" width="100">
           <template #default="{ row }">
@@ -272,9 +277,16 @@ const openAddDialog = () => {
 }
 
 // Open edit dialog
-const openEditDialog = (server: MediaServer) => {
-  formDialog.value.server = server
-  formDialog.value.visible = true
+const openEditDialog = async (server: MediaServer) => {
+  try {
+    // 调用详情接口获取完整数据
+    const data = await mediaServerApi.getDetail(server.id)
+    formDialog.value.server = data
+    formDialog.value.visible = true
+  } catch (error: any) {
+    console.error('Failed to fetch server detail:', error)
+    ElMessage.error(error.message || '获取服务器详情失败')
+  }
 }
 
 // Form success handler

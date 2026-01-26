@@ -94,6 +94,9 @@ interface RecordPlayerConfig {
   isLive?: boolean
   channelId?: string | number
   streamId?: string
+  channelPkId?: string | number
+  recordStartTime?: string
+  recordEndTime?: string
 }
 
 const props = defineProps<{
@@ -106,10 +109,13 @@ const playerTypeParam = route.query.player_type as string
 const widthParam = route.query.width as string
 const heightParam = route.query.height as string
 const autoplayParam = route.query.autoplay
-const hasAudioParam = route.query.hasAudio
+const hasAudioParam = route.query.hasAudio as string | '1'
 const isLiveParam = route.query.isLive
 const channelIdParam = route.query.channel_id as string | undefined
 const streamIdParam = route.query.stream_id as string | undefined
+const channelPkIdParam = route.query.channel_pkid as string | undefined
+const recordStartTimeParam = route.query.record_start_time as string | undefined
+const recordEndTimeParam = route.query.record_end_time as string | undefined
 const speedParam = route.query.speed as string | undefined
 
 const currentUrl = computed(() => {
@@ -146,7 +152,7 @@ const autoplay = computed(() => {
 })
 
 const hasAudio = computed(() => {
-  return props.config?.hasAudio === true || hasAudioParam === 'true'
+  return props.config?.hasAudio === true || hasAudioParam === '1'
 })
 
 const isLive = computed(() => {
@@ -163,6 +169,18 @@ const channelId = computed(() => {
 
 const streamId = computed(() => {
   return props.config?.streamId || streamIdParam || ''
+})
+
+const channelPkId = computed(() => {
+  return props.config?.channelPkId || channelPkIdParam || ''
+})
+
+const recordStartTime = computed(() => {
+  return props.config?.recordStartTime || recordStartTimeParam || ''
+})
+
+const recordEndTime = computed(() => {
+  return props.config?.recordEndTime || recordEndTimeParam || ''
 })
 
 
@@ -224,6 +242,7 @@ const customControls = computed(() => {
 
 const playerRef = ref()
 const currentSpeed = ref(Number(speedParam) || 1)  // 当前倍速，从 URL 参数读取，默认 1x
+const downloading = ref(false)  // 下载状态
 
 // 事件处理
 const handlePlay = () => {
@@ -323,29 +342,49 @@ const handleDownload = async (params: { start_time: string; end_time: string }, 
   console.log('下载录像:', params)
 
   // 调用后端 API
-  if (!channelId.value) {
-    console.warn('下载录像失败: 缺少 channelId')
-    postMessage({ type: 'download', params })
+  if (!channelPkId.value) {
+    const errorMsg = '缺少 channelPkId'
+    console.warn('下载录像失败:', errorMsg)
+    postMessage({ type: 'error', error: errorMsg })
     return
   }
 
-  if (!streamIdParam) {
-    console.warn('下载录像失败: 缺少 streamId')
-    postMessage({ type: 'download', params })
+  // 使用从 URL 参数传入的录像时间范围（ISO 格式）
+  const startTime = recordStartTime.value || params.start_time
+  const endTime = recordEndTime.value || params.end_time
+
+  if (!startTime || !endTime) {
+    const errorMsg = '缺少录像时间范围'
+    console.warn('下载录像失败:', errorMsg)
+    postMessage({ type: 'error', error: errorMsg })
     return
   }
+
+  // 设置loading状态
+  downloading.value = true
+  postMessage({ type: 'downloadStart' })
 
   try {
-    await gb28181Api.playbackDownload(channelId.value, {
-      start_time: params.start_time,
-      end_time: params.end_time,
-      stream_id: streamIdParam
+    // 使用 channelPkId (数据库主键 ID) 而不是 channelId (GB28181 ID)
+    // 不需要 stream_id 参数
+    await gb28181Api.playbackDownload(channelPkId.value, {
+      start_time: startTime,
+      end_time: endTime
     })
     console.log('下载录像成功')
-    postMessage({ type: 'download', params })
-  } catch (error) {
+
+    postMessage({
+      type: 'download',
+      params: { start_time: startTime, end_time: endTime },
+      message: '回放下载任务进行中，请到国标设备->回放录像中查看和下载'
+    })
+  } catch (error: any) {
     console.error('下载录像失败:', error)
-    postMessage({ type: 'error', error: '下载录像失败' })
+    // 使用接口返回的实际错误信息
+    const errorMsg = error?.message || error?.response?.data?.message || '下载录像失败'
+    postMessage({ type: 'error', error: errorMsg })
+  } finally {
+    downloading.value = false
   }
 }
 

@@ -22,6 +22,13 @@
         <ElButton type="primary" :loading="querying" :disabled="!selectedDate" @click="queryRecords">
           查询录像
         </ElButton>
+        <ElButton
+          type="success"
+          :disabled="records.length === 0 || playbackInfo.isPlaying || startingPlayback"
+          @click="playFromStart"
+        >
+          从头播放
+        </ElButton>
         <ElButton @click="clearRecords">清空</ElButton>
 
         <!-- Query status -->
@@ -35,6 +42,12 @@
       <!-- Video player and timeline -->
        <!-- :play-url="playbackInfo.playUrls?.wss_flv || playbackInfo.playUrls?.ws_flv ||  playbackInfo.playUrls?.https_flv || playbackInfo.playUrls?.flv || ''" -->
       <div class="player-wrapper">
+        <!-- 下载状态提示 -->
+        <div v-if="downloading" class="download-status">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>正在下载录像...</span>
+        </div>
+
         <VideoTimeline
           ref="timelineRef"
           :mode="currentMode"
@@ -48,6 +61,8 @@
           :channel-id="props.channelId"
           :channel-pk-id="props.channelPkId"
           :stream-id="playbackInfo.streamId"
+          :current-record-start-time="currentRecordStartTime"
+          :current-record-end-time="currentRecordEndTime"
           :playback-speed="currentPlaybackSpeed"
           @time-change="handleTimeChange"
           @ready="onTimelineReady"
@@ -67,8 +82,11 @@ import {
   ElButton,
   ElTag,
   ElDatePicker,
-  ElDrawer
+  ElDrawer,
+  ElIcon
 } from 'element-plus'
+// @ts-ignore - Icons exist but type definitions are incorrect
+import { Loading } from '@element-plus/icons-vue'
 import { gb28181Api } from '@/api/gb28181Api'
 import VideoTimeline from '@/views/video/VideoTimeline.vue'
 
@@ -143,17 +161,40 @@ const isAutoPlaying = ref(false)  // 是否处于自动播放状态
 const currentTime = ref(0)  // 当前播放时间（当天的秒数）
 const progressUpdateTimer = ref<number | null>(null)  // 进度更新定时器
 const playbackStartTime = ref(0)  // 播放开始的时间戳
+const currentRecordStartTime = ref(0)  // 当前录像段原始开始时间（Unix 时间戳，用于下载）
+const currentRecordEndTime = ref(0)  // 当前录像段原始结束时间（Unix 时间戳，用于下载）
+const downloading = ref(false)  // 下载状态
 
 /* ================= 工具函数 ================= */
 
 // 监听来自 iframe 播放器的消息（倍速变化等）
 const handleIframeMessage = (event: MessageEvent) => {
-  const { type, speed } = event.data || {}
+  const { type, speed, message, error } = event.data || {}
 
   // 更新倍速状态
   if (type === 'speedChange' && typeof speed === 'number') {
     currentPlaybackSpeed.value = speed
     console.log('倍速状态已更新:', speed)
+  }
+
+  // 下载开始
+  if (type === 'downloadStart') {
+    downloading.value = true
+    console.log('开始下载录像')
+  }
+
+  // 下载完成
+  if (type === 'download' && message) {
+    downloading.value = false
+    ElMessage.success(message)
+    console.log('下载录像成功:', message)
+  }
+
+  // 下载失败
+  if (type === 'error' && error) {
+    downloading.value = false
+    ElMessage.error(error)
+    console.error('操作失败:', error)
   }
 }
 
@@ -394,16 +435,25 @@ const startContinuousPlayback = (startIndex?: number, autoPlayFirst: boolean = t
 // 播放录像段并在播放完成后自动播放下一段
 // useFullDayRange: 是否使用当天完整时间范围
 const playSegmentWithAutoNext = async (segment: RecordingSegment, useFullDayRange: boolean = false) => {
-  // 1. 先停止当前回放
+  // 安全检查：防止在启动过程中重复调用
+  if (startingPlayback.value) {
+    console.warn('正在启动播放，跳过重复操作')
+    return
+  }
+
+  // 1. 先停止当前回放（清理所有资源）
   if (playbackInfo.value.isPlaying) {
     await stopPlaybackInternal()
+
+    // 等待一小段时间确保资源完全释放
+    await new Promise(resolve => setTimeout(resolve, 200))
   }
 
   // 2. 开始播放新段
   await startPlaybackInternal(segment, useFullDayRange)
 
   // 3. 如果处于自动播放模式，设置定时器在播放完成后切换到下一段
-  if (isAutoPlaying.value && currentPlaybackIndex.value >= 0) {
+  if (isAutoPlaying.value && currentPlaybackIndex.value >= 0 && playbackInfo.value.isPlaying) {
     // 计算实际播放时长（从开始时间到当前段结束时间）
     const duration = (segment.end - segment.start) * 1000
 
@@ -412,12 +462,16 @@ const playSegmentWithAutoNext = async (segment: RecordingSegment, useFullDayRang
     // 清除之前的定时器
     if (autoPlayTimer.value) {
       clearTimeout(autoPlayTimer.value)
+      autoPlayTimer.value = null
     }
 
     // 设置定时器，在录像段播放完成后切换到下一段
     // 加上1秒缓冲时间确保播放完整
     autoPlayTimer.value = window.setTimeout(async () => {
-      await playNextSegment()
+      // 检查是否还在自动播放模式
+      if (isAutoPlaying.value) {
+        await playNextSegment()
+      }
     }, duration + 1000)
   }
 }
@@ -433,29 +487,34 @@ const playNextSegment = async () => {
 
     await playSegmentWithAutoNext(nextSegment)
   } else {
-    // 所有录像段播放完毕，从头开始循环播放
-    console.log('所有录像段播放完毕，从头开始循环播放')
+    // 所有录像段播放完毕，停止播放并清理资源（不再循环）
+    console.log('所有录像段播放完毕，停止播放')
 
-    // 延迟200ms后从头开始
-    setTimeout(async () => {
-      currentPlaybackIndex.value = 0
-      const firstSegment = records.value[0]
+    // 停止自动播放模式
+    isAutoPlaying.value = false
+    currentPlaybackIndex.value = -1
 
-      console.log(`从头开始播放（第 ${currentPlaybackIndex.value + 1}/${records.value.length} 段）：${formatSeconds(firstSegment.start)} ~ ${formatSeconds(firstSegment.end)}`)
+    // 停止当前播放并清理资源
+    await stopPlaybackInternal()
 
-      await playSegmentWithAutoNext(firstSegment)
-    }, 200)
+    console.log('回放结束，资源已清理')
   }
 }
 
 // 处理时间变化（用户点击时间轴）
-// 业务逻辑：停止旧回放 → 开始新回放（使用录像段的原始时间） → 继续顺序播放到最后
+// 业务逻辑：停止旧回放 → 开始新回放（使用录像段的原始时间） → 顺序播放到最后（不循环）
 const handleTimeChange = async (time: number, segment: RecordingSegment | null) => {
   selectedTime.value = time
   selectedSegment.value = segment
 
   if (!segment) {
     console.warn(`时间 ${formatSeconds(time)} 没有对应的录像`)
+    return
+  }
+
+  // 防止快速点击：如果正在启动播放，忽略点击
+  if (startingPlayback.value) {
+    console.warn('正在启动播放，请稍后再试')
     return
   }
 
@@ -470,6 +529,9 @@ const handleTimeChange = async (time: number, segment: RecordingSegment | null) 
   // 1. 先停止当前回放
   if (playbackInfo.value.isPlaying) {
     await stopPlaybackInternal()
+
+    // 等待一小段时间确保资源完全释放
+    await new Promise(resolve => setTimeout(resolve, 200))
   }
 
   // 2. 使用录像段的原始时间进行回放
@@ -507,18 +569,46 @@ const handleTimeChange = async (time: number, segment: RecordingSegment | null) 
   console.log('回放已启动')
 }
 
-// 时间轴准备好后，自动开始最近时间的回放
+// 时间轴准备好后，自动开始最近时间的回放（仅第一次）
 const onTimelineReady = () => {
   timelineReady.value = true
 
   // 只有本地模式且有录像数据时才自动开始回放
   if (currentMode.value === 'local' && records.value.length > 0) {
-    // 获取最近录像时间
+    // 注意：实际播放由 queryRecords 成功后的 startContinuousPlayback 触发
+    // 这里只是备用逻辑
     const nearestTime = timelineRef.value?.getNearestRecordTime()
-    if (nearestTime && nearestTime > 0) {
-      console.log(`自动开始回放: ${formatSeconds(nearestTime)}`)
+    if (nearestTime && nearestTime > 0 && !playbackInfo.value.isPlaying) {
+      console.log(`时间轴就绪，自动开始回放: ${formatSeconds(nearestTime)}`)
       timelineRef.value?.seekToTime(nearestTime)
     }
+  }
+}
+
+// 从头播放（手动触发连续播放）
+const playFromStart = () => {
+  if (records.value.length === 0) {
+    ElMessage.warning('暂无录像数据')
+    return
+  }
+
+  // 清除之前的自动播放定时器
+  if (autoPlayTimer.value) {
+    clearTimeout(autoPlayTimer.value)
+    autoPlayTimer.value = null
+  }
+
+  // 先停止当前播放
+  if (playbackInfo.value.isPlaying) {
+    stopPlaybackInternal().then(() => {
+      // 停止后开始新的连续播放
+      nextTick(() => {
+        startContinuousPlayback(0, true)
+      })
+    })
+  } else {
+    // 直接开始连续播放
+    startContinuousPlayback(0, true)
   }
 }
 
@@ -583,6 +673,20 @@ const stopProgressUpdate = () => {
 // 内部方法：开始回放
 // useFullDayRange: 是否使用当天完整时间范围（00:00:00 - 23:59:59），默认 false 使用录像段时间
 const startPlaybackInternal = async (segment: RecordingSegment, useFullDayRange: boolean = false) => {
+  // 防止重复播放：如果正在启动播放，直接返回
+  if (startingPlayback.value) {
+    console.warn('正在启动播放，请勿重复操作')
+    return
+  }
+
+  // 防止重复播放：如果已经在播放相同的录像段，不重复启动
+  if (playbackInfo.value.isPlaying &&
+      currentRecordStartTime.value === segment.originalStartTime &&
+      currentRecordEndTime.value === segment.originalEndTime) {
+    console.log('已经在播放该录像段，跳过重复启动')
+    return
+  }
+
   if (currentMode.value === 'cloud') {
     // 云端模式：TODO 等待后端接口
     console.log('云端回放暂未实现')
@@ -601,11 +705,18 @@ const startPlaybackInternal = async (segment: RecordingSegment, useFullDayRange:
       startTime = `${selectedDate.value}T00:00:00`
       endTime = `${selectedDate.value}T23:59:59`
       console.log('使用当天完整时间范围:', { startTime, endTime })
+      // 全天模式不设置录像段时间范围（下载功能不可用）
+      currentRecordStartTime.value = 0
+      currentRecordEndTime.value = 0
     } else {
       // 使用录像段的原始时间戳（Unix 时间戳）
       if (!segment.originalStartTime || !segment.originalEndTime) {
         throw new Error('录像段缺少原始时间戳')
       }
+
+      // 保存当前录像段的原始时间戳（用于下载）
+      currentRecordStartTime.value = segment.originalStartTime
+      currentRecordEndTime.value = segment.originalEndTime
 
       // 将 Unix 时间戳转换为本地时间格式 (YYYY-MM-DDTHH:mm:ss)
       const startDate = new Date(segment.originalStartTime * 1000)
@@ -662,23 +773,45 @@ const startPlaybackInternal = async (segment: RecordingSegment, useFullDayRange:
     }
   } catch (error: any) {
     console.error('Failed to start playback:', error)
+    // 清理状态，确保不会出现不一致
+    currentRecordStartTime.value = 0
+    currentRecordEndTime.value = 0
     // 不显示错误消息，因为这是自动触发的
   } finally {
     startingPlayback.value = false
   }
 }
 
-// 内部方法：停止回放
+// 内部方法：停止回放（增强清理逻辑）
 const stopPlaybackInternal = async () => {
   if (!playbackInfo.value.isPlaying) return
 
-  try {
-    await gb28181Api.stopPlayback({
-      device_id: props.deviceId,
-      channel_id: props.channelId,
-      stream_id: playbackInfo.value.streamId
-    })
+  const streamIdToStop = playbackInfo.value.streamId
 
+  try {
+    // 先停止进度更新定时器
+    stopProgressUpdate()
+
+    // 停止自动播放定时器
+    if (autoPlayTimer.value) {
+      clearTimeout(autoPlayTimer.value)
+      autoPlayTimer.value = null
+    }
+
+    // 重置自动播放状态
+    isAutoPlaying.value = false
+    currentPlaybackIndex.value = -1
+
+    // 调用停止播放 API
+    if (streamIdToStop) {
+      await gb28181Api.stopPlayback({
+        device_id: props.deviceId,
+        channel_id: props.channelId,
+        stream_id: streamIdToStop
+      })
+    }
+
+    // 清空播放信息
     playbackInfo.value = {
       isPlaying: false,
       startTime: '',
@@ -686,12 +819,36 @@ const stopPlaybackInternal = async () => {
       streamId: '',
       playUrls: null
     }
-    console.log('回放已停止')
 
-    // 停止进度更新
-    stopProgressUpdate()
+    // 清除当前录像段时间范围
+    currentRecordStartTime.value = 0
+    currentRecordEndTime.value = 0
+
+    console.log('回放已停止，资源已清理')
   } catch (error: any) {
     console.error('Failed to stop playback:', error)
+
+    // 即使 API 调用失败，也要确保本地状态被清理
+    playbackInfo.value = {
+      isPlaying: false,
+      startTime: '',
+      endTime: '',
+      streamId: '',
+      playUrls: null
+    }
+
+    // 清除当前录像段时间范围
+    currentRecordStartTime.value = 0
+    currentRecordEndTime.value = 0
+
+    // 停止自动播放定时器（确保清理）
+    if (autoPlayTimer.value) {
+      clearTimeout(autoPlayTimer.value)
+      autoPlayTimer.value = null
+    }
+
+    isAutoPlaying.value = false
+    currentPlaybackIndex.value = -1
   }
 }
 
@@ -757,6 +914,9 @@ const handleClose = () => {
   // 重置倍速状态
   currentPlaybackSpeed.value = 1
 
+  // 重置下载状态
+  downloading.value = false
+
   emit('update:modelValue', false)
 }
 
@@ -784,19 +944,34 @@ onMounted(() => {
   window.addEventListener('message', handleIframeMessage)
 })
 
-// Cleanup
+// Cleanup（增强资源清理逻辑）
 onUnmounted(() => {
+  console.log('组件卸载，开始清理所有资源')
+
   // 移除 iframe 消息监听器
   window.removeEventListener('message', handleIframeMessage)
 
-  stopPlayback()
-  // 清理进度更新定时器
+  // 停止播放并清理所有资源
+  stopPlaybackInternal().catch(err => {
+    console.error('停止播放失败:', err)
+  })
+
+  // 清理进度更新定时器（确保清理）
   stopProgressUpdate()
-  // 清理自动播放定时器
+
+  // 清理自动播放定时器（确保清理）
   if (autoPlayTimer.value) {
     clearTimeout(autoPlayTimer.value)
     autoPlayTimer.value = null
   }
+
+  // 重置所有状态
+  isAutoPlaying.value = false
+  currentPlaybackIndex.value = -1
+  currentRecordStartTime.value = 0
+  currentRecordEndTime.value = 0
+
+  console.log('组件卸载，所有资源已清理')
 })
 </script>
 
@@ -844,5 +1019,26 @@ onUnmounted(() => {
   overflow: hidden;
   background: var(--bg-hover);
   padding: 16px;
+  position: relative;
+}
+
+.download-status {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  backdrop-filter: blur(4px);
+
+  .el-icon {
+    font-size: 16px;
+  }
 }
 </style>

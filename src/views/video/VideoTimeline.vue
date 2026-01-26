@@ -36,6 +36,10 @@ interface Props {
   channelPkId?: number,
   streamId?: string
 
+  // 当前录像段时间范围（Unix 时间戳，用于下载）
+  currentRecordStartTime?: number
+  currentRecordEndTime?: number
+
   // 回放倍速
   playbackSpeed?: number
 }
@@ -64,6 +68,8 @@ const props = withDefaults(defineProps<Props>(), {
   channelId: '',
   channelPkId: 0,
   streamId: '',
+  currentRecordStartTime: 0,
+  currentRecordEndTime: 0,
   playbackSpeed: 1
 })
 
@@ -108,6 +114,18 @@ function formatDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+// 将 Unix 时间戳转换为 ISO 格式（YYYY-MM-DDTHH:mm:ss）
+function formatUnixToISO(timestamp: number): string {
+  const date = new Date(timestamp * 1000) // Unix 时间戳是秒，需要转换为毫秒
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+}
+
 // 处理日期变化
 const handleDateChange = (date: string) => {
   emit('dateChange', date)
@@ -130,24 +148,39 @@ const playerIframeUrl = computed(() => {
   const playerWidth = 800
   const playerHeight = 600
 
+  // 国标：本地录像回放 isLive=true，只有云端录像 isLive=false
+  const isLiveValue = props.mode === 'cloud' ? 'false' : 'true'
+
   const params = new URLSearchParams({
     url: props.playUrl,
     player_type: 'easyplayer',  // 默认使用 easyplayer
     autoplay: 'true',
-    isLive: 'false',  // 回放模式（注意：应该是 false）
+    isLive: isLiveValue,  // 本地录像回放=true，云端录像=false
     width: `${playerWidth}px`,
-    height: `${playerHeight}px`
+    height: `${playerHeight}px`,
+    hasAudio: '1'
     // 移除 speed 参数，倍速变化通过 API 控制，不需要刷新 iframe
   })
 
-  // 添加 channel_id 参数，用于回放控制
+  // 添加 channel_id 参数（GB28181 channel_id，用于回放控制）
+  if(props.channelId) {
+    params.append('channel_id', String(props.channelId))
+  }
+
+  // 添加 channel_pkid 参数（数据库主键 ID，用于下载）
   if(props.channelPkId) {
-    params.append('channel_id', String(props.channelPkId))
+    params.append('channel_pkid', String(props.channelPkId))
   }
 
   // 添加 stream_id 参数，用于回放控制
   if(props.streamId) {
     params.append('stream_id', props.streamId)
+  }
+
+  // 添加当前录像段时间范围（ISO 格式，用于下载）
+  if(props.currentRecordStartTime && props.currentRecordEndTime) {
+    params.append('record_start_time', formatUnixToISO(props.currentRecordStartTime))
+    params.append('record_end_time', formatUnixToISO(props.currentRecordEndTime))
   }
 
   return `/play/record?${params.toString()}`
@@ -555,9 +588,10 @@ defineExpose({
 
     <!-- 播放器区域 -->
     <div class="player">
-      <template v-if="props.playUrl && props.isPlaying">
+      <!-- 只要有播放地址就显示 iframe，避免在切换录像段时 iframe 被卸载 -->
+      <template v-if="props.playUrl">
         <iframe
-          :key="props.streamId || 'default'"
+          :key="`${props.streamId || 'default'}-${props.currentRecordStartTime || 0}-${props.currentRecordEndTime || 0}`"
           :src="playerIframeUrl"
           class="player-iframe"
           frameborder="0"

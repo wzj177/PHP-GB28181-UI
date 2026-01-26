@@ -81,6 +81,7 @@ const initPlayer = () => {
 
   destroyPlayer()
 
+
   const options = {
     container: containerRef.value,
     isLive: props.isLive,
@@ -103,6 +104,7 @@ const initPlayer = () => {
     isFlow: false,
     debug: props.debug,
     isBand: true,
+    // ptzConfig: {ptz: true, ptzMore: true},
     btns: {
       fullscreen: true,
       screenshot: true,
