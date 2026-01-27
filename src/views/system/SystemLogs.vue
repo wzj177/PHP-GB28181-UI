@@ -12,7 +12,7 @@ interface LogEntry {
   message: string
   data?: string
   ip: string
-  createdTime: number
+  createdTime: number | string  // Unix timestamp (number) or ISO string (string)
   level: string
   level_text: string
   ipArea: string
@@ -70,9 +70,27 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleString('zh-CN')
 }
 
-// Format timestamp (Unix timestamp in seconds)
-const formatTimestamp = (timestamp: number) => {
-  return new Date(timestamp * 1000).toLocaleString('zh-CN')
+// Format timestamp (Unix timestamp in seconds or ISO string)
+const formatTimestamp = (timestamp: number | string) => {
+  let date: Date
+
+  if (typeof timestamp === 'string') {
+    // ISO string format: "2026-01-26T17:54:20+08:00"
+    date = new Date(timestamp)
+  } else {
+    // Unix timestamp in seconds
+    date = new Date(timestamp * 1000)
+  }
+
+  // Format: YYYY-MM-DD HH:mm:ss
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 // Load logs

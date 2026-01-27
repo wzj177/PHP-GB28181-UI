@@ -2,7 +2,7 @@
   <ElDrawer
     :model-value="modelValue"
     :title="`${channelName} - ${currentMode === 'local' ? '本地录像回放' : '云端录像回放'}`"
-    size="80%"
+    size="100%"
     @update:model-value="$emit('update:modelValue', $event)"
     @close="handleClose"
   >
@@ -446,7 +446,7 @@ const playSegmentWithAutoNext = async (segment: RecordingSegment, useFullDayRang
     await stopPlaybackInternal()
 
     // 等待一小段时间确保资源完全释放
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 100))
   }
 
   // 2. 开始播放新段
@@ -466,13 +466,13 @@ const playSegmentWithAutoNext = async (segment: RecordingSegment, useFullDayRang
     }
 
     // 设置定时器，在录像段播放完成后切换到下一段
-    // 加上1秒缓冲时间确保播放完整
+    // 加上500ms缓冲时间确保播放完整，再加上500ms停留时间（总共约1秒延迟）
     autoPlayTimer.value = window.setTimeout(async () => {
       // 检查是否还在自动播放模式
       if (isAutoPlaying.value) {
         await playNextSegment()
       }
-    }, duration + 1000)
+    }, duration + 500 + 500)
   }
 }
 
@@ -531,7 +531,7 @@ const handleTimeChange = async (time: number, segment: RecordingSegment | null) 
     await stopPlaybackInternal()
 
     // 等待一小段时间确保资源完全释放
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 100))
   }
 
   // 2. 使用录像段的原始时间进行回放

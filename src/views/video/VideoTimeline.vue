@@ -309,8 +309,11 @@ const draw = () => {
     lastDrawnRecords.value = recordsToDraw
   }
 
-  const recordHeight = 40  // 录像段高度（进一步增加可点击区域）
-  const minRecordWidth = 2  // 录像段最小宽度（像素），确保短视频像也能看见
+  const recordHeight = 40  // 录像段高度
+  const minRecordWidth = 8  // 录像段最小宽度（像素），确保短录像也能看见和点击
+
+  // 存储每个录像段的实际绘制范围，用于精确的碰撞检测
+  const drawnSegments: Array<{ segment: RecordingSegment; x1: number; x2: number }> = []
 
   recordsToDraw.forEach(r => {
     let x1 = timeToX(r.start)
@@ -343,6 +346,9 @@ const draw = () => {
     // 居中绘制录像段
     ctx.fillRect(x1, y, x2 - x1, recordHeight)
 
+    // 保存实际绘制范围
+    drawnSegments.push({ segment: r, x1, x2 })
+
     // 重置阴影
     ctx.shadowBlur = 0
 
@@ -351,11 +357,17 @@ const draw = () => {
       ctx.fillStyle = '#ffffff'
       ctx.font = 'bold 11px sans-serif'
       ctx.textAlign = 'center'
+      // 使用原始时间显示，而非绘制坐标对应的时间
       const timeText = `${format(r.start)} - ${format(r.end)}`
-      // 在录像段上方显示时间
-      ctx.fillText(timeText, (x1 + x2) / 2, y - 8)
+      // 在录像段上方显示时间范围，并显示时长
+      const duration = r.end - r.start
+      const durationText = duration < 60 ? `${duration}秒` : `${Math.floor(duration / 60)}分${duration % 60}秒`
+      ctx.fillText(`${timeText} (${durationText})`, (x1 + x2) / 2, y - 8)
     }
   })
+
+  // 更新绘制范围缓存，用于后续碰撞检测
+  drawnSegmentsCache.value = drawnSegments
 
   /* ===== 当前时间指针 ===== */
   const safeTime = Math.max(0, Math.min(currentSecond.value, props.totalSeconds))
@@ -414,10 +426,18 @@ const xToTime = (x: number, rect: DOMRect): number => {
   return Math.floor((clamped / usableWidth) * props.totalSeconds)
 }
 
-// 根据鼠标位置查找悬浮的录像段
-const findHoveredSegment = (x: number, rect: DOMRect): RecordingSegment | null => {
-  const time = xToTime(x, rect)
-  return findSegmentByTime(time)
+// 存储最近一次绘制的录像段范围，用于碰撞检测
+const drawnSegmentsCache = ref<Array<{ segment: RecordingSegment; x1: number; x2: number }>>([])
+
+// 根据鼠标位置查找悬浮的录像段（基于绘制范围，而非时间范围）
+const findHoveredSegment = (x: number, _rect: DOMRect): RecordingSegment | null => {
+  // 使用绘制坐标进行碰撞检测，这样即使录像段被放大显示，也能正确检测
+  for (const { segment, x1, x2 } of drawnSegmentsCache.value) {
+    if (x >= x1 && x <= x2) {
+      return segment
+    }
+  }
+  return null
 }
 
 // 处理鼠标按下
@@ -516,6 +536,55 @@ const handleGlobalMouseUp = () => {
   }
 }
 
+// 记录上次活跃时间（用于检测长时间离开）
+const lastActiveTime = ref(Date.now())
+const INACTIVE_THRESHOLD = 5 * 60 * 1000  // 5分钟无操作认为离开
+
+// 处理用户活跃状态
+const handleUserActivity = () => {
+  lastActiveTime.value = Date.now()
+}
+
+// 处理页面可见性变化
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    // 页面隐藏时
+    console.log('页面隐藏')
+  } else {
+    // 页面显示时
+    console.log('页面显示')
+
+    // 检查是否离开很长时间
+    const inactiveDuration = Date.now() - lastActiveTime.value
+
+    if (inactiveDuration > INACTIVE_THRESHOLD) {
+      console.log(`用户离开 ${Math.floor(inactiveDuration / 1000)} 秒后返回，检查播放状态`)
+
+      // 如果有播放地址但没有在播放，可能需要重新播放
+      if (props.playUrl && !props.isPlaying && props.records && props.records.length > 0) {
+        console.log('检测到播放已断开，触发重新播放')
+
+        // 找到最近的录像段
+        const nearestTime = findNearestRecordTime()
+        if (nearestTime && nearestTime > 0) {
+          const segment = findSegmentByTime(nearestTime)
+          if (segment) {
+            console.log('触发重新播放:', format(nearestTime))
+
+            // 延迟一小段时间再触发，确保 DOM 就绪
+            nextTick(() => {
+              emit('timeChange', nearestTime, segment)
+            })
+          }
+        }
+      }
+    }
+
+    // 重置活跃时间
+    lastActiveTime.value = Date.now()
+  }
+}
+
 onMounted(() => {
   nextTick(() => {
     draw()
@@ -525,11 +594,32 @@ onMounted(() => {
 
   // 添加全局 mouseup 监听器，处理拖动到 canvas 外部释放的情况
   window.addEventListener('mouseup', handleGlobalMouseUp)
+
+  // 监听页面可见性变化
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  // 监听用户活跃事件
+  document.addEventListener('mousemove', handleUserActivity)
+  document.addEventListener('keydown', handleUserActivity)
+  document.addEventListener('click', handleUserActivity)
+  document.addEventListener('scroll', handleUserActivity)
+
+  // 初始化活跃时间
+  lastActiveTime.value = Date.now()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', draw)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
+
+  // 移除页面可见性监听器
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+
+  // 移除用户活跃监听器
+  document.removeEventListener('mousemove', handleUserActivity)
+  document.removeEventListener('keydown', handleUserActivity)
+  document.removeEventListener('click', handleUserActivity)
+  document.removeEventListener('scroll', handleUserActivity)
 })
 
 watch(() => props.records, draw, { deep: true })
@@ -727,7 +817,7 @@ defineExpose({
 
 .timeline-canvas {
   width: 100%;
-  height: 100px; 
+  height: 100px;
   cursor: grab;
 
   &:active {

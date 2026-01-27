@@ -66,7 +66,7 @@
       </ElFormItem>
 
       <ElFormItem label="录像存储目录">
-        <ElInput v-model="formData.record_path" placeholder="默认：/www/wwwroot/zlm/records">
+        <ElInput v-model="formData.record_path" placeholder="如：/www/wwwroot/zlm/records">
           <template #append>
             <ElTooltip content="录像文件存储路径，为空则使用流媒体服务器默认配置">
               <ElIcon><QuestionFilled /></ElIcon>
@@ -74,6 +74,12 @@
           </template>
         </ElInput>
         <div class="form-tip">可选，录像文件存储路径，为空则使用流媒体服务器默认配置</div>
+        <!-- ZLM 类型专属提示 -->
+        <div v-if="formData.type === 'zlm'" class="form-tip zlm-tip">
+          <ElIcon class="tip-icon"><WarningFilled /></ElIcon>
+          请开启 hook，且填写国标 API 回调参数：
+          <code>on_record_mp4=(http|https)://{host}:{port}/api/v2/zlm_hook/on_record_mp4</code>
+        </div>
       </ElFormItem>
     </ElForm>
 
@@ -89,7 +95,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { QuestionFilled } from '@element-plus/icons-vue'
+import { QuestionFilled, WarningFilled } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { mediaServerApi } from '@/api/mediaServerApi'
 import type { MediaServer, MediaServerFormData } from '@/types/media-server'
@@ -126,7 +132,7 @@ const formData = ref<MediaServerFormData>({
   access_domain: '',
   network_env: 'internal',
   stream_ip: '',
-  record_path: '/www/wwwroot/zlm/records'
+  record_path: ''
 })
 
 const formRules: FormRules = {
@@ -149,7 +155,7 @@ const resetForm = () => {
     access_domain: '',
     network_env: 'internal',
     stream_ip: '',
-    record_path: '/www/wwwroot/zlm/records'
+    record_path: ''
   }
   formRef.value?.clearValidate()
 }
@@ -222,5 +228,35 @@ const handleSubmit = async () => {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 4px;
+  line-height: 1.5;
+
+  &.zlm-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    background: #fdf6ec;
+    border: 1px solid #f5dab1;
+    border-radius: 4px;
+    color: #e6a23c;
+
+    .tip-icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    code {
+      display: block;
+      margin-top: 4px;
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #e6a23c;
+      word-break: break-all;
+    }
+  }
 }
 </style>
