@@ -101,7 +101,7 @@
           </template>
         </ElTableColumn>
         <ElTableColumn prop="created_at" label="创建时间" width="160" />
-        <ElTableColumn label="操作" width="400" fixed="right">
+        <ElTableColumn label="操作" width="500" fixed="right">
           <template #default="{ row }">
             <!-- 只有通道类型为 131、132 时才显示视频操作按钮 -->
             <template v-if="['131', '132'].includes(row.channel_type)">
@@ -110,6 +110,8 @@
               <ElButton size="small" @click="getPicture(row)">抓拍</ElButton>
               <ElButton size="small" @click="openEditDialog(row)">编辑</ElButton>
             </template>
+            <!-- 回放下载任务按钮对所有通道类型都显示 -->
+            <ElButton size="small" type="success" @click="openRecordTasksDrawer(row)">回放下载任务</ElButton>
             <!-- 删除按钮对所有通道类型都显示 -->
             <ElButton size="small" type="danger" @click="handleDelete(row)">删除</ElButton>
           </template>
@@ -164,6 +166,13 @@
       :channel-name="playbackDialog.channelName"
       :mode="playbackDialog.mode"
     />
+
+    <!-- Channel Record Tasks Drawer -->
+    <ChannelRecordTasksDrawer
+      v-model="recordTasksDialog.visible"
+      :device-id="recordTasksDialog.deviceId"
+      :channel-id="recordTasksDialog.channelId"
+    />
   </div>
 </template>
 
@@ -175,6 +184,7 @@ import { gb28181Api } from '@/api/gb28181Api'
 import ChannelBindDialog from './ChannelBindDialog.vue'
 import ChannelEditDialog from './ChannelEditDialog.vue'
 import ChannelPlaybackDrawer from './ChannelPlaybackDrawer.vue'
+import ChannelRecordTasksDrawer from './ChannelRecordTasksDrawer.vue'
 import { AggregatedPlayer } from '@/components/player'
 
 const router = useRouter()
@@ -268,6 +278,13 @@ const playbackDialog = ref({
   channelPkId: 0,       // 通道主键 ID（数字，用于查询录像结果）
   channelName: '',
   mode: 'local' as 'local' | 'cloud'
+})
+
+// Record tasks dialog
+const recordTasksDialog = ref({
+  visible: false,
+  deviceId: '',
+  channelId: ''
 })
 
 // Filter selected channels that can be batch operated (only 131, 132 types)
@@ -456,6 +473,15 @@ const getPlayback = (channel: Channel, mode: 'local' | 'cloud' = 'local') => {
     channelPkId: channel.id,  // 通道主键 ID
     channelName: channel.channel_name,
     mode
+  }
+}
+
+// Open record tasks drawer
+const openRecordTasksDrawer = (channel: Channel) => {
+  recordTasksDialog.value = {
+    visible: true,
+    deviceId: channel.device_id,
+    channelId: channel.channel_id
   }
 }
 

@@ -460,6 +460,31 @@ export const gb28181Api = {
     stream_id?: string;
   }) => {
     return request.post('/admin/gb28181/channels/codec-info', params);
+  },
+
+  // ================= 回放下载任务管理 =================
+
+  /**
+   * 获取回放下载任务列表
+   * GET /admin/gb28181/record-tasks
+   */
+  getRecordTasks: (params?: {
+    device_id?: string;
+    channel_id?: string;
+    task_type?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    return request.get('/admin/gb28181/record-tasks', { params });
+  },
+
+  /**
+   * 删除回放下载任务
+   * DELETE /admin/gb28181/record-tasks/{id}
+   */
+  deleteRecordTask: (id: number) => {
+    return request.delete(`/admin/gb28181/record-tasks/${id}`);
   }
 };
 

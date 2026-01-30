@@ -36,11 +36,11 @@ const filters = ref({
 
 const levelOptions = [
   { label: '全部', value: '' },
-  { label: 'DEBUG', value: 'DEBUG' },
-  { label: 'INFO', value: 'INFO' },
-  { label: 'WARN', value: 'WARN' },
-  { label: 'ERROR', value: 'ERROR' },
-  { label: 'FATAL', value: 'FATAL' }
+  { label: '调试', value: 'DEBUG' },
+  { label: '信息', value: 'INFO' },
+  { label: '警告', value: 'WARN' },
+  { label: '错误', value: 'ERROR' },
+  { label: '致命', value: 'FATAL' }
 ]
 
 const moduleOptions = [
@@ -50,7 +50,10 @@ const moduleOptions = [
   { label: '设备', value: 'device' },
   { label: '流媒体', value: 'media' },
   { label: '录像', value: 'record' },
-  { label: 'API', value: 'api' }
+  { label: 'API', value: 'api' },
+  { label: '国标', value: 'gb28181' },
+  { label: '订阅', value: 'subscribe' },
+  { label: '其他', value: 'other' }
 ]
 
 // Get log level tag type
@@ -260,9 +263,9 @@ onUnmounted(() => {
             </template>
           </ElTableColumn>
 
-          <ElTableColumn prop="module" label="模块" width="120" />
+          <ElTableColumn prop="module_text" label="模块" width="120" />
 
-          <ElTableColumn prop="action" label="操作" width="150" show-overflow-tooltip />
+          <ElTableColumn prop="action_text" label="操作" width="150" show-overflow-tooltip />
 
           <ElTableColumn prop="message" label="消息" min-width="200" show-overflow-tooltip />
 
