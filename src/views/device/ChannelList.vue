@@ -430,7 +430,6 @@ const onEditSuccess = () => {
 }
 
 // ============================================================================
-// ⚠️ TEST MODE - TODO: DELETE THIS SECTION WHEN API IS READY
 // Start live playback
 const startPlay = async (channel: Channel) => {
   try {

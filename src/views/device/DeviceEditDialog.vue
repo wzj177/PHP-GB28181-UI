@@ -138,11 +138,11 @@
             <ElSwitch v-model="formData.subscribe_position" :active-value="1" :inactive-value="0" />
           </ElFormItem>
         </ElCol>
-        <ElCol :span="12">
+        <!-- <ElCol :span="12">
           <ElFormItem label="订阅云台">
             <ElSwitch v-model="formData.subscribe_ptz" :active-value="1" :inactive-value="0" />
           </ElFormItem>
-        </ElCol>
+        </ElCol> -->
       </ElRow>
 
       <ElRow :gutter="20">

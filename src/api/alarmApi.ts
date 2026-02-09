@@ -5,7 +5,8 @@ import type {
   AlarmEvent,
   AlarmEventListResponse,
   AlarmEventQueryParams,
-  BindChannelsParams
+  BindChannelsParams,
+  AlarmPlanChannelListResponse
 } from '@/types/alarm';
 
 /**
@@ -113,22 +114,39 @@ export const alarmApi = {
     return request.delete(`/admin/alarm-plan/${id}/channels/${channelId}`)
   },
 
+  /**
+   * 获取报警计划已绑定的通道列表
+   * GET /api/admin/alarm-plan/{id}/channels
+   * 返回直接数组，不是包装对象
+   */
+  getAlarmPlanChannels: (id: number) => {
+    return request.get<AlarmPlanChannel[]>(`/admin/alarm-plan/${id}/channels`)
+  },
+
   // ==================== 报警事件查询 ====================
 
   /**
    * 获取报警事件列表
-   * GET /api/v2/alarm/events
+   * GET /api/admin/gb28181/alarms
    */
   getAlarmEvents: (params?: AlarmEventQueryParams) => {
-    return request.get<AlarmEventListResponse>('/v2/alarm/events', { params })
+    return request.get<AlarmEventListResponse>('/admin/gb28181/alarms', { params })
   },
 
   /**
    * 获取报警事件详情
-   * GET /api/v2/alarm/events/{id}
+   * GET /api/admin/gb28181/alarms/{id}
    */
   getAlarmEventDetail: (id: number) => {
-    return request.get<{ data: AlarmEvent }>(`/v2/alarm/events/${id}`)
+    return request.get<AlarmEvent>(`/admin/gb28181/alarms/${id}`)
+  },
+
+  /**
+   * 获取报警统计数据
+   * GET /api/admin/alarm-event/stats
+   */
+  getAlarmStats: () => {
+    return request.get<AlarmSummary>('/admin/alarm-event/stats')
   }
 };
 

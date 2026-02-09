@@ -41,6 +41,33 @@ export interface AlarmPlanListResponse {
 }
 
 /**
+ * 报警事件资产
+ */
+export interface AlarmEventAsset {
+  snapshots: AlarmEventSnapshot[]
+  records: AlarmEventRecord[]
+}
+
+/**
+ * 报警快照
+ */
+export interface AlarmEventSnapshot {
+  id: number
+  file_url: string
+  shot_time: string
+}
+
+/**
+ * 报警录像
+ */
+export interface AlarmEventRecord {
+  id: number
+  file_url: string
+  start_time: string
+  duration: number
+}
+
+/**
  * 报警事件
  */
 export interface AlarmEvent {
@@ -57,6 +84,7 @@ export interface AlarmEvent {
   alarm_time: string
   recv_time: string
   alarm_plan_id?: number
+  assets?: AlarmEventAsset
   created_at: string
 }
 
@@ -75,7 +103,7 @@ export interface AlarmSummary {
  */
 export interface AlarmEventListResponse {
   list: AlarmEvent[]
-  paginator: Paginator
+  total: number
   summary?: AlarmSummary
 }
 
@@ -89,6 +117,10 @@ export interface AlarmEventQueryParams {
   method?: number
   start?: number
   limit?: number
+  // 新的查询参数（优先使用）
+  start_time?: string
+  end_time?: string
+  // 兼容旧参数
   alarm_time_gte?: string
   alarm_time_lte?: string
 }
@@ -109,6 +141,25 @@ export interface AlarmStats {
 export interface BindChannelsParams {
   device_id: string
   channel_ids: string[]
+}
+
+/**
+ * 报警计划绑定通道
+ */
+export interface AlarmPlanChannel {
+  id: number
+  device_id: string
+  channel_id: string
+  device_name?: string
+  channel_name?: string
+}
+
+/**
+ * 报警计划通道列表响应
+ */
+export interface AlarmPlanChannelListResponse {
+  list: AlarmPlanChannel[]
+  total: number
 }
 
 /**

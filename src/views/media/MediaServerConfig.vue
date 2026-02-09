@@ -135,7 +135,6 @@ const fieldLabels: Record<string, string> = {
 
   // HTTP 字段
   port: 'HTTP端口',
-  sslport: 'HTTPS端口',
   rootPath: '根目录',
   allow_cross_domains: '允许跨域',
   allow_ip_range: '允许IP范围',
@@ -351,7 +350,7 @@ const isSwitchField = (field: string, value: string): boolean => {
 
 // 判断是否是端口号字段
 const isPortField = (field: string): boolean => {
-  return field === 'port' || field === 'sslport' || field === 'icePort' ||
+  return field === 'port' || field === 'icePort' ||
          field === 'iceTcpPort' || field === 'signalingPort' || field === 'signalingSslPort' ||
          field === 'tcpPort' || field === 'rtpTransportType'
 }
@@ -385,7 +384,6 @@ const getDefaultConfig = (): ZLMConfig => ({
     port: '8086',
     rootPath: './www',
     sendBufSize: '65536',
-    sslport: '8443',
     virtualPath: ''
   },
   rtsp: {
@@ -593,9 +591,10 @@ const loadConfig = async () => {
       if (configData.value.ffmpeg) {
         delete configData.value.ffmpeg.bin
       }
-      // delete http.port
+      // delete http.port and http.sslport
       if (configData.value.http) {
         delete configData.value.http.port
+        delete configData.value.http.sslport
       }
     }
 

@@ -38,7 +38,8 @@ export interface MediaServer {
   name: string                      // 服务器名称
   type: MediaServerType             // 类型（zlm、srs）
   host: string                      // IP地址或域名
-  port: number                      // 端口
+  port: number                      // HTTP端口
+  https_port?: number               // HTTPS端口
   secret: string                    // API密钥
   server_id: string                 // 网关编号（uuid）
   status: MediaServerStatus         // 运行状态
@@ -46,6 +47,7 @@ export interface MediaServer {
   network_env?: 'internal' | 'public'  // 网络环境：内网、公网
   stream_ip?: string                // 收流IP（用于SDP，为空则使用host）
   record_path?: string              // 录像存储目录
+  send_rtp_port_range?: string           // RTP发送端口范围（如：50000-60000）
   default_config?: string           // 默认配置JSON
   created_at: string                // 创建时间
   updated_at: string                // 更新时间
@@ -59,11 +61,13 @@ export interface MediaServerFormData {
   type: MediaServerType
   host: string
   port: number
+  https_port?: number      // HTTPS端口
   secret: string
   access_domain?: string   // 访问域名（用于nginx反向代理场景）
   network_env?: 'internal' | 'public'  // 网络环境：内网、公网
   stream_ip?: string       // 收流IP（用于SDP，为空则使用host）
   record_path?: string     // 录像存储目录
+  send_rtp_port_range?: string  // RTP发送端口范围（如：50000-60000）
 }
 
 /**

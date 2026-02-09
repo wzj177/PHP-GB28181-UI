@@ -10,7 +10,7 @@
       ref="formRef"
       :model="formData"
       :rules="formRules"
-      label-width="120px"
+      label-width="140px"
     >
       <ElFormItem label="服务器名称" prop="name">
         <ElInput v-model="formData.name" placeholder="请输入服务器名称" />
@@ -35,6 +35,18 @@
         <ElInput v-model="formData.host" placeholder="请输入IP地址或域名" />
       </ElFormItem>
 
+      <ElFormItem label="HTTP端口" prop="port">
+        <ElInputNumber v-model="formData.port" :min="1" :max="65535" style="width: 100%;" />
+      </ElFormItem>
+
+      <ElFormItem label="HTTPS端口">
+        <ElInputNumber v-model="formData.https_port" :min="1" :max="65535" placeholder="可选" style="width: 100%;" />
+      </ElFormItem>
+
+      <ElFormItem label="API密钥" prop="secret">
+        <ElInput v-model="formData.secret" type="password" show-password placeholder="请输入API密钥" :disabled="isEdit"/>
+      </ElFormItem>
+
       <ElFormItem label="收流IP">
         <ElInput v-model="formData.stream_ip" placeholder="可选，用于SDP，为空则使用服务器地址">
           <template #append>
@@ -44,14 +56,6 @@
           </template>
         </ElInput>
         <div class="form-tip">可选，用于SDP协商，为空则使用服务器地址</div>
-      </ElFormItem>
-
-      <ElFormItem label="HTTP端口" prop="port">
-        <ElInputNumber v-model="formData.port" :min="1" :max="65535" style="width: 100%;" />
-      </ElFormItem>
-
-      <ElFormItem label="API密钥" prop="secret">
-        <ElInput v-model="formData.secret" type="password" show-password placeholder="请输入API密钥" :disabled="isEdit"/>
       </ElFormItem>
 
       <ElFormItem label="访问域名">
@@ -80,6 +84,11 @@
           请开启 hook，且填写国标 API 回调参数：
           <code>on_record_mp4=(http|https)://{host}:{port}/api/v2/zlm_hook/on_record_mp4</code>
         </div>
+      </ElFormItem>
+
+      <ElFormItem label="RTP发送端口范围">
+        <ElInput v-model="formData.send_rtp_port_range" placeholder="如：50000-60000" />
+        <div class="form-tip">可选，RTP发送端口范围，默认值：50000-60000</div>
       </ElFormItem>
     </ElForm>
 
@@ -128,11 +137,13 @@ const formData = ref<MediaServerFormData>({
   type: 'zlm',
   host: '',
   port: 8086,
+  https_port: undefined,
   secret: '',
   access_domain: '',
   network_env: 'internal',
   stream_ip: '',
-  record_path: ''
+  record_path: '',
+  send_rtp_port_range: '50000-60000'
 })
 
 const formRules: FormRules = {
@@ -151,11 +162,13 @@ const resetForm = () => {
     type: 'zlm',
     host: '',
     port: 8086,
+    https_port: undefined,
     secret: '',
     access_domain: '',
     network_env: 'internal',
     stream_ip: '',
-    record_path: ''
+    record_path: '',
+    send_rtp_port_range: '50000-60000'
   }
   formRef.value?.clearValidate()
 }
@@ -170,11 +183,13 @@ watch(
         type: server.type,
         host: server.host,
         port: server.port,
+        https_port: server.https_port,
         secret: server.secret,
         access_domain: server.access_domain || '',
         network_env: server.network_env || 'internal',
         stream_ip: server.stream_ip || '',
-        record_path: server.record_path || ''
+        record_path: server.record_path || '',
+        send_rtp_port_range: server.send_rtp_port_range || '50000-60000'
       }
     } else {
       resetForm()

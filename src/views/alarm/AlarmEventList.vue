@@ -182,12 +182,13 @@
     <el-dialog
       v-model="detailDialogVisible"
       title="报警事件详情"
-      width="600px"
+      width="700px"
     >
       <el-descriptions
         v-if="currentEvent"
         :column="2"
         border
+        class="alarm-detail-descriptions"
       >
         <el-descriptions-item label="事件ID">
           {{ currentEvent.id }}
@@ -206,6 +207,9 @@
         <el-descriptions-item v-if="currentEvent.method === 5 && currentEvent.type === 6" label="事件类型">
           {{ EVENT_TYPE_CONFIG[currentEvent.eventtype!] || currentEvent.eventtype }}
         </el-descriptions-item>
+        <el-descriptions-item v-if="currentEvent.alarm_plan_id" label="关联预案">
+          <el-tag type="success">已触发预案 #{{ currentEvent.alarm_plan_id }}</el-tag>
+        </el-descriptions-item>
         <el-descriptions-item label="设备ID" :span="2">
           {{ currentEvent.device_id }}
         </el-descriptions-item>
@@ -221,17 +225,83 @@
         <el-descriptions-item label="描述" :span="2">
           {{ currentEvent.description }}
         </el-descriptions-item>
-        <el-descriptions-item v-if="currentEvent.longitude" label="经度" :span="1">
-          {{ currentEvent.longitude }}
-        </el-descriptions-item>
-        <el-descriptions-item v-if="currentEvent.latitude" label="纬度" :span="1">
-          {{ currentEvent.latitude }}
-        </el-descriptions-item>
-        <el-descriptions-item label="关联预案" :span="2">
-          <el-tag v-if="currentEvent.alarm_plan_id" type="success">已触发预案 #{{ currentEvent.alarm_plan_id }}</el-tag>
-          <span v-else class="text-muted">无关联预案</span>
+        <el-descriptions-item v-if="currentEvent.longitude" label="位置" :span="2">
+          <el-link
+            type="primary"
+            :href="`https://uri.amap.com/marker?position=${currentEvent.longitude},${currentEvent.latitude}&name=报警位置`"
+            target="_blank"
+          >
+            {{ currentEvent.longitude }}, {{ currentEvent.latitude }}
+          </el-link>
         </el-descriptions-item>
       </el-descriptions>
+
+      <!-- 报警资源 -->
+      <div v-if="currentEvent.assets" class="alarm-assets-section">
+        <el-divider content-position="left">报警资源</el-divider>
+
+        <!-- 快照 -->
+        <div v-if="currentEvent.assets.snapshots && currentEvent.assets.snapshots.length > 0" class="assets-group">
+          <div class="assets-title">
+            <el-icon><Camera /></el-icon>
+            <span>报警快照 ({{ currentEvent.assets.snapshots.length }})</span>
+          </div>
+          <div class="assets-grid">
+            <div
+              v-for="snapshot in currentEvent.assets.snapshots"
+              :key="snapshot.id"
+              class="asset-item"
+            >
+              <el-image
+                :src="snapshot.file_url"
+                fit="cover"
+                class="asset-image"
+                :preview-src-list="currentEvent.assets.snapshots.map(s => s.file_url)"
+                :initial-index="currentEvent.assets.snapshots.indexOf(snapshot)"
+                preview-teleported
+              >
+                <template #error>
+                  <div class="image-error">
+                    <el-icon><Picture /></el-icon>
+                    <span>加载失败</span>
+                  </div>
+                </template>
+              </el-image>
+              <div class="asset-time">{{ snapshot.shot_time }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 录像 -->
+        <div v-if="currentEvent.assets.records && currentEvent.assets.records.length > 0" class="assets-group">
+          <div class="assets-title">
+            <el-icon><VideoCamera /></el-icon>
+            <span>报警录像 ({{ currentEvent.assets.records.length }})</span>
+          </div>
+          <div class="records-list">
+            <div
+              v-for="record in currentEvent.assets.records"
+              :key="record.id"
+              class="record-item"
+            >
+              <el-icon class="record-icon"><VideoPlay /></el-icon>
+              <div class="record-info">
+                <div class="record-time">{{ record.start_time }}</div>
+                <div class="record-duration">时长: {{ formatDuration(record.duration) }}</div>
+              </div>
+              <el-button type="primary" link size="small" @click="playRecord(record.file_url)">
+                播放
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="(!currentEvent.assets.snapshots || currentEvent.assets.snapshots.length === 0) &&
+                      (!currentEvent.assets.records || currentEvent.assets.records.length === 0)"
+             class="no-assets">
+          <el-empty description="暂无报警资源" :image-size="80" />
+        </div>
+      </div>
 
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
@@ -243,7 +313,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, Calendar, DataLine } from '@element-plus/icons-vue'
+import { Search, Calendar, DataLine, Camera, Picture, VideoCamera, VideoPlay } from '@element-plus/icons-vue'
 import { alarmApi } from '@/api/alarmApi'
 import type { AlarmEvent, AlarmEventQueryParams } from '@/types/alarm'
 import { ALARM_LEVEL_CONFIG, ALARM_METHOD_CONFIG, getAlarmTypeName, EVENT_TYPE_CONFIG, type AlarmSummary } from '@/types/alarm'
@@ -295,15 +365,15 @@ const loadList = async () => {
     if (filters.level !== null && filters.level !== undefined) params.level = filters.level
     if (filters.method !== null && filters.method !== undefined) params.method = filters.method
 
-    // 时间范围
+    // 时间范围 - 使用新的 start_time/end_time 参数
     if (dateRange.value && dateRange.value.length === 2) {
-      params.alarm_time_gte = dateRange.value[0]
-      params.alarm_time_lte = dateRange.value[1]
+      params.start_time = dateRange.value[0]
+      params.end_time = dateRange.value[1]
     }
 
     const data = await alarmApi.getAlarmEvents(params)
     list.value = data.list || []
-    pagination.total = data.paginator?.total || 0
+    pagination.total = data.total || data.paginator?.total || 0
 
     // 更新统计数据
     if (data.summary) {
@@ -327,15 +397,25 @@ const resetFilters = () => {
   loadList()
 }
 
-// 加载统计数据（从 list 接口获取 summary）
+// 加载统计数据
 const loadStats = async () => {
   try {
-    const data = await alarmApi.getAlarmEvents({ page: 1, limit: 1 })
-    if (data.summary) {
-      Object.assign(stats, data.summary)
+    // 尝试使用专门的统计 API
+    const data = await alarmApi.getAlarmStats()
+    if (data) {
+      Object.assign(stats, data)
     }
   } catch (error: any) {
-    console.error('加载统计数据失败:', error)
+    // 如果专门的统计 API 不可用，从 list 接口获取 summary
+    console.warn('统计 API 不可用，从列表接口获取统计数据')
+    try {
+      const data = await alarmApi.getAlarmEvents({ page: 1, limit: 1 })
+      if (data.summary) {
+        Object.assign(stats, data.summary)
+      }
+    } catch (listError: any) {
+      console.error('加载统计数据失败:', listError)
+    }
   }
 }
 
@@ -343,6 +423,34 @@ const loadStats = async () => {
 const showDetail = async (row: AlarmEvent) => {
   currentEvent.value = row
   detailDialogVisible.value = true
+
+  // 如果没有资产数据，尝试获取详情
+  if (!row.assets && row.id) {
+    try {
+      const eventDetail = await alarmApi.getAlarmEventDetail(row.id)
+      if (eventDetail) {
+        currentEvent.value = eventDetail
+      }
+    } catch (error: any) {
+      console.error('获取报警详情失败:', error)
+    }
+  }
+}
+
+// 格式化时长
+const formatDuration = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  if (minutes > 0) {
+    return `${minutes}分${secs}秒`
+  }
+  return `${secs}秒`
+}
+
+// 播放录像
+const playRecord = (url: string) => {
+  // TODO: 打开录像播放器
+  window.open(url, '_blank')
 }
 
 /* ================= 生命周期 ================= */
@@ -463,5 +571,126 @@ onMounted(() => {
 
 .text-muted {
   color: var(--text-muted);
+}
+
+.alarm-detail-descriptions {
+  margin-bottom: 16px;
+}
+
+.alarm-assets-section {
+  .assets-group {
+    margin-bottom: 24px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .assets-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-bottom: 12px;
+
+    .el-icon {
+      font-size: 18px;
+      color: var(--el-color-primary);
+    }
+  }
+
+  .assets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+  }
+
+  .asset-item {
+    position: relative;
+
+    .asset-image {
+      width: 100%;
+      height: 120px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-base);
+
+      :deep(.el-image__inner) {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .image-error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: var(--bg-light);
+      color: var(--text-muted);
+      font-size: 12px;
+
+      .el-icon {
+        font-size: 24px;
+        margin-bottom: 4px;
+      }
+    }
+
+    .asset-time {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      font-size: 11px;
+      border-radius: 0 0 8px 8px;
+    }
+  }
+
+  .records-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .record-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg-light);
+    border-radius: 8px;
+    border: 1px solid var(--border-base);
+
+    .record-icon {
+      font-size: 24px;
+      color: var(--el-color-primary);
+      margin-right: 12px;
+    }
+
+    .record-info {
+      flex: 1;
+
+      .record-time {
+        font-size: 14px;
+        color: var(--text-main);
+        margin-bottom: 4px;
+      }
+
+      .record-duration {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+    }
+  }
+
+  .no-assets {
+    padding: 20px 0;
+  }
 }
 </style>

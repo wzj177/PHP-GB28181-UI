@@ -170,7 +170,7 @@
       </ElTabPane>
 
       <ElTabPane label="云台控制" name="ptz" v-if="props.deviceId && props.channelId">
-        <PTZControlPanel :channel-id="ptzChannelId" />
+        <PTZControlPanel ref="ptzPanelRef" :channel-id="ptzChannelId" />
       </ElTabPane>
 
       <ElTabPane label="编码信息" name="codec" v-if="currentUrl">
@@ -438,6 +438,7 @@ const h265webRef = ref()
 const xgplayerRef = ref()
 const easyplayerRef = ref()
 const mediaInfoRef = ref()
+const ptzPanelRef = ref<{ stopVoiceTalk: () => Promise<void>; isVoiceTalkActive: () => boolean } | null>(null)
 
 // Drawer dimensions - use percentage for better responsiveness
 const drawerSize = '60%'
@@ -602,6 +603,16 @@ const handleTabChange = (tabName: string) => {
 
 // Handle close
 const handleClose = async () => {
+  // Stop voice talk if active
+  if (ptzPanelRef.value?.isVoiceTalkActive?.()) {
+    try {
+      await ptzPanelRef.value.stopVoiceTalk()
+      console.log('Voice talk stopped on drawer close')
+    } catch (error) {
+      console.error('Failed to stop voice talk on drawer close:', error)
+    }
+  }
+
   // Stop live stream if we started one
   await stopLiveStream()
 
@@ -725,8 +736,18 @@ watch(() => availablePlayers.value, (newAvailablePlayers) => {
   }
 })
 
-// Cleanup on unmount - stop live stream
+// Cleanup on unmount - stop live stream and voice talk
 onUnmounted(async () => {
+  // Stop voice talk if active
+  if (ptzPanelRef.value?.isVoiceTalkActive?.()) {
+    try {
+      await ptzPanelRef.value.stopVoiceTalk()
+      console.log('Voice talk stopped on component unmount')
+    } catch (error) {
+      console.error('Failed to stop voice talk on component unmount:', error)
+    }
+  }
+
   await stopLiveStream()
 })
 </script>

@@ -55,7 +55,12 @@
           </template>
         </ElTableColumn>
         <ElTableColumn prop="host" label="IP地址" width="150" />
-        <ElTableColumn prop="port" label="端口" width="80" />
+        <ElTableColumn prop="port" label="HTTP端口" width="100" />
+        <ElTableColumn label="HTTPS端口" width="100">
+          <template #default="{ row }">
+            {{ row.https_port || '-' }}
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="收流IP" width="150">
           <template #default="{ row }">
             {{ row.stream_ip || '-' }}
@@ -72,6 +77,11 @@
         <ElTableColumn label="录像存储目录" width="200" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.record_path || '-' }}
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="RTP端口范围" width="130">
+          <template #default="{ row }">
+            {{ row.send_rtp_port_range || '50000-60000' }}
           </template>
         </ElTableColumn>
         <ElTableColumn prop="access_domain" label="访问域名" width="200" show-overflow-tooltip />

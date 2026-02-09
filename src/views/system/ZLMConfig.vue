@@ -642,7 +642,7 @@ onMounted(() => {
                 <ElSwitch v-model="rtcForm.enableTurn" :active-value="1" :inactive-value="0" />
               </ElFormItem>
               <ElFormItem label="外部IP">
-                <ElInput v-model="rtcForm.externIP" />
+                <ElInput v-model="rtcForm.externIP" placeholder="多个以,隔开" />
               </ElFormItem>
               <ElFormItem label="ICE用户碎片">
                 <ElInput v-model="rtcForm.iceUfrag" />

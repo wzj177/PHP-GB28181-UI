@@ -135,24 +135,13 @@
             </div>
 
             <div class="voice-speak">
-              <h3 style="margin-top: 16px">
-                语音对讲
-              </h3>
-              <div class="talk">
-                <ElButton
-                  type="primary"
-                  :disabled="isTalkActive"
-                  @click="startTalk()"
-                >
-                  开始对讲
-                </ElButton>
-                <ElButton
-                  :disabled="!isTalkActive"
-                  @click="stopTalk()"
-                >
-                  停止
-                </ElButton>
-              </div>
+              <VoiceTalkControl
+                ref="voiceTalkRef"
+                :device-id="ids?.deviceId || ''"
+                :channel-id="ids?.channelId || ''"
+                :debug="false"
+                title="语音对讲"
+              />
             </div>
           </div>
         </div>
@@ -322,6 +311,7 @@ import {
   ElMessageBox
 } from 'element-plus';
 import { gb28181Api } from '@/api/gb28181Api';
+import VoiceTalkControl from './VoiceTalkControl.vue';
 
 // Define props for component communication
 interface Props {
@@ -352,7 +342,9 @@ const cruiseId = ref("1");
 const cruiseStay = ref(5);
 const cruiseSpeed = ref(4);
 const cruisePoints = ref<number[]>([]);
-const isTalkActive = ref(false);
+
+// Voice talk control ref
+const voiceTalkRef = ref<{ canStop: { value: boolean }; stop: () => Promise<void>; isConnected: { value: boolean } } | null>(null);
 
 // 创建预置位映射表，方便查找
 const presetMap = computed(() => {
@@ -380,6 +372,9 @@ const parseChannelId = () => {
     channelId: parts[1]
   };
 };
+
+// Computed property for voice talk component
+const ids = computed(() => parseChannelId());
 
 // PTZ control functions
 const startPtzCommand = async (direction: string) => {
@@ -638,15 +633,6 @@ const removeFromCruise = (index: number) => {
   ElMessage.info('巡航功能暂未实现');
 };
 
-// Talk commands (not implemented)
-const startTalk = () => {
-  ElMessage.info('语音对讲功能暂未实现');
-};
-
-const stopTalk = () => {
-  ElMessage.info('语音对讲功能暂未实现');
-};
-
 // 监听 channelId 变化
 watch(() => props.channelId, (newChannelId) => {
   if (newChannelId) {
@@ -667,6 +653,29 @@ onMounted(() => {
   if (props.channelId) {
     loadPresetList();
   }
+});
+
+// Stop voice talk if active
+const stopVoiceTalk = async () => {
+  if (voiceTalkRef.value?.canStop?.value) {
+    try {
+      await voiceTalkRef.value.stop();
+      console.log('Voice talk stopped successfully');
+    } catch (error) {
+      console.error('Failed to stop voice talk:', error);
+    }
+  }
+};
+
+// Check if voice talk is active
+const isVoiceTalkActive = () => {
+  return voiceTalkRef.value?.isConnected?.value || false;
+};
+
+// Expose methods for parent component
+defineExpose({
+  stopVoiceTalk,
+  isVoiceTalkActive
 });
 </script>
 

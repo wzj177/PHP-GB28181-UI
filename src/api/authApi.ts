@@ -77,6 +77,14 @@ export const authApi = {
     });
 
     return response.data;
+  },
+
+  /**
+   * 获取用户信息（包含 pushKey 用于语音对讲鉴权）
+   * GET /admin/user/userinfo
+   */
+  getUserInfo: () => {
+    return request.get('/admin/user/userinfo');
   }
 }
 

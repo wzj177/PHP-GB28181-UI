@@ -1,6 +1,14 @@
 import request from '@/utils/request';
 
 /**
+ * 系统日志模块/操作选项
+ */
+export interface LogModuleOption {
+  name: string
+  value: string
+}
+
+/**
  * 系统设置接口类型定义
  */
 export interface BasicSetting {
@@ -167,7 +175,7 @@ export const systemApi = {
    * GET /admin/system/log/modules
    */
   logModuleOptions: () => {
-    return request.get<any, any>('/admin/system/log/modules')
+    return request.get<any, LogModuleOption[]>('/admin/system/log/modules')
   },
 
   /**
@@ -175,7 +183,7 @@ export const systemApi = {
    * GET /admin/system/log/actions/{module}
    */
   logModuleActionOptions: (module: string) => {
-    return request.get<any, any>(`/admin/system/log/actions/${module}`)
+    return request.get<any, LogModuleOption[]>(`/admin/system/log/actions/${module}`)
   },
 
   // ================= 系统日志 (原 GB28181 项目) =================

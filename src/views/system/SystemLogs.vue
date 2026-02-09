@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { ElCard, ElTable, ElTableColumn, ElTag, ElMessage, ElSelect, ElOption, ElInput, ElDatePicker, ElButton } from 'element-plus'
 import { Refresh, Download } from '@element-plus/icons-vue'
-import { systemApi } from '@/api/systemApi'
+import { systemApi, type LogModuleOption } from '@/api/systemApi'
 
 interface LogEntry {
   id: string
@@ -27,11 +27,12 @@ const total = ref(0)
 const filters = ref({
   level: '',
   module: '',
+  action: '',
   keyword: '',
   startDate: null as Date | null,
   endDate: null as Date | null,
   page: 1,
-  limit: 50
+  limit: 20
 })
 
 const levelOptions = [
@@ -43,18 +44,12 @@ const levelOptions = [
   { label: '致命', value: 'FATAL' }
 ]
 
-const moduleOptions = [
-  { label: '全部', value: '' },
-  { label: '系统', value: 'system' },
-  { label: '认证', value: 'auth' },
-  { label: '设备', value: 'device' },
-  { label: '流媒体', value: 'media' },
-  { label: '录像', value: 'record' },
-  { label: 'API', value: 'api' },
-  { label: '国标', value: 'gb28181' },
-  { label: '订阅', value: 'subscribe' },
-  { label: '其他', value: 'other' }
-]
+const moduleOptions = ref<Array<{ label: string; value: string }>>([
+  { label: '全部', value: '' }
+])
+const actionOptions = ref<Array<{ label: string; value: string }>>([
+  { label: '全部', value: '' }
+])
 
 // Get log level tag type
 const getLevelTagType = (level: string) => {
@@ -96,17 +91,63 @@ const formatTimestamp = (timestamp: number | string) => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
+// Load module options from API
+const loadModuleOptions = async () => {
+  try {
+    const data = await systemApi.logModuleOptions()
+    moduleOptions.value = [
+      { label: '全部', value: '' },
+      ...data.map((item: LogModuleOption) => ({
+        label: item.name,
+        value: item.value
+      }))
+    ]
+  } catch (error: any) {
+    console.error('Failed to load module options:', error)
+    // Keep default options on error
+  }
+}
+
+// Load action options from API
+const loadActionOptions = async (module: string) => {
+  if (!module) {
+    actionOptions.value = [{ label: '全部', value: '' }]
+    return
+  }
+
+  try {
+    const data = await systemApi.logModuleActionOptions(module)
+    actionOptions.value = [
+      { label: '全部', value: '' },
+      ...data.map((item: LogModuleOption) => ({
+        label: item.name,
+        value: item.value
+      }))
+    ]
+  } catch (error: any) {
+    console.error('Failed to load action options:', error)
+    actionOptions.value = [{ label: '全部', value: '' }]
+  }
+}
+
+// Watch module changes to load action options
+watch(() => filters.value.module, (newModule) => {
+  filters.value.action = '' // Reset action when module changes
+  loadActionOptions(newModule)
+})
+
 // Load logs
 const loadLogs = async () => {
   loading.value = true
   try {
     const params: any = {
       page: filters.value.page,
-      limit: filters.value.limit
+      page_size: filters.value.limit
     }
 
     if (filters.value.level) params.level = filters.value.level
     if (filters.value.module) params.module = filters.value.module
+    if (filters.value.action) params.action = filters.value.action
     if (filters.value.keyword) params.keyword = filters.value.keyword
     if (filters.value.startDate) params.start_time = filters.value.startDate.toISOString()
     if (filters.value.endDate) params.end_time = filters.value.endDate.toISOString()
@@ -136,11 +177,12 @@ const resetFilters = () => {
   filters.value = {
     level: '',
     module: '',
+    action: '',
     keyword: '',
     startDate: null,
     endDate: null,
     page: 1,
-    limit: 50
+    limit: 20
   }
   loadLogs()
 }
@@ -155,6 +197,7 @@ const exportLogs = async () => {
 
     if (filters.value.level) params.level = filters.value.level
     if (filters.value.module) params.module = filters.value.module
+    if (filters.value.action) params.action = filters.value.action
     if (filters.value.keyword) params.keyword = filters.value.keyword
     if (filters.value.startDate) params.start_time = filters.value.startDate.toISOString()
     if (filters.value.endDate) params.end_time = filters.value.endDate.toISOString()
@@ -193,7 +236,10 @@ const handleSizeChange = (size: number) => {
 // Auto refresh
 let refreshTimer: number | null = null
 
-onMounted(() => {
+onMounted(async () => {
+  // Load module options first
+  await loadModuleOptions()
+  // Then load logs
   loadLogs()
   // Auto refresh every 30 seconds
   refreshTimer = window.setInterval(() => {
@@ -226,8 +272,12 @@ onUnmounted(() => {
             <el-option v-for="opt in levelOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
 
-          <el-select v-model="filters.module" placeholder="模块" style="width: 120px">
+          <el-select v-model="filters.module" placeholder="模块" style="width: 140px">
             <el-option v-for="opt in moduleOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+
+          <el-select v-model="filters.action" placeholder="操作" style="width: 140px" :disabled="!filters.module">
+            <el-option v-for="opt in actionOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
 
           <el-input v-model="filters.keyword" placeholder="搜索关键词" style="width: 200px" clearable />

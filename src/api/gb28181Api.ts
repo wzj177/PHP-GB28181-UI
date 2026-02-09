@@ -485,6 +485,27 @@ export const gb28181Api = {
    */
   deleteRecordTask: (id: number) => {
     return request.delete(`/admin/gb28181/record-tasks/${id}`);
+  },
+
+  // ================= 语音对讲 =================
+
+  /**
+   * 开始语音对讲（获取推流地址）
+   * POST /admin/gb28181/broadcast/start
+   */
+  broadcastStart: (deviceId: string, channelId: string) => {
+    return request.post('/admin/gb28181/broadcast/start', {
+      device_id: deviceId,
+      channel_id: channelId
+    });
+  },
+
+  /**
+   * 停止语音对讲
+   * POST /admin/gb28181/broadcast/stop
+   */
+  broadcastStop: (sessionId: string) => {
+    return request.post('/admin/gb28181/broadcast/stop', { session_id: sessionId });
   }
 };
 
