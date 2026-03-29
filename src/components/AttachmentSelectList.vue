@@ -114,7 +114,7 @@ const getAttachments = async () => {
     const data = await attachmentApi.files({
       type: (props.type as any) || 'image',
       page: pagination.value.currentPage,
-      limit: pagination.value.pageSize
+      page_size: pagination.value.pageSize
     })
     attachments.value = data.list || []
     pagination.value.total = data.paginator?.total || 0

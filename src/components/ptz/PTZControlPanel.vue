@@ -149,7 +149,16 @@
 
       <!-- 预置位 -->
       <div class="panel">
-        <h3>预置位（1–255）</h3>
+        <div class="panel-header">
+          <h3>预置位（1–255）</h3>
+          <ElButton
+            size="small"
+            :loading="queryingPresetsFromDevice"
+            @click="queryPresetsFromDevice()"
+          >
+            从设备查询
+          </ElButton>
+        </div>
         <div
           id="presetList"
           class="preset-list"
@@ -188,6 +197,89 @@
                 设置
               </ElButton>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 扩展控制区 -->
+    <div class="grid-ext">
+      <!-- 设备快捷控制 -->
+      <div class="panel">
+        <h3>设备控制</h3>
+        <div class="ext-btn-group">
+          <div class="ext-row">
+            <span class="ext-label">布防</span>
+            <div class="btn-group">
+              <ElButton size="small" type="warning" @click="deviceGuard('SetGuard')">布防</ElButton>
+              <ElButton size="small" @click="deviceGuard('ResetGuard')">撤防</ElButton>
+            </div>
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">雨刷</span>
+            <div class="btn-group">
+              <ElButton size="small" @click="deviceWiper(true)">开启</ElButton>
+              <ElButton size="small" @click="deviceWiper(false)">关闭</ElButton>
+            </div>
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">辅助开关</span>
+            <div class="btn-group">
+              <ElInputNumber v-model="auxSwitchId" :min="1" :max="255" size="small" style="width:80px" />
+              <ElButton size="small" @click="deviceAuxSwitch(true)">打开</ElButton>
+              <ElButton size="small" @click="deviceAuxSwitch(false)">关闭</ElButton>
+            </div>
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">其他</span>
+            <div class="btn-group">
+              <ElButton size="small" @click="deviceAlarmReset()">报警复位</ElButton>
+              <ElButton size="small" @click="deviceIframe()">强制I帧</ElButton>
+              <ElButton size="small" type="danger" @click="deviceReboot()">远程重启</ElButton>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 看守位设置 -->
+      <div class="panel">
+        <h3>看守位设置</h3>
+        <div class="ext-btn-group">
+          <div class="ext-row">
+            <span class="ext-label">预置位编号</span>
+            <ElInputNumber v-model="homePresetIndex" :min="1" :max="255" size="small" />
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">归位延时(s)</span>
+            <ElInputNumber v-model="homeResetTime" :min="0" :max="3600" size="small" />
+          </div>
+          <div class="btn-group" style="margin-top:8px">
+            <ElButton size="small" type="primary" @click="deviceHomePosition(1)">启用看守位</ElButton>
+            <ElButton size="small" @click="deviceHomePosition(0)">关闭看守位</ElButton>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自动扫描 -->
+      <div class="panel">
+        <h3>自动扫描</h3>
+        <div class="ext-btn-group">
+          <div class="ext-row">
+            <span class="ext-label">扫描组号</span>
+            <ElInputNumber v-model="scanGroupId" :min="0" :max="255" size="small" />
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">扫描速度</span>
+            <ElInputNumber v-model="scanSpeed" :min="1" :max="255" size="small" />
+          </div>
+          <div class="btn-group" style="margin-top:8px">
+            <ElButton size="small" type="primary" @click="scanControl('scan_start')">开始扫描</ElButton>
+            <ElButton size="small" @click="scanControl('scan_stop')">停止扫描</ElButton>
+          </div>
+          <div class="btn-group" style="margin-top:6px">
+            <ElButton size="small" @click="scanControl('scan_set_left')">设左边界</ElButton>
+            <ElButton size="small" @click="scanControl('scan_set_right')">设右边界</ElButton>
+            <ElButton size="small" @click="scanControl('scan_set_speed')">设扫描速度</ElButton>
           </div>
         </div>
       </div>
@@ -342,6 +434,14 @@ const cruiseId = ref("1");
 const cruiseStay = ref(5);
 const cruiseSpeed = ref(4);
 const cruisePoints = ref<number[]>([]);
+
+// 扩展控制状态
+const auxSwitchId = ref(1);
+const homePresetIndex = ref(1);
+const homeResetTime = ref(0);
+const scanGroupId = ref(0);
+const scanSpeed = ref(50);
+const queryingPresetsFromDevice = ref(false);
 
 // Voice talk control ref
 const voiceTalkRef = ref<{ canStop: { value: boolean }; stop: () => Promise<void>; isConnected: { value: boolean } } | null>(null);
@@ -612,6 +712,129 @@ const deletePreset = async (value: number) => {
   }
 };
 
+// ===== 扩展设备控制函数 =====
+
+const deviceReboot = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await ElMessageBox.confirm('确定要远程重启该设备吗？', '重启确认', {
+      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
+    });
+    await gb28181Api.deviceReboot({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('重启命令已发送');
+  } catch (error: any) {
+    if (error !== 'cancel') ElMessage.error(error.message || '发送重启命令失败');
+  }
+};
+
+const deviceGuard = async (action: 'SetGuard' | 'ResetGuard') => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceGuard({ device_id: ids.deviceId, channel_id: ids.channelId, action });
+    ElMessage.success(action === 'SetGuard' ? '布防命令已发送' : '撤防命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '布防/撤防命令发送失败');
+  }
+};
+
+const deviceAlarmReset = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceAlarmReset({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('报警复位命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '报警复位命令发送失败');
+  }
+};
+
+const deviceIframe = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceIframe({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('强制关键帧命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '强制关键帧命令发送失败');
+  }
+};
+
+const deviceWiper = async (on: boolean) => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceWiper({ device_id: ids.deviceId, channel_id: ids.channelId, on });
+    ElMessage.success(on ? '雨刷开启命令已发送' : '雨刷关闭命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '雨刷控制命令发送失败');
+  }
+};
+
+const deviceAuxSwitch = async (on: boolean) => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceAuxSwitch({
+      device_id: ids.deviceId, channel_id: ids.channelId,
+      switch_id: auxSwitchId.value, on
+    });
+    ElMessage.success(`辅助开关 ${auxSwitchId.value} ${on ? '打开' : '关闭'} 命令已发送`);
+  } catch (error: any) {
+    ElMessage.error(error.message || '辅助开关控制命令发送失败');
+  }
+};
+
+const deviceHomePosition = async (enabled: 0 | 1) => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceHomePosition({
+      device_id: ids.deviceId, channel_id: ids.channelId,
+      enabled, reset_time: homeResetTime.value, preset_index: homePresetIndex.value
+    });
+    ElMessage.success(enabled ? '看守位已启用' : '看守位已关闭');
+  } catch (error: any) {
+    ElMessage.error(error.message || '看守位命令发送失败');
+  }
+};
+
+const scanControl = async (action: 'scan_start' | 'scan_stop' | 'scan_set_left' | 'scan_set_right' | 'scan_set_speed') => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.scanControl({
+      device_id: ids.deviceId, channel_id: ids.channelId,
+      action, group_id: scanGroupId.value,
+      ...(action === 'scan_set_speed' ? { speed: scanSpeed.value } : {})
+    });
+    const actionLabels: Record<string, string> = {
+      scan_start: '开始扫描', scan_stop: '停止扫描',
+      scan_set_left: '设置左边界', scan_set_right: '设置右边界', scan_set_speed: '设置扫描速度'
+    };
+    ElMessage.success(`${actionLabels[action] || action} 命令已发送`);
+  } catch (error: any) {
+    ElMessage.error(error.message || '扫描控制命令发送失败');
+  }
+};
+
+const queryPresetsFromDevice = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  queryingPresetsFromDevice.value = true;
+  try {
+    await gb28181Api.queryPresetsFromDevice({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('预置位查询命令已发送，设备将异步返回结果，稍后刷新列表');
+    // 延迟 2s 后重新拉取预置位列表（设备异步返回）
+    setTimeout(() => loadPresetList(), 2000);
+  } catch (error: any) {
+    ElMessage.error(error.message || '预置位查询命令发送失败');
+  } finally {
+    queryingPresetsFromDevice.value = false;
+  }
+};
+
 // Cruise commands (not implemented in current API)
 const loadCruisePoints = async () => {
   ElMessage.info('巡航功能暂未实现');
@@ -696,7 +919,9 @@ defineExpose({
 }
 
 .grid {
-  @extend .responsive-grid;
+  display: grid;
+  grid-template-columns: 1fr; /* 始终单列，避免在窄面板中两列挤压 */
+  gap: 12px;
 }
 
 .panel {
@@ -715,7 +940,13 @@ defineExpose({
   display: grid;
   grid-template-columns: 200px 1fr;
   gap: 20px;
-  align-items: center;
+  align-items: start;
+
+  /* 面板宽度不足时纵向堆叠 */
+  @media (max-width: 460px) {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
 }
 
 .pad {
@@ -885,6 +1116,49 @@ defineExpose({
     height: 28px;
     padding: 0 10px;
     font-size: 12px;
+  }
+}
+
+/* ================= 扩展控制区 ================= */
+.grid-ext {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.ext-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ext-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .ext-label {
+    font-size: 12px;
+    color: $text-muted;
+    white-space: nowrap;
+    min-width: 64px;
+  }
+
+  .btn-group {
+    flex: 1;
+    flex-wrap: wrap;
   }
 }
 </style>

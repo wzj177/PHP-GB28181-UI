@@ -24,7 +24,7 @@ export const alarmApi = {
    */
   getAlarmList: (params?: {
     page?: number;
-    limit?: number;
+    page_size?: number;
     status?: string;
     device_id?: string;
     start_time?: string;
@@ -60,7 +60,7 @@ export const alarmApi = {
    */
   getAlarmPlans: (params?: {
     page?: number
-    limit?: number
+    page_size?: number
     status?: number
   }) => {
     return request.get<AlarmPlanListResponse>('/admin/alarm-plan', { params })

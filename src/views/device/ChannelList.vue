@@ -313,7 +313,7 @@ const getChannelList = async () => {
       status: filters.value.status || undefined,
       channel_type: filters.value.channel_type,
       page: pagination.value.currentPage,
-      limit: pagination.value.pageSize,
+      page_size: pagination.value.pageSize,
       keyword: filters.value.keyword || undefined
     }
 

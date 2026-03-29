@@ -30,20 +30,26 @@ export const pages: Record<string, () => Promise<any>> = {
   'DeviceList': () => import('@/views/device/DeviceList.vue'),
   'ChannelList': () => import('@/views/device/ChannelList.vue'),
 
+  // 推拉流代理
+  'StreamProxyList': () => import('@/views/stream/StreamProxyList.vue'),
+  'StreamProxyLogList': () => import('@/views/stream/StreamProxyLogList.vue'),
+
   // 云台控制
   'PTZControl': () => import('@/views/ptz/PTZControl.vue'),
 
-  // 视频管理
+  // 视频管理（视频广场、回放等保留在 video/ 目录）
   'VideoManagement': () => import('@/views/video/VideoManagement.vue'),
   'VideoPlayback': () => import('@/views/video/VideoPlayback.vue'),
   'VideoTimeline': () => import('@/views/video/VideoTimeline.vue'),
-  'RecordingsList': () => import('@/views/video/RecordingsList.vue'),
   'VideoPlayer': () => import('@/views/video/VideoPlayer.vue'),
   'VideoPlaza': () => import('@/views/video/VideoPlaza.vue'),
-  'RecordPlanList': () => import('@/views/video/RecordPlanList.vue'),
+
+  // 云端录像（独立在 recording/ 目录）
+  'RecordPlanList': () => import('@/views/recording/RecordPlanList.vue'),
+  'RecordingsList': () => import('@/views/recording/RecordingsList.vue'),
+  'RecordTaskList': () => import('@/views/recording/RecordTaskList.vue'),
 
   // 报警管理
-  'AlarmManagement': () => import('@/views/alarms/AlarmManagement.vue'),
   'AlarmPlanList': () => import('@/views/alarm/AlarmPlanList.vue'),
   'AlarmEventList': () => import('@/views/alarm/AlarmEventList.vue'),
 

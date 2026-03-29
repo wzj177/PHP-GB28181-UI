@@ -126,17 +126,6 @@
           "type": "menu"
         },
         {
-          "id": "video-plaza",
-          "name": "视频广场",
-          "icon": "VideoPlay",
-          "path": "/video-plaza",
-          "component": "VideoPlaza",
-          "title": "视频广场",
-          "parentId": "gb-device",
-          "sort": 3,
-          "type": "menu"
-        },
-        {
           "id": "ptz-control",
           "name": "云台控制",
           "icon": "VideoCamera",
@@ -144,7 +133,42 @@
           "component": "PTZControl",
           "title": "云台控制",
           "parentId": "gb-device",
-          "sort": 4,
+          "sort": 3,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "stream-proxy-mgmt",
+      "name": "推拉流管理",
+      "icon": "Connection",
+      "path": "/stream-proxy-mgmt",
+      "component": "",
+      "title": "推拉流管理",
+      "parentId": 0,
+      "sort": 5,
+      "type": "directory",
+      "children": [
+        {
+          "id": "stream-proxy-list",
+          "name": "设备列表",
+          "icon": "List",
+          "path": "/stream-proxy",
+          "component": "StreamProxyList",
+          "title": "设备列表",
+          "parentId": "stream-proxy-mgmt",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "stream-proxy-logs",
+          "name": "日志列表",
+          "icon": "Document",
+          "path": "/stream-proxy-logs",
+          "component": "StreamProxyLogList",
+          "title": "日志列表",
+          "parentId": "stream-proxy-mgmt",
+          "sort": 2,
           "type": "menu"
         }
       ]
@@ -157,7 +181,7 @@
       "component": "VideoManagement",
       "title": "云端录像",
       "parentId": 0,
-      "sort": 5,
+      "sort": 6,
       "type": "directory",
       "children": [
         {
@@ -192,6 +216,28 @@
           "parentId": "video",
           "sort": 3,
           "type": "menu"
+        },
+        {
+          "id": "cloud-recordings",
+          "name": "录像文件",
+          "icon": "Film",
+          "path": "/cloud-recordings",
+          "component": "RecordingsList",
+          "title": "录像文件",
+          "parentId": "video",
+          "sort": 4,
+          "type": "menu"
+        },
+        {
+          "id": "record-tasks",
+          "name": "回放下载",
+          "icon": "List",
+          "path": "/record-tasks",
+          "component": "RecordTaskList",
+          "title": "回放下载",
+          "parentId": "video",
+          "sort": 5,
+          "type": "menu"
         }
       ]
     },
@@ -203,7 +249,7 @@
       "component": "",
       "title": "报警管理",
       "parentId": 0,
-      "sort": 6,
+      "sort": 7,
       "type": "directory",
       "children": [
         {
@@ -238,7 +284,7 @@
       "component": "ElectronicMap",
       "title": "电子地图",
       "parentId": 0,
-      "sort": 7,
+      "sort": 8,
       "type": "menu"
     },
     {
@@ -249,7 +295,7 @@
       "component": "",
       "title": "系统管理",
       "parentId": 0,
-      "sort": 8,
+      "sort": 9,
       "type": "directory",
       "children": [
         {
@@ -295,7 +341,7 @@
       "component": "",
       "title": "权限管理",
       "parentId": 0,
-      "sort": 9,
+      "sort": 10,
       "type": "directory",
       "children": [
         {

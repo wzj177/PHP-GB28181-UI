@@ -254,7 +254,7 @@ const getTasks = async () => {
       task_type: 'playback_download',
       status: filters.value.status || undefined,
       page: pagination.value.currentPage,
-      limit: pagination.value.pageSize
+      page_size: pagination.value.pageSize
     }
 
     const data = await gb28181Api.getRecordTasks(params)

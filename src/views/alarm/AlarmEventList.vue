@@ -136,7 +136,7 @@
         <el-table-column prop="level" label="级别" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="ALARM_LEVEL_CONFIG[row.level]?.type || 'info'">
-              {{ ALARM_LEVEL_CONFIG[row.level]?.label || row.level }}级
+              {{ row.level_text }}
             </el-tag>
           </template>
         </el-table-column>
@@ -178,135 +178,147 @@
       </div>
     </el-card>
 
-    <!-- 详情对话框 -->
-    <el-dialog
+    <!-- 详情抽屉 -->
+    <el-drawer
       v-model="detailDialogVisible"
       title="报警事件详情"
-      width="700px"
+      size="600px"
+      class="alarm-detail-drawer"
     >
-      <el-descriptions
-        v-if="currentEvent"
-        :column="2"
-        border
-        class="alarm-detail-descriptions"
-      >
-        <el-descriptions-item label="事件ID">
-          {{ currentEvent.id }}
-        </el-descriptions-item>
-        <el-descriptions-item label="报警级别">
-          <el-tag :type="ALARM_LEVEL_CONFIG[currentEvent.level]?.type || 'info'">
-            {{ ALARM_LEVEL_CONFIG[currentEvent.level]?.label || currentEvent.level }}级
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="报警方式">
-          {{ ALARM_METHOD_CONFIG[currentEvent.method] || '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="报警类型">
-          {{ getAlarmTypeName(currentEvent.method, currentEvent.type) }}
-        </el-descriptions-item>
-        <el-descriptions-item v-if="currentEvent.method === 5 && currentEvent.type === 6" label="事件类型">
-          {{ EVENT_TYPE_CONFIG[currentEvent.eventtype!] || currentEvent.eventtype }}
-        </el-descriptions-item>
-        <el-descriptions-item v-if="currentEvent.alarm_plan_id" label="关联预案">
-          <el-tag type="success">已触发预案 #{{ currentEvent.alarm_plan_id }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="设备ID" :span="2">
-          {{ currentEvent.device_id }}
-        </el-descriptions-item>
-        <el-descriptions-item label="通道ID" :span="2">
-          {{ currentEvent.channel_id }}
-        </el-descriptions-item>
-        <el-descriptions-item label="报警时间" :span="2">
-          {{ currentEvent.alarm_time }}
-        </el-descriptions-item>
-        <el-descriptions-item label="接收时间" :span="2">
-          {{ currentEvent.recv_time }}
-        </el-descriptions-item>
-        <el-descriptions-item label="描述" :span="2">
-          {{ currentEvent.description }}
-        </el-descriptions-item>
-        <el-descriptions-item v-if="currentEvent.longitude" label="位置" :span="2">
-          <el-link
-            type="primary"
-            :href="`https://uri.amap.com/marker?position=${currentEvent.longitude},${currentEvent.latitude}&name=报警位置`"
-            target="_blank"
-          >
-            {{ currentEvent.longitude }}, {{ currentEvent.latitude }}
-          </el-link>
-        </el-descriptions-item>
-      </el-descriptions>
-
-      <!-- 报警资源 -->
-      <div v-if="currentEvent.assets" class="alarm-assets-section">
-        <el-divider content-position="left">报警资源</el-divider>
-
-        <!-- 快照 -->
-        <div v-if="currentEvent.assets.snapshots && currentEvent.assets.snapshots.length > 0" class="assets-group">
-          <div class="assets-title">
-            <el-icon><Camera /></el-icon>
-            <span>报警快照 ({{ currentEvent.assets.snapshots.length }})</span>
-          </div>
-          <div class="assets-grid">
-            <div
-              v-for="snapshot in currentEvent.assets.snapshots"
-              :key="snapshot.id"
-              class="asset-item"
+      <div v-if="currentEvent" class="detail-content">
+        <el-descriptions
+          :column="2"
+          border
+          class="alarm-detail-descriptions"
+        >
+          <el-descriptions-item label="事件ID">
+            {{ currentEvent.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="报警级别">
+            <el-tag :type="ALARM_LEVEL_CONFIG[currentEvent.level]?.type || 'info'">
+              {{ ALARM_LEVEL_CONFIG[currentEvent.level]?.label || currentEvent.level }}级
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="报警方式">
+            {{ ALARM_METHOD_CONFIG[currentEvent.method] || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="报警类型">
+            {{ getAlarmTypeName(currentEvent.method, currentEvent.type) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentEvent.method === 5 && currentEvent.type === 6" label="事件类型">
+            {{ EVENT_TYPE_CONFIG[currentEvent.eventtype!] || currentEvent.eventtype }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentEvent.alarm_plan_id" label="关联预案">
+            <el-tag type="success">已触发预案 #{{ currentEvent.alarm_plan_id }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="设备ID" :span="2">
+            {{ currentEvent.device_id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="通道ID" :span="2">
+            {{ currentEvent.channel_id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="报警时间" :span="2">
+            {{ currentEvent.alarm_time }}
+          </el-descriptions-item>
+          <el-descriptions-item label="接收时间" :span="2">
+            {{ currentEvent.recv_time }}
+          </el-descriptions-item>
+          <el-descriptions-item label="描述" :span="2">
+            {{ currentEvent.description }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentEvent.longitude" label="位置" :span="2">
+            <el-link
+              type="primary"
+              :href="`https://uri.amap.com/marker?position=${currentEvent.longitude},${currentEvent.latitude}&name=报警位置`"
+              target="_blank"
             >
-              <el-image
-                :src="snapshot.file_url"
-                fit="cover"
-                class="asset-image"
-                :preview-src-list="currentEvent.assets.snapshots.map(s => s.file_url)"
-                :initial-index="currentEvent.assets.snapshots.indexOf(snapshot)"
-                preview-teleported
+              {{ currentEvent.longitude }}, {{ currentEvent.latitude }}
+            </el-link>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 报警资源 -->
+        <div v-if="currentEvent.assets" class="alarm-assets-section">
+          <el-divider content-position="left">报警资源</el-divider>
+
+          <!-- 快照 -->
+          <div v-if="currentEvent.assets.snapshots && currentEvent.assets.snapshots.length > 0" class="assets-group">
+            <div class="assets-title">
+              <el-icon><Camera /></el-icon>
+              <span>报警快照 ({{ currentEvent.assets.snapshots.length }})</span>
+            </div>
+            <div class="assets-grid">
+              <div
+                v-for="snapshot in currentEvent.assets.snapshots"
+                :key="snapshot.id"
+                class="asset-item"
               >
-                <template #error>
-                  <div class="image-error">
-                    <el-icon><Picture /></el-icon>
-                    <span>加载失败</span>
-                  </div>
-                </template>
-              </el-image>
-              <div class="asset-time">{{ snapshot.shot_time }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 录像 -->
-        <div v-if="currentEvent.assets.records && currentEvent.assets.records.length > 0" class="assets-group">
-          <div class="assets-title">
-            <el-icon><VideoCamera /></el-icon>
-            <span>报警录像 ({{ currentEvent.assets.records.length }})</span>
-          </div>
-          <div class="records-list">
-            <div
-              v-for="record in currentEvent.assets.records"
-              :key="record.id"
-              class="record-item"
-            >
-              <el-icon class="record-icon"><VideoPlay /></el-icon>
-              <div class="record-info">
-                <div class="record-time">{{ record.start_time }}</div>
-                <div class="record-duration">时长: {{ formatDuration(record.duration) }}</div>
+                <el-image
+                  :src="snapshot.file_url"
+                  fit="cover"
+                  class="asset-image"
+                  :preview-src-list="currentEvent.assets.snapshots.map(s => s.file_url)"
+                  :initial-index="currentEvent.assets.snapshots.indexOf(snapshot)"
+                  preview-teleported
+                >
+                  <template #error>
+                    <div class="image-error">
+                      <el-icon><Picture /></el-icon>
+                      <span>加载失败</span>
+                    </div>
+                  </template>
+                </el-image>
+                <div class="asset-time">{{ snapshot.shot_time }}</div>
               </div>
-              <el-button type="primary" link size="small" @click="playRecord(record.file_url)">
-                播放
-              </el-button>
             </div>
+          </div>
+
+          <!-- 录像 -->
+          <div v-if="currentEvent.assets.records && currentEvent.assets.records.length > 0" class="assets-group">
+            <div class="assets-title">
+              <el-icon><VideoCamera /></el-icon>
+              <span>报警录像 ({{ currentEvent.assets.records.length }})</span>
+            </div>
+            <div class="records-list">
+              <div
+                v-for="record in currentEvent.assets.records"
+                :key="record.id"
+                class="record-item"
+              >
+                <el-icon class="record-icon"><VideoPlay /></el-icon>
+                <div class="record-info">
+                  <div class="record-time">{{ record.start_time }}</div>
+                  <div class="record-duration">时长: {{ formatDuration(record.duration) }}</div>
+                </div>
+                <el-button type="primary" link size="small" @click="playRecord(record.file_url)">
+                  播放
+                </el-button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="(!currentEvent.assets.snapshots || currentEvent.assets.snapshots.length === 0) &&
+              (!currentEvent.assets.records || currentEvent.assets.records.length === 0)"
+            class="no-assets"
+          >
+            <el-empty description="暂无报警资源" :image-size="80" />
           </div>
         </div>
 
-        <div v-if="(!currentEvent.assets.snapshots || currentEvent.assets.snapshots.length === 0) &&
-                      (!currentEvent.assets.records || currentEvent.assets.records.length === 0)"
-             class="no-assets">
-          <el-empty description="暂无报警资源" :image-size="80" />
+        <!-- 原始报文 -->
+        <div v-if="currentEvent.raw_payload" class="raw-payload-section">
+          <el-divider content-position="left">原始报文</el-divider>
+          <div class="raw-payload-content">
+            <pre class="raw-payload-code">{{ formatRawPayload(currentEvent.raw_payload) }}</pre>
+          </div>
         </div>
       </div>
 
       <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
       </template>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
@@ -357,7 +369,7 @@ const loadList = async () => {
   try {
     const params: AlarmEventQueryParams = {
       page: pagination.page,
-      limit: pagination.pageSize
+      page_size: pagination.pageSize
     }
 
     if (filters.device_id) params.device_id = filters.device_id
@@ -409,7 +421,7 @@ const loadStats = async () => {
     // 如果专门的统计 API 不可用，从 list 接口获取 summary
     console.warn('统计 API 不可用，从列表接口获取统计数据')
     try {
-      const data = await alarmApi.getAlarmEvents({ page: 1, limit: 1 })
+      const data = await alarmApi.getAlarmEvents({ page: 1, page_size: 1 })
       if (data.summary) {
         Object.assign(stats, data.summary)
       }
@@ -451,6 +463,18 @@ const formatDuration = (seconds: number): string => {
 const playRecord = (url: string) => {
   // TODO: 打开录像播放器
   window.open(url, '_blank')
+}
+
+// 格式化原始报文
+const formatRawPayload = (payload: string): string => {
+  try {
+    // 尝试解析为 JSON 并格式化
+    const parsed = JSON.parse(payload)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    // 如果不是 JSON，直接返回原文
+    return payload
+  }
 }
 
 /* ================= 生命周期 ================= */
@@ -692,5 +716,30 @@ onMounted(() => {
   .no-assets {
     padding: 20px 0;
   }
+}
+
+.raw-payload-section {
+  margin-top: 24px;
+}
+
+.raw-payload-content {
+  .raw-payload-code {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg-light);
+    border: 1px solid var(--border-base);
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'Courier New', Consolas, Monaco, monospace;
+    color: var(--text-main);
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+}
+
+.detail-content {
+  padding-bottom: 20px;
 }
 </style>

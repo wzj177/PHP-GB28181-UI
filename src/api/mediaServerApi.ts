@@ -52,7 +52,7 @@ export const mediaServerApi = {
     status?: MediaServerStatus;
     keyword?: string;
     page?: number;
-    limit?: number;
+    page_size?: number;
   }): Promise<ApiResponse<ListResponse<MediaServer>>> => {
     return request.get('/admin/media-server', { params });
   },

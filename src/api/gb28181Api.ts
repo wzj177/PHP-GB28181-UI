@@ -19,7 +19,9 @@ export const gb28181Api = {
   getDeviceList: (params?: {
     status?: string;
     page?: number;
-    limit?: number;
+    page_size?: number;
+    keyword?: string;
+    device_category?: number | string;
   }) => {
     return request.get('/admin/gb28181/devices', { params });
   },
@@ -71,6 +73,7 @@ export const gb28181Api = {
     custom_lat?: string;
     custom_lng?: string;
     filter_channel_types?: number[];
+    device_category?: number | string;
   }) => {
     return request.put(`/admin/gb28181/devices/${id}`, data);
   },
@@ -167,7 +170,7 @@ export const gb28181Api = {
   getChannelList: (id: string, params?: {
     status?: string;
     page?: number;
-    limit?: number;
+    page_size?: number;
   }) => {
     return request.get(`/admin/gb28181/channels/${id}`, { params });
   },
@@ -181,7 +184,7 @@ export const gb28181Api = {
     status?: string;
     keyword?: string;
     page?: number;
-    limit?: number;
+    page_size?: number;
   }) => {
     return request.get('/admin/gb28181/channels', { params });
   },
@@ -196,6 +199,14 @@ export const gb28181Api = {
 
   getChannelFilterTypes: () => {
     return request.get('/admin/gb28181/channels/type/filters');
+  },
+
+  /**
+   * 获取设备分类选项
+   * GET /admin/gb28181/device-categories/options
+   */
+  getDeviceCategoryOptions: () => {
+    return request.get('/admin/gb28181/device-categories/options');
   },
 
   /**
@@ -474,7 +485,7 @@ export const gb28181Api = {
     task_type?: string;
     status?: string;
     page?: number;
-    limit?: number;
+    page_size?: number;
   }) => {
     return request.get('/admin/gb28181/record-tasks', { params });
   },
@@ -506,7 +517,177 @@ export const gb28181Api = {
    */
   broadcastStop: (sessionId: string) => {
     return request.post('/admin/gb28181/broadcast/stop', { session_id: sessionId });
-  }
+  },
+
+  // ================= 设备控制 (Device Control) =================
+
+  /**
+   * 远程重启
+   * POST /admin/gb28181/device-control/reboot
+   */
+  deviceReboot: (params: {
+    device_id: string;
+    channel_id: string;
+  }) => {
+    return request.post('/admin/gb28181/device-control/reboot', params);
+  },
+
+  /**
+   * 录像控制
+   * POST /admin/gb28181/device-control/record
+   */
+  deviceRecord: (params: {
+    device_id: string;
+    channel_id: string;
+    action?: 'Record' | 'StopRecord';
+  }) => {
+    return request.post('/admin/gb28181/device-control/record', params);
+  },
+
+  /**
+   * 布防/撤防
+   * POST /admin/gb28181/device-control/guard
+   */
+  deviceGuard: (params: {
+    device_id: string;
+    channel_id: string;
+    action?: 'SetGuard' | 'ResetGuard';
+  }) => {
+    return request.post('/admin/gb28181/device-control/guard', params);
+  },
+
+  /**
+   * 报警复位
+   * POST /admin/gb28181/device-control/alarm-reset
+   */
+  deviceAlarmReset: (params: {
+    device_id: string;
+    channel_id: string;
+    alarm_method?: number;
+    alarm_type?: number;
+  }) => {
+    return request.post('/admin/gb28181/device-control/alarm-reset', params);
+  },
+
+  /**
+   * 强制关键帧（I 帧）
+   * POST /admin/gb28181/device-control/iframe
+   */
+  deviceIframe: (params: {
+    device_id: string;
+    channel_id: string;
+  }) => {
+    return request.post('/admin/gb28181/device-control/iframe', params);
+  },
+
+  /**
+   * 看守位控制
+   * POST /admin/gb28181/device-control/home-position
+   */
+  deviceHomePosition: (params: {
+    device_id: string;
+    channel_id: string;
+    enabled?: number;
+    reset_time?: number;
+    preset_index?: number;
+  }) => {
+    return request.post('/admin/gb28181/device-control/home-position', params);
+  },
+
+  /**
+   * 拖拽变倍
+   * POST /admin/gb28181/device-control/drag-zoom
+   */
+  deviceDragZoom: (params: {
+    device_id: string;
+    channel_id: string;
+    type?: 'in' | 'out';
+    length: number;
+    width: number;
+    mid_point_x: number;
+    mid_point_y: number;
+    length_x: number;
+    length_y: number;
+  }) => {
+    return request.post('/admin/gb28181/device-control/drag-zoom', params);
+  },
+
+  /**
+   * 设备基础配置
+   * POST /admin/gb28181/device-control/config
+   */
+  deviceConfig: (params: {
+    device_id: string;
+    channel_id: string;
+    name?: string;
+    expiration?: number;
+    heartbeat_interval?: number;
+    heartbeat_count?: number;
+  }) => {
+    return request.post('/admin/gb28181/device-control/config', params);
+  },
+
+  /**
+   * 设备配置查询
+   * POST /admin/gb28181/device-control/config-query
+   */
+  deviceConfigQuery: (params: {
+    device_id: string;
+    channel_id: string;
+    config_type?: 'BasicParam' | 'VideoParamOpt' | 'SVACEncodeConfig' | 'SVACDecodeConfig';
+  }) => {
+    return request.post('/admin/gb28181/device-control/config-query', params);
+  },
+
+  /**
+   * 雨刷控制
+   * POST /admin/gb28181/device-control/wiper
+   */
+  deviceWiper: (params: {
+    device_id: string;
+    channel_id: string;
+    on?: boolean;
+  }) => {
+    return request.post('/admin/gb28181/device-control/wiper', params);
+  },
+
+  /**
+   * 辅助开关控制
+   * POST /admin/gb28181/device-control/aux-switch
+   */
+  deviceAuxSwitch: (params: {
+    device_id: string;
+    channel_id: string;
+    switch_id?: number;
+    on?: boolean;
+  }) => {
+    return request.post('/admin/gb28181/device-control/aux-switch', params);
+  },
+
+  /**
+   * 自动扫描控制
+   * POST /admin/gb28181/devices/scan
+   */
+  scanControl: (params: {
+    device_id: string;
+    channel_id: string;
+    action: 'scan_start' | 'scan_stop' | 'scan_set_left' | 'scan_set_right' | 'scan_set_speed';
+    group_id?: number;
+    speed?: number;
+  }) => {
+    return request.post('/admin/gb28181/devices/scan', params);
+  },
+
+  /**
+   * 从设备查询预置位（异步，结果通过 Hook 写回 DB）
+   * POST /admin/gb28181/presets/query-from-device
+   */
+  queryPresetsFromDevice: (params: {
+    device_id: string;
+    channel_id: string;
+  }) => {
+    return request.post('/admin/gb28181/presets/query-from-device', params);
+  },
 };
 
 export default gb28181Api;

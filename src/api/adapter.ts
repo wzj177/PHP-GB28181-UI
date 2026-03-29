@@ -350,7 +350,15 @@ async function handleMockRequest<T>(config: AxiosRequestConfig): Promise<AxiosRe
     } as AxiosResponse<T>;
   }
   // User management
-  else if (url.includes('/admin/user/role-options') && method.toLowerCase() === 'get') {
+  else if (url.includes('/admin/user/uuid') && method.toLowerCase() === 'get') {
+    return {
+      data: mockGetUserUuid(mockOptions) as T,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: config,
+    } as AxiosResponse<T>;
+  } else if (url.includes('/admin/user/role-options') && method.toLowerCase() === 'get') {
     return {
       data: getUserRoleOptionsMock(mockOptions) as T,
       status: 200,
@@ -1474,4 +1482,14 @@ export const updateUserMock = (options: any) => {
 
 export const deleteUserMock = (options: any) => {
   return { code: 0, msg: 'success', data: null }
+}
+
+export const mockGetUserUuid = (options: any) => {
+  return {
+    code: 0,
+    msg: 'success',
+    data: {
+      uuid: 'mock-uuid-12345678-abcd-1234-abcd-1234567890ab'
+    }
+  }
 }

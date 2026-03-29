@@ -15,6 +15,20 @@
           <ElOption label="已注销" value="unregistered" />
         </ElSelect>
 
+        <ElSelect
+          v-model="filters.device_category"
+          placeholder="设备分类"
+          clearable
+          style="width: 160px; margin-right: 10px;"
+        >
+          <ElOption
+            v-for="item in deviceCategoryOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </ElSelect>
+
         <ElInput
           v-model="filters.keyword"
           placeholder="请输入设备名称或编号"
@@ -126,6 +140,11 @@
         <ElTableColumn label="通道数" width="80">
           <template #default="{ row }">
             {{ row.sum_num || 0 }}
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="设备分类" width="130">
+          <template #default="{ row }">
+            {{ getCategoryLabel(row.device_category) }}
           </template>
         </ElTableColumn>
         <ElTableColumn prop="manufacturer" label="厂商" width="120" />
@@ -462,6 +481,7 @@ interface Device {
   stream_index?: string
   filter_channel_types?: any
   subscription_status?: any
+  device_category?: number | string
   [key: string]: any
 }
 
@@ -483,8 +503,28 @@ const summary = ref<DeviceSummary>({
 })
 const filters = ref({
   status: '',
-  keyword: ''
+  keyword: '',
+  device_category: '' as number | string
 })
+
+// 设备分类选项
+const deviceCategoryOptions = ref<Array<{ value: number | string; label: string }>>([])
+const deviceCategoryMap = ref<Record<string, string>>({})
+
+const fetchDeviceCategoryOptions = async () => {
+  try {
+    const data = await gb28181Api.getDeviceCategoryOptions()
+    deviceCategoryOptions.value = data?.options || []
+    deviceCategoryMap.value = data?.map || {}
+  } catch (error) {
+    console.error('Failed to fetch device category options:', error)
+  }
+}
+
+const getCategoryLabel = (category?: number | string): string => {
+  if (category === undefined || category === null || category === '') return '-'
+  return deviceCategoryMap.value[String(category)] || String(category)
+}
 const pagination = ref({
   currentPage: 1,
   pageSize: 10,
@@ -559,8 +599,9 @@ const getDeviceList = async () => {
     const params = {
       status: filters.value.status || undefined,
       page: pagination.value.currentPage,
-      limit: pagination.value.pageSize,
-      keyword: filters.value.keyword || undefined
+      page_size: pagination.value.pageSize,
+      keyword: filters.value.keyword || undefined,
+      device_category: filters.value.device_category || undefined
     }
 
     const data: any = await gb28181Api.getDeviceList(params)
@@ -588,7 +629,8 @@ const searchDevices = () => {
 const resetFilters = () => {
   filters.value = {
     status: '',
-    keyword: ''
+    keyword: '',
+    device_category: ''
   }
   pagination.value.currentPage = 1
   getDeviceList()
@@ -805,6 +847,7 @@ const updateDevice = async (device: Device) => {
 
 // Initialize
 onMounted(() => {
+  fetchDeviceCategoryOptions()
   getDeviceList()
   startAutoRefresh()
 })

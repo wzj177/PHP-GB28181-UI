@@ -321,7 +321,7 @@ const loadList = async () => {
   try {
     const data = await alarmApi.getAlarmPlans({
       page: pagination.page,
-      limit: pagination.pageSize,
+      page_size: pagination.pageSize,
       status: filters.status ?? undefined
     })
     list.value = data.list || []

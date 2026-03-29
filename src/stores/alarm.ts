@@ -41,7 +41,7 @@ export const useAlarmStore = defineStore('alarm', () => {
    */
   const loadPlans = async (params?: {
     page?: number
-    limit?: number
+    page_size?: number
     status?: number
   }) => {
     plansLoading.value = true

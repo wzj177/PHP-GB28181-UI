@@ -5,8 +5,8 @@
 
 import { ref, computed, onUnmounted, type Ref, type ComputedRef } from 'vue';
 import { gb28181Api } from '@/api/gb28181Api';
-import { authUtils } from '@/utils/authUtils';
-import { createVoiceClient, WebRTCState, WebRTCVoiceClient } from '@/utils/webrtc';
+import { userApi } from '@/api/userApi';
+import { createVoiceClient, WebRTCVoiceClient } from '@/utils/webrtc';
 
 /**
  * Voice talk session status
@@ -142,16 +142,18 @@ export function useVoiceTalk(options: UseVoiceTalkOptions): VoiceTalkReturn {
 
       sessionId.value = broadcastResponse.session_id;
 
-      // Step 2: Get tokenKey and token for signature
-      const tokenKey = authUtils.getTokenKey();
-      const token = authUtils.getToken();
-
-      if (!tokenKey || !token) {
-        throw new Error('Token or tokenKey not found');
+      // Step 2: Get user UUID from API
+      if (debug) {
+        console.log('[VoiceTalk] Getting user UUID...');
+      }
+      const uuidData = await userApi.showUUid();
+      
+      if (!uuidData || !uuidData.uuid) {
+        throw new Error('Failed to get user UUID from server');
       }
 
-      // Step 3: Build signature as tokenKey:token
-      const sign = `${tokenKey}:${token}`;
+      // Step 3: Build signature as adm_{uuid}
+      const sign = `adm_${uuidData.uuid}`;
 
       // Step 4: Choose WebRTC URL based on protocol (HTTPS → webrtcs, HTTP → webrtc)
       const isHttps = window.location.protocol.includes('https');

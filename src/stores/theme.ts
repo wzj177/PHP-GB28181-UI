@@ -8,7 +8,8 @@ export const useThemeStore = defineStore('theme', () => {
   const themeMode = ref<ThemeMode>('auto')
   
   // 当前实际应用的主题
-  const currentTheme = ref<'light' | 'dark'>('dark')
+  type Theme = 'light' | 'dark'
+  const currentTheme = ref<Theme>('dark')
 
   // 从 localStorage 恢复主题设置
   const savedTheme = localStorage.getItem('theme-mode') as ThemeMode
@@ -27,7 +28,7 @@ export const useThemeStore = defineStore('theme', () => {
   /**
    * 应用主题到 DOM
    */
-  const applyTheme = (theme: 'light' | 'dark') => {
+  const applyTheme = (theme: Theme) => {
     console.log('Applying theme:', theme)
     currentTheme.value = theme
     document.documentElement.setAttribute('data-theme', theme)
@@ -79,7 +80,7 @@ export const useThemeStore = defineStore('theme', () => {
 
     // 切换到相反的主题（退出 auto 模式）
     const nextMode: ThemeMode = actualTheme === 'light' ? 'dark' : 'light'
-    console.log(`🔄 Toggle theme: ${themeMode.value} (${actualTheme}) -> ${nextMode}`)
+    console.log(`Toggle theme: ${themeMode.value} (${actualTheme}) -> ${nextMode}`)
     setThemeMode(nextMode)
   }
 

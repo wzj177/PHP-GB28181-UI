@@ -32,7 +32,7 @@ app.use(ElementPlus, {
 
 // 初始化主题（必须在 pinia 安装后）
 import { useThemeStore } from './stores/theme'
-const themeStore = useThemeStore()
+useThemeStore()
 // Store 定义时已经初始化了主题，这里只是确保它被加载
 
 app.mount('#app')

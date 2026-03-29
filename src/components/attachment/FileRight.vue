@@ -196,7 +196,7 @@
       v-show="total > 0"
       :total="total"
       :current-page="listQuery.page"
-      :page-size="listQuery.limit"
+      :page-size="listQuery.page_size"
       :page-sizes="[10, 20, 50, 100]"
       layout="total, sizes, prev, pager, next, jumper"
       @size-change="handleSizeChange"
@@ -250,7 +250,7 @@ import FileForm from './FileForm.vue'
 
 const defaultQuery = {
   page: 1,
-  limit: 10,
+  page_size: 10,
   type: undefined,
   keyword: undefined,
   group: undefined,
@@ -302,7 +302,7 @@ const getFiles = async () => {
   try {
     const params: any = {
       page: listQuery.page,
-      limit: listQuery.limit
+      page_size: listQuery.page_size
     }
 
     if (listQuery.type) params.type = listQuery.type
@@ -479,7 +479,7 @@ const formatDateTime = (dateStr: string) => {
 
 // 处理分页大小变化
 const handleSizeChange = (size: number) => {
-  listQuery.limit = size
+  listQuery.page_size = size
   listQuery.page = 1
   getFiles()
 }

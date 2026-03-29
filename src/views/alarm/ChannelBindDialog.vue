@@ -171,7 +171,7 @@ const loadAllChannels = async () => {
   try {
     const response = await gb28181Api.getAllChannels({
       page: 1,
-      limit: 10000
+      page_size: 10000
     }) as any
     allChannels.value = response.list || []
   } catch (error: any) {

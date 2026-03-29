@@ -85,6 +85,7 @@ export interface AlarmEvent {
   recv_time: string
   alarm_plan_id?: number
   assets?: AlarmEventAsset
+  raw_payload?: string  // 原始报文
   created_at: string
 }
 
@@ -116,7 +117,8 @@ export interface AlarmEventQueryParams {
   level?: number
   method?: number
   start?: number
-  limit?: number
+  page?: number,
+  page_size?: number
   // 新的查询参数（优先使用）
   start_time?: string
   end_time?: string

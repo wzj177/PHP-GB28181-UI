@@ -88,6 +88,17 @@
         </ElSelect>
       </ElFormItem>
 
+      <ElFormItem label="设备分类" prop="device_category">
+        <ElSelect v-model="formData.device_category" placeholder="请选择设备分类" clearable style="width: 100%;">
+          <ElOption
+            v-for="item in deviceCategoryOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </ElSelect>
+      </ElFormItem>
+
       <ElFormItem label="通道类型过滤" prop="filter_channel_types">
         <ElCheckboxGroup v-model="formData.filter_channel_types">
           <ElCheckbox
@@ -220,6 +231,7 @@ interface Props {
     charset?: string
     stream_index?: string
     filter_channel_types?: number[]
+    device_category?: number | string
   } | null
 }
 
@@ -266,6 +278,7 @@ const formData = ref<DeviceEditData & {
   charset?: string
   stream_index?: string
   filter_channel_types?: number[]
+  device_category?: number | string
 }>({
   id: undefined,
   device_id: '',
@@ -284,7 +297,8 @@ const formData = ref<DeviceEditData & {
   catalog_interval: 60,
   charset: 'auto',
   stream_index: '',
-  filter_channel_types: []
+  filter_channel_types: [],
+  device_category: undefined
 })
 
 // 区域选择器的值（用于Cascader）
@@ -292,6 +306,19 @@ const areaValue = ref<string[]>([])
 
 // 设备类型选项列表
 const channelTypeOptions = ref<Array<{ code: number; name: string }>>([])
+
+// 设备分类选项列表
+const deviceCategoryOptions = ref<Array<{ value: number | string; label: string }>>([])
+
+// 获取设备分类选项
+const fetchDeviceCategoryOptions = async () => {
+  try {
+    const data = await gb28181Api.getDeviceCategoryOptions()
+    deviceCategoryOptions.value = data?.options || []
+  } catch (error) {
+    console.error('Failed to fetch device category options:', error)
+  }
+}
 
 // 获取设备类型统计数据
 const fetchChannelFilterTypes = async () => {
@@ -327,7 +354,8 @@ const resetForm = () => {
     catalog_interval: 60,
     charset: 'auto',
     stream_index: '',
-    filter_channel_types: []
+    filter_channel_types: [],
+    device_category: undefined
   }
   areaValue.value = []
   deviceName.value = ''
@@ -357,7 +385,8 @@ watch(
         catalog_interval: device.catalog_interval ?? 60,
         charset: device.charset || 'auto',
         stream_index: device.stream_index || '',
-        filter_channel_types: device.filter_channel_types || []
+        filter_channel_types: device.filter_channel_types || [],
+        device_category: device.device_category ?? undefined
       }
       deviceName.value = device.device_name
 
@@ -381,6 +410,7 @@ watch(
 // 组件挂载时获取设备类型数据
 onMounted(() => {
   fetchChannelFilterTypes()
+  fetchDeviceCategoryOptions()
 })
 
 // Open coordinate picker
@@ -422,6 +452,7 @@ const handleSubmit = async () => {
         charset?: string
         stream_index?: string
         filter_channel_types?: number[]
+        device_category?: number | string
       } = {
         show_name: formData.value.show_name || undefined,
         rtp_trans_mode: formData.value.rtp_trans_mode,
@@ -440,7 +471,8 @@ const handleSubmit = async () => {
         stream_index: formData.value.stream_index || undefined,
         filter_channel_types: formData.value.filter_channel_types?.length
           ? formData.value.filter_channel_types
-          : undefined
+          : undefined,
+        device_category: formData.value.device_category ?? undefined
       }
 
       if (areaValue.value.length > 0) {

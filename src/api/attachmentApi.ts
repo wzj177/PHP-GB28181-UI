@@ -78,7 +78,7 @@ export interface ListResponse<T> {
  */
 export interface FileListParams {
   page?: number
-  limit?: number
+  page_size?: number
   type?: string
   keyword?: string
   group?: string

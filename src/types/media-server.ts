@@ -360,6 +360,7 @@ export interface DeviceEditData {
   province_id?: string               // 省份ID
   city_id?: string                   // 城市ID
   county_id?: string                 // 区县ID
+  device_category?: number | string  // 设备分类ID
 }
 
 /**

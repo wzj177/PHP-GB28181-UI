@@ -125,7 +125,7 @@ const formRules: FormRules = {
 // Load available media servers
 const loadMediaServers = async () => {
   try {
-    const response = await mediaServerApi.getList({ limit: 1000 }) as any
+    const response = await mediaServerApi.getList({ page_size: 1000 }) as any
     mediaServers.value = response.list || []
   } catch (error: any) {
     console.error('Failed to load media servers:', error)

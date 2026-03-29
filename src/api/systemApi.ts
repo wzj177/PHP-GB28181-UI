@@ -199,7 +199,7 @@ export const systemApi = {
     start_time?: string;
     end_time?: string;
     page?: number;
-    limit?: number;
+    page_size?: number;
   }) => {
     return request.get('/admin/system/logs', { params });
   },

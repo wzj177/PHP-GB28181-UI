@@ -125,9 +125,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, VideoCamera, VideoPlay, CircleCheck } from '@element-plus/icons-vue'
-import { recordPlanApi } from '@/api/recordPlanApi'
+import { videoPlazaApi } from '@/api/videoPlazaApi'
 import { gb28181Api } from '@/api/gb28181Api'
-import type { VideoCard } from '@/types/record-plan'
+import type { VideoCard } from '@/types/recording'
 
 // State
 const loading = ref(false)
@@ -263,7 +263,7 @@ const getVideoCards = async () => {
       status: filters.value.status || undefined
     }
 
-    const response = await recordPlanApi.getVideoCards(params)
+    const response = await videoPlazaApi.getVideoCards(params)
 
     if (response?.code === 0) {
       cards.value = response.data || []
@@ -309,7 +309,7 @@ const playVideo = async (card: VideoCard) => {
       }
     } else {
       // API returns play_urls directly (unwrapped by request.ts interceptor)
-      const data = await recordPlanApi.play({
+      const data = await videoPlazaApi.play({
         device_id: card.device_id,
         channel_id: card.channel_id
       })

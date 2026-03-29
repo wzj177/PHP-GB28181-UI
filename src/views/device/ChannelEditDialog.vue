@@ -46,6 +46,26 @@
         <ElButton @click="openCoordinatePicker">拾取坐标</ElButton>
         </div>
       </ElFormItem>
+
+      <ElFormItem label="关闭直播">
+        <ElSwitch
+          v-model="formData.close_live"
+          :active-value="1"
+          :inactive-value="0"
+          active-text="是"
+          inactive-text="否"
+        />
+      </ElFormItem>
+
+      <ElFormItem label="直播模式">
+        <ElSwitch
+          v-model="formData.auto_live"
+          :active-value="1"
+          :inactive-value="0"
+          active-text="全时直播"
+          inactive-text="按需直播"
+        />
+      </ElFormItem>
     </ElForm>
 
     <!-- Coordinate Picker Dialog -->
@@ -77,6 +97,8 @@ interface Props {
     origin_code?: string
     custom_lat?: string
     custom_lng?: string
+    close_live?: number
+    auto_live?: number
   } | null
 }
 
@@ -105,13 +127,17 @@ const formData = ref<{
   origin_code: string
   custom_lat: string
   custom_lng: string
+  close_live: number
+  auto_live: number
 }>({
   id: 0,
   channel_id: '',
   show_name: '',
   origin_code: '',
   custom_lat: '',
-  custom_lng: ''
+  custom_lng: '',
+  close_live: 0,
+  auto_live: 0
 })
 
 const formRules: FormRules = {}
@@ -124,7 +150,9 @@ const resetForm = () => {
     show_name: '',
     origin_code: '',
     custom_lat: '',
-    custom_lng: ''
+    custom_lng: '',
+    close_live: 0,
+    auto_live: 0
   }
   channelName.value = ''
   formRef.value?.clearValidate()
@@ -141,7 +169,9 @@ watch(
         show_name: channel.show_name || '',
         origin_code: channel.origin_code || '',
         custom_lat: channel.custom_lat || '',
-        custom_lng: channel.custom_lng || ''
+        custom_lng: channel.custom_lng || '',
+        close_live: channel.close_live ?? 0,
+        auto_live: channel.auto_live ?? 0
       }
       channelName.value = channel.channel_name
     } else {
@@ -175,11 +205,15 @@ const handleSubmit = async () => {
         origin_code?: string
         custom_lat?: string
         custom_lng?: string
+        close_live?: number
+        auto_live?: number
       } = {
         show_name: formData.value.show_name || undefined,
         origin_code: formData.value.origin_code || undefined,
         custom_lat: formData.value.custom_lat || undefined,
-        custom_lng: formData.value.custom_lng || undefined
+        custom_lng: formData.value.custom_lng || undefined,
+        close_live: formData.value.close_live,
+        auto_live: formData.value.auto_live
       }
 
       // Update channel via API

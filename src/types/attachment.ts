@@ -30,7 +30,7 @@ export interface AttachmentListParams {
   keyword?: string
   type?: AttachmentType
   page?: number
-  limit?: number
+  page_size?: number
 }
 
 export interface AttachmentUploadResponse {

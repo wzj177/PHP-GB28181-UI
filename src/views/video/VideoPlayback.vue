@@ -167,8 +167,7 @@ const goToPlayback = (row: DeviceTableItem) => {
 
 // Navigate to recordings list view
 const goToList = (row: DeviceTableItem) => {
-  // Navigate to recordings list route
-  router.push(`/video-recordings/${row.id}`)
+  router.push({ path: '/cloud-recordings', query: { device_id: row.id } })
 }
 
 // Initialize on component mounted
@@ -218,12 +217,6 @@ onMounted(() => {
 
         <!-- Device table -->
         <ElCard class="device-table-card">
-          <template #header>
-            <div class="card-header">
-              <span>设备列表</span>
-            </div>
-          </template>
-
           <ElTable
             v-loading="loading"
             :data="tableData"

@@ -165,6 +165,13 @@ export class WebRTCVoiceClient {
       this.setState('failed');
       this.emit('onFailed', new Error(error.msg || 'Offer/Answer exchange failed'));
     });
+
+    // CAPTURE_STREAM_FAILED
+    this.rtc.on(ZLMRTCClient.Events.WEBRTC_CAPTURE_STREAM_FAILED, (error: any) => {
+      console.error('[WebRTC] Capture stream failed:', error);
+      this.setState('failed');
+      this.emit('onFailed', new Error(error.msg || 'Failed to capture media stream'));
+    });
   }
 
   /**

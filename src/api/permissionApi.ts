@@ -100,7 +100,7 @@ export const permissionApi = {
    */
   getMenus: (params?: {
     start?: number
-    limit?: number
+    page_size?: number
     sort?: string
     type?: string
     nameLike?: string
@@ -202,7 +202,7 @@ export const permissionApi = {
    */
   getRoles: (params?: {
     start?: number
-    limit?: number
+    page_size?: number
     sort?: string
   }) => {
     return request.get<PaginatedResponse<Role>>('/admin/role', { params })
@@ -288,7 +288,7 @@ export const permissionApi = {
    */
   getUsers: (params?: {
     start?: number
-    limit?: number
+    page_size?: number
     orderBy?: string
   }) => {
     return request.get<PaginatedResponse<User>>('/admin/user', { params })

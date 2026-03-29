@@ -8,91 +8,37 @@
     @open="handleOpen"
     append-to-body
     direction="rtl"
+    class="fullscreen-drawer"
   >
-    <div class="aggregated-player">
-      <!-- Player tabs -->
-      <ElTabs v-if="showPlayerTabs" v-model="activePlayer" type="card" @tab-change="handlePlayerChange">
-        <ElTabPane v-if="availablePlayers.includes('easyplayer')" label="EasyPlayer" name="easyplayer">
-          <div ref="playerContainerRef" class="player-container">
-            <EasyPlayerPro
-              v-if="isPlayerVisible('easyplayer')"
-              ref="easyplayerRef"
-              :url="currentUrl"
-              :width="playerWidth"
-              :height="playerHeight"
-              :has-audio="true"
-              :is-live="isLive"
-              autoplay
-              @error="handlePlayerError"
-            />
-          </div>
-        </ElTabPane>
-        <ElTabPane v-if="availablePlayers.includes('jessibuca')" label="Jessibuca" name="jessibuca">
-          <div ref="playerContainerRef" class="player-container">
-            <JessibucaPlayer
-              v-if="isPlayerVisible('jessibuca')"
-              ref="jessibucaRef"
-              :url="currentUrl"
-              :width="playerWidth"
-              :height="playerHeight"
-              :has-audio="true"
-              :is-live="isLive"
-              autoplay
-              fluent
-              @error="handlePlayerError"
-            />
-          </div>
-        </ElTabPane>
-        <ElTabPane v-if="availablePlayers.includes('webrtc')" label="WebRTC" name="webrtc">
-          <div ref="playerContainerRef" class="player-container">
-            <WebRTCPlayer
-              v-if="isPlayerVisible('webrtc')"
-              ref="webrtcRef"
-              :url="currentUrl"
-              :width="playerWidth"
-              :height="playerHeight"
-              :is-live="isLive"
-              autoplay
-              @error="handlePlayerError"
-            />
-          </div>
-        </ElTabPane>
-        <ElTabPane v-if="availablePlayers.includes('h265web')" label="H265Web" name="h265web">
-          <div ref="playerContainerRef" class="player-container">
-            <H265WebPlayer
-              v-if="isPlayerVisible('h265web')"
-              ref="h265webRef"
-              :url="currentUrl"
-              :width="playerWidth"
-              :height="playerHeight"
-              :has-audio="true"
-              :is-live="isLive"
-              autoplay
-              @error="handlePlayerError"
-            />
-          </div>
-        </ElTabPane>
-        <ElTabPane v-if="availablePlayers.includes('xgplayer')" label="XGPlayer" name="xgplayer">
-          <div ref="playerContainerRef" class="player-container">
-            <XGPlayer
-              v-if="isPlayerVisible('xgplayer')"
-              ref="xgplayerRef"
-              :url="currentUrl"
-              :width="playerWidth"
-              :height="playerHeight"
-              :is-live="isLive"
-              autoplay
-              @error="handlePlayerError"
-            />
-          </div>
-        </ElTabPane>
-      </ElTabs>
-
-      <!-- Single player (if only one is configured) -->
-      <template v-else>
+    <div class="lr-layout">
+      <!-- ========== 左侧：播放器区域 ========== -->
+      <div class="left-panel">
+        <!-- 顶部工具栏（播放器切换） -->
+        <div v-if="showPlayerTabs" class="player-toolbar">
+          <ElDropdown trigger="click" @command="handlePlayerChange">
+            <ElButton size="small" type="primary" plain>
+              {{ playerTypeLabel }}
+              <ElIcon class="el-icon--right"><ArrowDown /></ElIcon>
+            </ElButton>
+            <template #dropdown>
+              <ElDropdownMenu>
+                <ElDropdownItem
+                  v-for="p in playerTypeOptions"
+                  :key="p.value"
+                  :command="p.value"
+                  :disabled="p.value === activePlayer"
+                >
+                  <span v-if="p.value === activePlayer" style="margin-right:4px">✓</span>
+                  {{ p.label }}
+                </ElDropdownItem>
+              </ElDropdownMenu>
+            </template>
+          </ElDropdown>
+        </div>
+        <!-- 播放器容器 -->
         <div ref="playerContainerRef" class="player-container">
           <EasyPlayerPro
-            v-if="availablePlayers.includes('easyplayer') && activePlayer === 'easyplayer'"
+            v-if="isPlayerVisible('easyplayer')"
             ref="easyplayerRef"
             :url="currentUrl"
             :width="playerWidth"
@@ -100,9 +46,10 @@
             :has-audio="true"
             :is-live="isLive"
             autoplay
+            @error="handlePlayerError"
           />
           <JessibucaPlayer
-            v-if="availablePlayers.includes('jessibuca') && activePlayer === 'jessibuca'"
+            v-if="isPlayerVisible('jessibuca')"
             ref="jessibucaRef"
             :url="currentUrl"
             :width="playerWidth"
@@ -111,18 +58,20 @@
             :is-live="isLive"
             autoplay
             fluent
+            @error="handlePlayerError"
           />
           <WebRTCPlayer
-            v-if="availablePlayers.includes('webrtc') && activePlayer === 'webrtc'"
+            v-if="isPlayerVisible('webrtc')"
             ref="webrtcRef"
             :url="currentUrl"
             :width="playerWidth"
             :height="playerHeight"
             :is-live="isLive"
             autoplay
+            @error="handlePlayerError"
           />
           <H265WebPlayer
-            v-if="availablePlayers.includes('h265web') && activePlayer === 'h265web'"
+            v-if="isPlayerVisible('h265web')"
             ref="h265webRef"
             :url="currentUrl"
             :width="playerWidth"
@@ -130,63 +79,74 @@
             :has-audio="true"
             :is-live="isLive"
             autoplay
+            @error="handlePlayerError"
           />
           <XGPlayer
-            v-if="availablePlayers.includes('xgplayer') && activePlayer === 'xgplayer'"
+            v-if="isPlayerVisible('xgplayer')"
             ref="xgplayerRef"
             :url="currentUrl"
             :width="playerWidth"
             :height="playerHeight"
             :is-live="isLive"
             autoplay
+            @error="handlePlayerError"
           />
         </div>
-      </template>
-    </div>
+      </div>
 
-    <!-- Bottom tabs -->
-    <ElTabs v-model="activeTab" @tab-change="handleTabChange">
-      <ElTabPane label="实时视频" name="media">
-        <!-- Stream URL selector -->
-        <div v-if="availableStreams.length > 0" class="stream-selector">
-          <span class="label">播放地址：</span>
-          <ElSelect
-            v-model="selectedStreamUrl"
-            placeholder="选择播放地址"
-            @change="handleStreamChange"
-            style="flex: 1"
+      <!-- ========== 右侧：控制面板 ========== -->
+      <div class="right-panel">
+        <ElTabs v-model="activeTab" class="ctrl-tabs" @tab-change="handleTabChange">
+          <!-- 实时视频（流选择） -->
+          <ElTabPane label="实时视频" name="media">
+            <div v-if="availableStreams.length > 0" class="stream-selector">
+              <span class="label">播放地址</span>
+              <ElSelect
+                v-model="selectedStreamUrl"
+                placeholder="选择播放地址"
+                @change="handleStreamChange"
+              >
+                <ElOption
+                  v-for="stream in availableStreams"
+                  :key="stream.key"
+                  :label="stream.label"
+                  :value="stream.url"
+                >
+                  <span class="stream-option-label">{{ stream.label }}</span>
+                  <span class="stream-option-url">{{ stream.url }}</span>
+                </ElOption>
+              </ElSelect>
+            </div>
+            <ElEmpty v-else description="暂无可用流地址" :image-size="60" />
+          </ElTabPane>
+
+          <!-- 云台控制 -->
+          <ElTabPane
+            v-if="props.deviceId && props.channelId"
+            label="云台控制"
+            name="ptz"
           >
-            <ElOption
-              v-for="stream in availableStreams"
-              :key="stream.key"
-              :label="stream.label"
-              :value="stream.url"
-            >
-              <span class="stream-option-label">{{ stream.label }}</span>
-              <span class="stream-option-url">{{ stream.url }}</span>
-            </ElOption>
-          </ElSelect>
-        </div>
-      </ElTabPane>
+            <PTZControlPanel ref="ptzPanelRef" :channel-id="ptzChannelId" />
+          </ElTabPane>
 
-      <ElTabPane label="云台控制" name="ptz" v-if="props.deviceId && props.channelId">
-        <PTZControlPanel ref="ptzPanelRef" :channel-id="ptzChannelId" />
-      </ElTabPane>
-
-      <ElTabPane label="编码信息" name="codec" v-if="currentUrl">
-        <MediaInfo
-          ref="mediaInfoRef"
-          :url="currentUrl"
-          :stream-id="props.streamInfo?.stream_id"
-        />
-      </ElTabPane>
-    </ElTabs>
+          <!-- 编码信息 -->
+          <ElTabPane v-if="currentUrl" label="编码信息" name="codec">
+            <MediaInfo
+              ref="mediaInfoRef"
+              :url="currentUrl"
+              :stream-id="props.streamInfo?.stream_id"
+            />
+          </ElTabPane>
+        </ElTabs>
+      </div>
+    </div>
   </ElDrawer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import JessibucaPlayer from './JessibucaPlayer.vue'
 import WebRTCPlayer from './WebRTCPlayer.vue'
 import H265WebPlayer from './H265WebPlayer.vue'
@@ -440,22 +400,36 @@ const easyplayerRef = ref()
 const mediaInfoRef = ref()
 const ptzPanelRef = ref<{ stopVoiceTalk: () => Promise<void>; isVoiceTalkActive: () => boolean } | null>(null)
 
-// Drawer dimensions - use percentage for better responsiveness
-const drawerSize = '60%'
+// 播放器类型选项
+const playerTypeOptions = [
+  { label: 'EasyPlayer (推荐)', value: 'easyplayer' },
+  { label: 'Jessibuca (FLV)', value: 'jessibuca' },
+  { label: 'H265Web (通用)', value: 'h265web' },
+  { label: 'XGPlayer (HLS)', value: 'xgplayer' },
+  { label: 'WebRTC', value: 'webrtc' },
+]
+
+// 当前播放器显示名
+const playerTypeLabel = computed(() => {
+  return playerTypeOptions.find(p => p.value === activePlayer.value)?.label.split(' ')[0] ?? activePlayer.value
+})
+
+// Drawer dimensions
+const drawerSize = '100%'
 
 // Player dimensions in pixels (computed from container)
 const playerWidth = computed(() => {
   if (playerContainerRef.value) {
     return `${playerContainerRef.value.clientWidth}px`
   }
-  return '800px' // Default fallback
+  return '100%'
 })
 
 const playerHeight = computed(() => {
   if (playerContainerRef.value) {
     return `${playerContainerRef.value.clientHeight}px`
   }
-  return '400px' // Default fallback
+  return '100%'
 })
 
 // 判断播放器是否可见
@@ -753,43 +727,125 @@ onUnmounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.aggregated-player {
-  width: 100%;
-  margin-bottom: 16px;
-
-  :deep(.el-tabs__content) {
-    padding: 0;
+/* ===== Drawer 全屏覆盖 ===== */
+:deep(.fullscreen-drawer) {
+  .el-drawer__header {
+    margin-bottom: 0;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--el-border-color-light);
   }
 
-  :deep(.el-tab-pane) {
+  .el-drawer__body {
     padding: 0;
+    overflow: hidden;
+    height: calc(100% - 53px); /* 53px = header height */
   }
+}
+
+/* ===== 左右布局容器 ===== */
+.lr-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  gap: 10px;
+  background: var(--el-border-color-light); /* gap 颜色即分隔线 */
+}
+
+/* ===== 左侧：播放器 ===== */
+.left-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #000;
 }
 
 .player-container {
-  width: 100%;
-  height: 400px;
+  flex: 1;
+  min-height: 0;
   background: #000;
   position: relative;
 
-  > div {
-    width: 100%;
-    height: 100%;
+  > * {
+    width: 100% !important;
+    height: 100% !important;
   }
 }
 
+/* 播放器顶部工具栏 */
+.player-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 4px 8px;
+  background: #111;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  :deep(.el-button) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ddd;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: #fff;
+    }
+  }
+}
+
+/* ===== 右侧：控制面板 ===== */
+.right-panel {
+  width: 560px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 5px;
+  background: var(--el-bg-color);
+
+  .ctrl-tabs {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    :deep(.el-tabs__header) {
+      flex-shrink: 0;
+      margin: 0;
+    }
+
+    :deep(.el-tabs__content) {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0;
+    }
+
+    /* 让各 tab-pane 根据内容自动撑高，不强制 100% 裁切 */
+    :deep(.el-tab-pane) {
+      height: auto;
+      min-height: 100%;
+    }
+  }
+}
+
+/* ===== 实时视频 tab 内容 ===== */
 .stream-selector {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 16px;
-  background: var(--el-fill-color-light);
-  border-radius: 8px;
 
   .label {
-    white-space: nowrap;
-    min-width: 80px;
+    font-size: 13px;
     font-weight: 500;
+    color: var(--el-text-color-secondary);
+  }
+
+  :deep(.el-select) {
+    width: 100%;
   }
 }
 
@@ -801,9 +857,10 @@ onUnmounted(async () => {
 .stream-option-url {
   color: var(--el-text-color-secondary);
   font-size: 12px;
-  max-width: 300px;
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: block;
 }
 </style>
