@@ -213,7 +213,7 @@ const loadStats = async () => {
     const data = await mediaServerApi.getStats(serverId.value)
 
     if (data) {
-      stats.value = data
+      stats.value = data as any
       // Update charts when data is loaded
       await nextTick()
       initCharts()

@@ -1,18 +1,21 @@
 // Axios 响应类型扩展
+// 注意: 不要重新声明 AxiosResponse，会覆盖原始类型
 declare module 'axios' {
   export interface AxiosRequestConfig {
     startTime?: number
-  }
-
-  interface AxiosResponse<T = any> {
-    code: number
-    message: string
-    data: T
   }
 }
 
 // mockjs 类型声明
 declare module 'mockjs' {
+  interface MockjsXHR {
+    prototype: {
+      send: Function
+      [key: string]: any
+    }
+    [key: string]: any
+  }
+
   interface MockjsRequestOptions {
     url: string
     type: string
@@ -20,9 +23,12 @@ declare module 'mockjs' {
   }
 
   interface Mockjs {
-    mock(template: Record<string, any>): void
+    mock(template: Record<string, any>): any
     mock(rurl: string, template: Record<string, any>): void
-    mock(rurl: string, rtype: string, template: Record<string, any>): void
+    mock(rurl: string | RegExp, rtype: string, template: Record<string, any> | ((...args: any[]) => any)): void
+    mock(rurl: string | RegExp, template: ((...args: any[]) => any)): void
+    setup(options: { timeout?: string | number }): void
+    XHR: MockjsXHR
     Random: {
       cname(): string
       guid(): string
@@ -31,6 +37,10 @@ declare module 'mockjs' {
       now(format?: string): string
       image(size?: string, background?: string, foreground?: string, format?: string, text?: string): string
       pick<T>(arr: T[]): T
+      natural(min?: number, max?: number): number
+      cparagraph(min?: number, max?: number): string
+      boolean(): boolean
+      [key: string]: any
     }
   }
 
@@ -129,40 +139,6 @@ declare namespace AMap {
 }
 
 declare const AMap: typeof AMap
-
-// Element Plus 类型扩展
-declare module '@element-plus/icons-vue' {
-  import { App } from 'vue'
-  export const VideoCamera: any
-  export const Download: any
-  export const Monitor: any
-  export const Play: any
-  export const Bell: any
-  export const MapLocation: any
-  export const House: any
-  export const Fold: any
-  export const Expand: any
-  export const ArrowDown: any
-  export const User: any
-  export const Setting: any
-  export const SwitchButton: any
-  export const DataAnalysis: any
-  export const VideoPlay: any
-  export const Film: any
-  export const Sunny: any
-  export const Moon: any
-  export const Clock: any
-  export const Close: any
-  export const Refresh: any
-  export const Location: any
-  export const Plus: any
-  export const Delete: any
-  export const Edit: any
-  export const Search: any
-  export const RefreshRight: any
-  export const Unlock: any
-  export const Lock: any
-}
 
 // 全局变量
 declare const isMockEnabled: boolean

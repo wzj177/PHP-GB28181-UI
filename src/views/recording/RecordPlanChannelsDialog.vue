@@ -49,6 +49,7 @@
             {{ row.device_name || row.device_id }}
           </template>
         </ElTableColumn>
+        <ElTableColumn prop="device_ip" label="设备IP" min-width="140" show-overflow-tooltip />
         <ElTableColumn prop="channel_id" label="通道编号" width="170" show-overflow-tooltip />
         <ElTableColumn label="通道状态" width="90" align="center">
           <template #default="{ row }">
@@ -179,7 +180,7 @@ const loadChannels = async () => {
     const data = await gb28181Api.getAllChannels({
       keyword: keyword.value || undefined,
       page: pagination.value.page,
-      limit: pagination.value.limit
+      page_size: pagination.value.limit
     })
     allChannels.value = data.list || []
     pagination.value.total = data.paginator?.total || 0

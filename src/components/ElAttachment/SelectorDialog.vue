@@ -392,7 +392,7 @@ const getFiles = async () => {
 }
 
 // 搜索
-const search = (resetFlag = false) => {
+const search = (resetFlag: boolean | MouseEvent = false) => {
   if (resetFlag) {
     searchModel.page = 1
     searchModel.keyword = ''

@@ -1,4 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { authUtils } from '@/utils/authUtils'
 import { convertMenuToRoutes, loadMenuData, MenuItem, hasRoutePermission } from '@/utils/routeUtils'

@@ -50,6 +50,7 @@
         :autoplay="autoplay"
         :channel-id="channelId"
         :stream-id="streamId"
+        :download="download"
         :controls="['scale', 'playback_download']"
         @play="handlePlay"
         @pause="handlePause"
@@ -96,7 +97,8 @@ interface RecordPlayerConfig {
   streamId?: string
   channelPkId?: string | number
   recordStartTime?: string
-  recordEndTime?: string
+  recordEndTime?: string,
+  download?: boolean
 }
 
 const props = defineProps<{
@@ -110,6 +112,7 @@ const widthParam = route.query.width as string
 const heightParam = route.query.height as string
 const autoplayParam = route.query.autoplay
 const hasAudioParam = route.query.hasAudio as string | '1'
+const hasDownloadParam = route.query.hasDownlaod as string | '1'
 const isLiveParam = route.query.isLive
 const channelIdParam = route.query.channel_id as string | undefined
 const streamIdParam = route.query.stream_id as string | undefined
@@ -153,6 +156,10 @@ const autoplay = computed(() => {
 
 const hasAudio = computed(() => {
   return props.config?.hasAudio === true || hasAudioParam === '1'
+})
+
+const download = computed(() => {
+  return props.config?.download === true || hasDownloadParam === '1'
 })
 
 const isLive = computed(() => {

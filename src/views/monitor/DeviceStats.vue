@@ -234,21 +234,24 @@
             </template>
           </el-table-column>
           <el-table-column
-            prop="last_seen"
             label="最后上线时间"
-          />
+            min-width="175"
+          >
+            <template #default="{ row }">{{ formatTimestamp(row.last_seen) }}</template>
+          </el-table-column>
           <el-table-column
             label="操作"
-            width="120"
+            width="80"
+            align="center"
           >
             <template #default="{ row }">
               <el-button
-                type="primary"
+                type="danger"
                 link
                 size="small"
-                @click="viewDevice(row)"
+                @click="deleteDevice(row)"
               >
-                查看
+                删除
               </el-button>
             </template>
           </el-table-column>
@@ -302,9 +305,12 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   Refresh, DataBoard, Monitor, CircleCheckFilled, CircleCloseFilled,
   TrendCharts, PieChart, VideoPlay, OfficeBuilding, Clock, Histogram, WarningFilled
+// @ts-ignore
 } from '@element-plus/icons-vue'
 import { monitorApi } from '@/api/monitorApi'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+// @ts-ignore
+import { gb28181Api } from '@/api/gb28181Api'
 
 const loading = ref(false)
 
@@ -441,8 +447,29 @@ const fetchDeviceStats = async () => {
   }
 }
 
-const viewDevice = (row: any) => {
-  ElMessage.info(`查看设备: ${row.device_name}`)
+const formatTimestamp = (ts: number | string) => {
+  if (!ts) return '-'
+  const num = typeof ts === 'string' ? Number(ts) : ts
+  if (!num || isNaN(num)) return '-'
+  // 支持10位(秒)和13位(毫秒)时间戳
+  const ms = num > 1e12 ? num : num * 1000
+  return new Date(ms).toLocaleString('zh-CN')
+}
+
+const deleteDevice = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除设备 "${row.device_name || row.device_id}" 吗？`, '删除确认', {
+      type: 'warning',
+      confirmButtonText: '确定删除',
+      confirmButtonClass: 'el-button--danger'
+    })
+    // @ts-ignore
+    await gb28181Api.deleteDevice(row.device_id)
+    ElMessage.success('删除成功')
+    fetchDeviceStats()
+  } catch {
+    // 取消
+  }
 }
 
 const refreshData = async () => {

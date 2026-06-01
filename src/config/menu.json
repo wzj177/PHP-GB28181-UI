@@ -238,6 +238,41 @@
           "parentId": "video",
           "sort": 5,
           "type": "menu"
+        },
+        {
+          "id": "record-merge",
+          "name": "录像合并",
+          "icon": "Merge",
+          "path": "/record-merge",
+          "component": "RecordMergeList",
+          "title": "录像合并",
+          "parentId": "video",
+          "sort": 6,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "sip-gateway",
+      "name": "SIP 网关管理",
+      "icon": "Connection",
+      "path": "/sip-gateway",
+      "component": "",
+      "title": "SIP 网关管理",
+      "parentId": 0,
+      "sort": 10,
+      "type": "directory",
+      "children": [
+        {
+          "id": "sip-gateway-list",
+          "name": "网关列表",
+          "icon": "List",
+          "path": "/sip-gateway-list",
+          "component": "SipGatewayList",
+          "title": "网关列表",
+          "parentId": "sip-gateway",
+          "sort": 1,
+          "type": "menu"
         }
       ]
     },
@@ -249,7 +284,7 @@
       "component": "",
       "title": "报警管理",
       "parentId": 0,
-      "sort": 7,
+      "sort": 8,
       "type": "directory",
       "children": [
         {
@@ -284,7 +319,7 @@
       "component": "ElectronicMap",
       "title": "电子地图",
       "parentId": 0,
-      "sort": 8,
+      "sort": 9,
       "type": "menu"
     },
     {
@@ -295,7 +330,7 @@
       "component": "",
       "title": "系统管理",
       "parentId": 0,
-      "sort": 9,
+      "sort": 11,
       "type": "directory",
       "children": [
         {
@@ -341,7 +376,7 @@
       "component": "",
       "title": "权限管理",
       "parentId": 0,
-      "sort": 10,
+      "sort": 12,
       "type": "directory",
       "children": [
         {

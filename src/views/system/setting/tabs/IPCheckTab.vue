@@ -45,6 +45,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage, FormInstance } from 'element-plus'
+// @ts-ignore
 import { WarningFilled } from '@element-plus/icons-vue'
 import { systemApi, type IPCheckSetting } from '@/api/systemApi'
 

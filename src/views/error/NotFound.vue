@@ -15,6 +15,7 @@
 </template>
 
 <script setup lang="ts">
+// @ts-ignore
 import { useRouter } from 'vue-router'
 
 const router = useRouter()

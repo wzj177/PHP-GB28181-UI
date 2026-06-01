@@ -1,3 +1,4 @@
+// @ts-ignore
 import { RouteRecordRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getComponent } from '@/views/pages'

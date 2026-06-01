@@ -63,8 +63,17 @@
           <template #default="{ row }">{{ row.end_time ? formatTs(row.end_time) : '-' }}</template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="175" />
-        <el-table-column label="操作" min-width="90" fixed="right">
+        <el-table-column label="操作" min-width="130" fixed="right">
           <template #default="{ row }">
+            <el-button
+              v-if="row.record_file?.video_url"
+              type="primary"
+              link
+              :icon="VideoPlay"
+              @click="openPlayback(row)"
+            >
+              播放
+            </el-button>
             <el-button type="danger" link @click="deleteTask(row)">
               {{ ['pending','inviting','wait_stream','recording','finalizing'].includes(row.status) ? '取消' : '删除' }}
             </el-button>
@@ -85,15 +94,22 @@
       />
       </div>
     </el-card>
+
+    <RecordPlayback
+      v-model="playbackDrawer.visible"
+      :channel-name="playbackDrawer.channelName"
+      :video-url="playbackDrawer.videoUrl"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { Search, Refresh, VideoPlay } from '@element-plus/icons-vue'
 import { recordingApi } from '@/api/recordingApi'
 import type { RecordTask, RecordTaskType, RecordTaskStatus } from '@/types/recording'
+import RecordPlayback from '@/views/video/RecordPlayback.vue'
 
 const TASK_STATUSES: { value: RecordTaskStatus; label: string }[] = [
   { value: 'pending', label: '待执行' },
@@ -115,6 +131,16 @@ const filters = ref({
 })
 const pagination = ref({ page: 1, limit: 20, total: 0 })
 
+const playbackDrawer = ref({ visible: false, videoUrl: '', channelName: '' })
+
+const openPlayback = (task: RecordTask) => {
+  playbackDrawer.value = {
+    visible: true,
+    videoUrl: task.record_file?.video_url || '',
+    channelName: task.record_file?.channel_name || task.channel_id || '录像回放'
+  }
+}
+
 const loadList = async () => {
   loading.value = true
   try {
@@ -124,7 +150,7 @@ const loadList = async () => {
       status: filters.value.status,
       device_id: filters.value.device_id || undefined,
       start: offset,
-      limit: pagination.value.limit,
+      page_size: pagination.value.limit,
       order_direction: 'DESC'
     })
     list.value = data.list

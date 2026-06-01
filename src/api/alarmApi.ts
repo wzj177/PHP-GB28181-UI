@@ -6,7 +6,9 @@ import type {
   AlarmEventListResponse,
   AlarmEventQueryParams,
   BindChannelsParams,
-  AlarmPlanChannelListResponse
+  AlarmPlanChannelListResponse,
+  AlarmPlanChannel,
+  AlarmSummary
 } from '@/types/alarm';
 
 /**

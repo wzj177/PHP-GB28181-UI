@@ -267,6 +267,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+// @ts-ignore
 import { Connection, SuccessFilled, WarningFilled, CircleCloseFilled, QuestionFilled } from '@element-plus/icons-vue'
 import { streamProxyApi } from '@/api/streamProxyApi'
 import { mediaServerApi } from '@/api/mediaServerApi'
@@ -376,8 +377,10 @@ const handleCurrentChange = (page: number) => {
 }
 
 // 状态辅助
-const getStatusType = (status: string) => {
-  const map: Record<string, string> = { online: 'success', offline: 'warning', stopped: 'info', error: 'danger' }
+type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
+
+const getStatusType = (status: string): TagType => {
+  const map: Record<string, TagType> = { online: 'success', offline: 'warning', stopped: 'info', error: 'danger' }
   return map[status] || 'info'
 }
 const getStatusLabel = (status: string) => {

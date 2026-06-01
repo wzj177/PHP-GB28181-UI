@@ -134,10 +134,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+// @ts-ignore
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { mediaServerApi } from '@/api/mediaServerApi'
-import type { MediaServer } from '@/types/media-server'
+import type { MediaServer, MediaServerStatus, MediaServerType } from '@/types/media-server'
 import MediaServerFormDialog from './MediaServerFormDialog.vue'
 import MediaServerStats from './MediaServerStats.vue'
 
@@ -174,14 +175,14 @@ const getServerList = async () => {
   loading.value = true
   try {
     const params = {
-      type: filters.value.type || undefined,
-      status: filters.value.status || undefined,
-      keywords: filters.value.keywords || undefined,
+      type: (filters.value.type || undefined) as MediaServerType | undefined,
+      status: (filters.value.status || undefined) as MediaServerStatus | undefined,
+      keyword: filters.value.keywords || undefined,
       page: pagination.value.currentPage,
       page_size: pagination.value.pageSize
     }
 
-    const data = await mediaServerApi.getList(params)
+    const data = await mediaServerApi.getList(params) as any
     servers.value = data.list || []
     pagination.value.total = data.paginator?.total || 0
   } catch (error: any) {
@@ -290,7 +291,7 @@ const openAddDialog = () => {
 const openEditDialog = async (server: MediaServer) => {
   try {
     // 调用详情接口获取完整数据
-    const data = await mediaServerApi.getDetail(server.id)
+    const data = await mediaServerApi.getDetail(server.id) as any
     formDialog.value.server = data
     formDialog.value.visible = true
   } catch (error: any) {

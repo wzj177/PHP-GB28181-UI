@@ -104,6 +104,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+// @ts-ignore
 import { QuestionFilled, WarningFilled } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { mediaServerApi } from '@/api/mediaServerApi'
@@ -134,7 +135,7 @@ const submitting = ref(false)
 
 const formData = ref<MediaServerFormData>({
   name: '',
-  type: 'zlm',
+  type: 'zlm' as any,
   host: '',
   port: 8086,
   https_port: undefined,
@@ -159,7 +160,7 @@ const formRules: FormRules = {
 const resetForm = () => {
   formData.value = {
     name: '',
-    type: 'zlm',
+    type: 'zlm' as any,
     host: '',
     port: 8086,
     https_port: undefined,

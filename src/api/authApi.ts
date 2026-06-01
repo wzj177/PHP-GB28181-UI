@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+// @ts-ignore
 import axios from 'axios'
 
 /**
@@ -69,7 +70,7 @@ export const authApi = {
   getCaptcha: async () => {
     const baseURL = import.meta.env.VITE_API_BASE_URL || '';
     // Use direct axios request to bypass mock and interceptors
-    const response = await axios({
+    const response = await (axios as any)({
       url: `${baseURL}/admin/auth/captcha`,
       method: 'GET',
       responseType: 'blob',

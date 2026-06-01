@@ -1,4 +1,6 @@
 # Dependencies
+
+deploy.sh
 node_modules/
 .pnpm-store/
 

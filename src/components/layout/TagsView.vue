@@ -2,7 +2,7 @@
   <div class="tags-view-container">
     <scroll-pane ref="scrollPaneRef" class="tags-view-wrapper">
       <router-link v-for="tag in visitedViews" ref="tagRefs" :key="tag.path" :class="isActive(tag) ? 'active' : ''"
-        :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }" class="tags-view-item"
+        :to="tag.fullPath || tag.path" class="tags-view-item"
         @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''" @contextmenu.prevent="openMenu(tag, $event)">
         {{ tag.title }}
         <el-icon v-if="!isAffix(tag)" class="close-icon" @click.prevent.stop="closeSelectedTag(tag)">
@@ -41,6 +41,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onMounted, onBeforeUnmount } from 'vue'
+// @ts-ignore
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElIcon } from 'element-plus'
 import { Close, Refresh, CircleClose, SwitchButton } from '@element-plus/icons-vue'

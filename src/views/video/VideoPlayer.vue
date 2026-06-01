@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+// @ts-ignore
 import { useRoute } from 'vue-router'
 import {
   ElCard,
@@ -399,7 +400,7 @@ const startPlayback = async (recording: Recording) => {
 // Download recording
 const downloadRecording = async (recordingId: string) => {
   try {
-    const response = await gb28181Api.downloadRecording(recordingId);
+    const response = await (gb28181Api as any).downloadRecording(recordingId);
 
     if (response) {
       // Create a blob from the response and trigger download

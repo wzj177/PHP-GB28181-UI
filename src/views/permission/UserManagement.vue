@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElMessage, ElPopconfirm } from 'element-plus'
+import { ElCard, ElTable, ElTableColumn, ElTag, ElButton, ElInput, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElMessage, ElPopconfirm, ElSwitch, ElMessageBox } from 'element-plus'
+import type { FormRules } from 'element-plus'
 import { Plus, Edit, Delete, Refresh, Lock, Unlock } from '@element-plus/icons-vue'
 import { permissionApi, type User as ApiUser, type UserRole } from '@/api/permissionApi'
 
@@ -31,7 +32,7 @@ const userForm = ref({
   roles: [] as string[]
 })
 
-const formRules = {
+const formRules: FormRules = {
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
@@ -47,6 +48,14 @@ const formRules = {
     { required: true, message: '请选择角色', trigger: 'change', type: 'array' }
   ]
 }
+
+// API Key Dialog
+const apiKeyDialogVisible = ref(false)
+const apiKeyData = ref({
+  api_key: '',
+  api_enabled: 0,
+  userId: 0
+})
 
 // Load users
 const loadUsers = async () => {
@@ -195,6 +204,88 @@ const toggleLock = async (user: User) => {
   }
 }
 
+// Generate API Key
+const generateApiKey = async (user: User) => {
+  try {
+    // If user already has API key, confirm reset
+    if (user.api_key) {
+      await ElMessageBox.confirm(
+        '该用户已存在 API Key，是否重新生成？',
+        '确认重置',
+        { type: 'warning' }
+      )
+    }
+
+    const result = await permissionApi.generateApiKey(user.id)
+    apiKeyData.value = {
+      api_key: result.api_key,
+      api_enabled: result.api_enabled,
+      userId: user.id
+    }
+    apiKeyDialogVisible.value = true
+
+    // Update user data
+    user.api_key = result.api_key
+    user.api_enabled = result.api_enabled
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('Failed to generate API key:', error)
+      ElMessage.error(error.message || '生成 API Key 失败')
+    }
+  }
+}
+
+// Copy API Key to clipboard
+const copyToClipboard = (text: string) => {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(
+      () => ElMessage.success('已复制到剪贴板'),
+      () => fallbackCopy(text)
+    )
+  } else {
+    fallbackCopy(text)
+  }
+}
+
+const fallbackCopy = (text: string) => {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  try {
+    document.execCommand('copy')
+    ElMessage.success('已复制到剪贴板')
+  } catch {
+    ElMessage.error('复制失败，请手动复制')
+  }
+  document.body.removeChild(textarea)
+}
+
+const copyApiKey = () => copyToClipboard(apiKeyData.value.api_key)
+
+// Copy existing API Key
+const copyExistingApiKey = (user: User) => {
+  if (!user.api_key) {
+    ElMessage.warning('该用户暂无 API Key')
+    return
+  }
+  copyToClipboard(user.api_key)
+}
+
+// Toggle API Key
+const toggleApiKey = async (user: User) => {
+  try {
+    const result = await permissionApi.toggleApiKey(user.id)
+    user.api_enabled = result.api_enabled
+    ElMessage.success(result.api_enabled ? 'API Key 已启用' : 'API Key 已禁用')
+  } catch (error: any) {
+    console.error('Failed to toggle API key:', error)
+    ElMessage.error(error.message || '操作失败')
+  }
+}
+
 // Pagination
 const handlePageChange = (page: number) => {
   filters.value.start = (page - 1) * filters.value.limit
@@ -273,6 +364,17 @@ onMounted(() => {
             </template>
           </ElTableColumn>
 
+          <ElTableColumn prop="api_enabled" label="OpenAPI" width="110" align="center">
+            <template #default="{ row }">
+              <ElSwitch
+                v-if="row.api_key"
+                :model-value="row.api_enabled === 1"
+                @change="toggleApiKey(row)"
+              />
+              <span v-else style="color: var(--el-text-color-placeholder); font-size: 12px;">未申请</span>
+            </template>
+          </ElTableColumn>
+
           <ElTableColumn prop="loginTime" label="最后登录" width="170">
             <template #default="{ row }">
               {{ formatDate(row.loginTime) }}
@@ -291,9 +393,19 @@ onMounted(() => {
             </template>
           </ElTableColumn>
 
-          <ElTableColumn label="操作" width="260" fixed="right">
+          <ElTableColumn label="操作" width="430" fixed="right">
             <template #default="{ row }">
               <el-button size="small" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
+              <el-button
+                v-if="row.api_key"
+                size="small"
+                @click="copyExistingApiKey(row)"
+              >
+                复制 Key
+              </el-button>
+              <el-button size="small" type="warning" @click="generateApiKey(row)">
+                {{ row.api_key ? '重置 Key' : '申请 Key' }}
+              </el-button>
               <el-button size="small" :icon="row.locked ? Unlock : Lock" @click="toggleLock(row)">
                 {{ row.locked ? '解锁' : '锁定' }}
               </el-button>
@@ -357,6 +469,29 @@ onMounted(() => {
         <el-button type="primary" @click="submitForm">确定</el-button>
       </template>
     </ElDialog>
+
+    <!-- API Key Dialog -->
+    <ElDialog
+      v-model="apiKeyDialogVisible"
+      title="OpenAPI Key 生成成功"
+      width="500px"
+    >
+      <div class="api-key-content">
+        <div class="api-key-label">您的 API Key:</div>
+        <div class="api-key-box">
+          <code class="api-key-text">{{ apiKeyData.api_key }}</code>
+          <el-button size="small" type="primary" @click="copyApiKey">复制</el-button>
+        </div>
+        <div class="api-key-tips">
+          <p>请妥善保管您的 API Key，泄露可能导致安全风险。</p>
+          <p>API Key 用于调用 OpenAPI 接口，请勿分享给他人。</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button type="primary" @click="apiKeyDialogVisible = false">确定</el-button>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -417,6 +552,51 @@ onMounted(() => {
     display: flex;
     justify-content: flex-end;
     margin-top: 16px;
+  }
+
+  .api-key-content {
+    .api-key-label {
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-main);
+    }
+
+    .api-key-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      margin-bottom: 16px;
+
+      .api-key-text {
+        flex: 1;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        color: var(--text-main);
+        word-break: break-all;
+        line-height: 1.4;
+      }
+    }
+
+    .api-key-tips {
+      padding: 12px;
+      background: var(--el-color-warning-light-9);
+      border: 1px solid var(--el-color-warning-light-5);
+      border-radius: 6px;
+
+      p {
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        color: var(--el-color-warning);
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
   }
 }
 </style>

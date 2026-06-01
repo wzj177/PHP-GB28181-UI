@@ -156,6 +156,7 @@ export interface RecordingFile {
   file_size: number
   file_size_mb?: number
   video_path?: string
+  video_url?: string
   download_url?: string
   stream_id?: string
   record_date?: string

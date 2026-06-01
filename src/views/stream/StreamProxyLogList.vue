@@ -185,14 +185,16 @@ const handleCleanup = async () => {
   }
 }
 
-const getLevelType = (level: string) => {
-  const map: Record<string, string> = { info: 'success', warn: 'warning', error: 'danger' }
+type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
+
+const getLevelType = (level: string): TagType => {
+  const map: Record<string, TagType> = { info: 'success', warn: 'warning', error: 'danger' }
   return map[level] || 'info'
 }
 
 const fetchProxyOptions = async () => {
   try {
-    const data: any = await streamProxyApi.getList({ limit: 200 })
+    const data: any = await streamProxyApi.getList({ page_size: 200 })
     proxyOptions.value = (data?.list || []).map((item: any) => ({ id: item.id, name: item.name }))
   } catch {
     // ignore

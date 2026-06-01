@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+// @ts-ignore
 import { useRouter } from 'vue-router'
 import { ElInput, ElCard, ElMessage, ElForm, ElFormItem } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'

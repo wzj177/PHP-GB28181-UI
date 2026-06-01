@@ -55,6 +55,7 @@
         <span class="selection-info">已选择 {{ selectedDevices.length }} 项</span>
         <ElButton type="danger" @click="batchDelete">批量删除</ElButton>
         <ElButton type="primary" @click="openBatchAreaDialog">批量更新行政区域</ElButton>
+        <ElButton type="success" @click="openBatchBindGateway">批量绑定网关</ElButton>
         <ElButton @click="clearSelection">取消选择</ElButton>
       </div>
     </div>
@@ -156,16 +157,32 @@
         </ElTableColumn>
         <ElTableColumn prop="ip" label="IP地址" width="150" />
         <ElTableColumn prop="port" label="端口" width="80" />
+        <ElTableColumn label="所属网关" width="130">
+          <template #default="{ row }">
+            {{ row.gateway_id || '-' }}
+          </template>
+        </ElTableColumn>
         <ElTableColumn prop="registered_at" label="注册时间" width="180" fixed="right" />
         <ElTableColumn prop="last_heartbeat_at" label="最后心跳时间" width="180" fixed="right" />
-        <ElTableColumn label="操作" width="450" fixed="right">
+        <ElTableColumn label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <ElButton size="small" @click="viewDetail(row)">详情</ElButton>
-            <ElButton size="small" @click="viewChannels(row)">通道列表</ElButton>
-            <ElButton size="small" type="primary" @click="updateDevice(row)">更新设备</ElButton>
-            <ElButton size="small" type="warning" @click="openEditDialog(row)">编辑</ElButton>
-            <ElButton size="small" type="info" @click="openGatewayLog(row)">网关日志</ElButton>
-            <ElButton size="small" type="danger" @click="deleteDevice(row)">删除</ElButton>
+            <ElButton size="small" type="primary" @click="viewChannels(row)" style="margin-right: 10px;">通道列表</ElButton>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleRowCommand(cmd, row)">
+              <ElButton size="small">
+                更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </ElButton>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
+                  <el-dropdown-item command="update">更新设备</el-dropdown-item>
+                  <el-dropdown-item command="log">网关日志</el-dropdown-item>
+                  <el-dropdown-item v-if="!row.gateway_id" command="bind">绑定网关</el-dropdown-item>
+                  <el-dropdown-item v-else command="unbind">解绑网关</el-dropdown-item>
+                  <el-dropdown-item divided command="delete" style="color: var(--el-color-danger)">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </ElTableColumn>
       </ElTable>
@@ -361,6 +378,31 @@
       :device-id="gatewayLogDrawer.deviceId"
       :device-name="gatewayLogDrawer.deviceName"
     />
+
+    <!-- Gateway Bind Dialog -->
+    <ElDialog v-model="gatewayBindDialog.visible" title="绑定网关" width="500px">
+      <ElForm label-width="80px">
+        <ElFormItem label="选择网关">
+          <ElSelect
+            v-model="gatewayBindDialog.gatewayId"
+            placeholder="请选择网关"
+            filterable
+            style="width: 100%"
+          >
+            <ElOption
+              v-for="gw in gatewayOptions"
+              :key="gw.gateway_id"
+              :label="`${gw.gateway_name} (${gw.gateway_id})`"
+              :value="gw.gateway_id"
+            />
+          </ElSelect>
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <ElButton @click="gatewayBindDialog.visible = false">取消</ElButton>
+        <ElButton type="primary" :loading="gatewayBindDialog.loading" @click="confirmBindGateway">确定</ElButton>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -368,10 +410,11 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 // @ts-ignore - Icons exist but type definitions are incorrect
-import { Monitor, CloseBold, CircleClose,CircleCheck } from '@element-plus/icons-vue'
+import { Monitor, CloseBold, CircleClose, CircleCheck, ArrowDown } from '@element-plus/icons-vue'
 // @ts-ignore
 import { useRouter } from 'vue-router'
 import { gb28181Api } from '@/api/gb28181Api'
+import { sipGatewayApi } from '@/api/sipGatewayApi'
 import DeviceEditDialog from './DeviceEditDialog.vue'
 import GatewayLogDrawer from './GatewayLogDrawer.vue'
 import { regionData } from 'element-china-area-data'
@@ -591,6 +634,71 @@ const gatewayLogDrawer = ref({
   deviceId: '',
   deviceName: ''
 })
+
+// Gateway bind dialog
+const gatewayBindDialog = ref({
+  visible: false,
+  loading: false,
+  gatewayId: '',
+  deviceIds: [] as string[]
+})
+const gatewayOptions = ref<any[]>([])
+
+const loadGatewayOptions = async () => {
+  try {
+    const data = await sipGatewayApi.getGatewayList({ status: 'active', limit: 200 })
+    gatewayOptions.value = data.list || []
+  } catch (e: any) {
+    console.error('Failed to load gateways:', e)
+  }
+}
+
+const openBindGateway = (device: Device) => {
+  gatewayBindDialog.value.deviceIds = [device.device_id]
+  gatewayBindDialog.value.gatewayId = ''
+  gatewayBindDialog.value.visible = true
+  loadGatewayOptions()
+}
+
+const openBatchBindGateway = () => {
+  gatewayBindDialog.value.deviceIds = selectedDevices.value.map(d => d.device_id)
+  gatewayBindDialog.value.gatewayId = ''
+  gatewayBindDialog.value.visible = true
+  loadGatewayOptions()
+}
+
+const confirmBindGateway = async () => {
+  if (!gatewayBindDialog.value.gatewayId) {
+    ElMessage.warning('请选择网关')
+    return
+  }
+  gatewayBindDialog.value.loading = true
+  try {
+    const result = await sipGatewayApi.bindDevices({
+      gateway_id: gatewayBindDialog.value.gatewayId,
+      device_ids: gatewayBindDialog.value.deviceIds
+    })
+    ElMessage.success(`绑定完成，成功 ${result.success} 个，失败 ${result.failed} 个`)
+    gatewayBindDialog.value.visible = false
+    clearSelection()
+    getDeviceList()
+  } catch (e: any) {
+    ElMessage.error(e.message || '绑定失败')
+  } finally {
+    gatewayBindDialog.value.loading = false
+  }
+}
+
+const unbindGateway = async (device: Device) => {
+  await ElMessageBox.confirm(`确定要将设备 "${device.device_name}" 从网关解绑吗？`, '解绑确认', { type: 'warning' })
+  try {
+    await sipGatewayApi.unbindDevices({ device_ids: [device.device_id] })
+    ElMessage.success('已解绑')
+    getDeviceList()
+  } catch (e: any) {
+    ElMessage.error(e.message || '解绑失败')
+  }
+}
 
 // Get device list
 const getDeviceList = async () => {
@@ -842,6 +950,17 @@ const updateDevice = async (device: Device) => {
       console.error('Failed to update device:', error)
       ElMessage.error(error.message || '更新设备失败')
     }
+  }
+}
+
+const handleRowCommand = (command: string, row: Device) => {
+  switch (command) {
+    case 'edit': openEditDialog(row); break
+    case 'update': updateDevice(row); break
+    case 'log': openGatewayLog(row); break
+    case 'bind': openBindGateway(row); break
+    case 'unbind': unbindGateway(row); break
+    case 'delete': deleteDevice(row); break
   }
 }
 

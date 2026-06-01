@@ -24,7 +24,7 @@ const roleForm = ref({
 const loadRoles = async () => {
   loading.value = true
   try {
-    const response = await permissionApi.getRoles({ start: 0, limit: 100 })
+    const response = await permissionApi.getRoles({ start: 0, page_size: 100 })
     if (response) {
       roles.value = response.list || []
     }

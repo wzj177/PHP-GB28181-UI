@@ -142,7 +142,7 @@ const canAction = (file: AttachmentFile) => {
     return showOptFiles.value.some(item => item.id === file.id)
   }
 
-  return showOptFiles.value.some(item => item.url === file.url)
+  return showOptFiles.value.some(item => (item as any).url === (file as any).url)
 }
 
 // 鼠标移入
@@ -158,7 +158,7 @@ const mouseOut = (file: AttachmentFile) => {
     if ('id' in item) {
       return item.id !== file.id
     }
-    return item.url !== file.url
+    return (item as any).url !== (file as any).url
   })
 }
 

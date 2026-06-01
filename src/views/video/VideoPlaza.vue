@@ -124,6 +124,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+// @ts-ignore
 import { Search, VideoCamera, VideoPlay, CircleCheck } from '@element-plus/icons-vue'
 import { videoPlazaApi } from '@/api/videoPlazaApi'
 import { gb28181Api } from '@/api/gb28181Api'
@@ -260,10 +261,10 @@ const getVideoCards = async () => {
   try {
     const params = {
       keyword: filters.value.keyword || undefined,
-      status: filters.value.status || undefined
+      status: (filters.value.status || undefined) as 'online' | 'offline' | undefined
     }
 
-    const response = await videoPlazaApi.getVideoCards(params)
+    const response = await videoPlazaApi.getVideoCards(params) as any
 
     if (response?.code === 0) {
       cards.value = response.data || []

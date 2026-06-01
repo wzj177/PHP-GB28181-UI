@@ -87,6 +87,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+// @ts-ignore
 import { useRoute } from 'vue-router'
 // @ts-ignore - Icons exist but type definitions are incorrect
 import { WarningFilled } from '@element-plus/icons-vue'

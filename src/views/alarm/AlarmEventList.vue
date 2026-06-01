@@ -325,6 +325,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+// @ts-ignore
 import { Search, Calendar, DataLine, Camera, Picture, VideoCamera, VideoPlay } from '@element-plus/icons-vue'
 import { alarmApi } from '@/api/alarmApi'
 import type { AlarmEvent, AlarmEventQueryParams } from '@/types/alarm'

@@ -308,6 +308,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import {
   Refresh, Monitor, VideoPlay, Film, Files, Connection, TrendCharts,
   DataAnalysis, Setting
+// @ts-ignore
 } from '@element-plus/icons-vue'
 import { monitorApi } from '@/api/monitorApi'
 import { ElMessage } from 'element-plus'

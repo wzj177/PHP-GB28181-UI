@@ -140,8 +140,10 @@ const deleteMenu = async (menu: MenuItem) => {
 }
 
 // Get type tag
-const getTypeTag = (type: string) => {
-  const map: Record<string, { type: string; label: string }> = {
+type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
+
+const getTypeTag = (type: string): { type: TagType; label: string } => {
+  const map: Record<string, { type: TagType; label: string }> = {
     'menu': { type: 'primary', label: '菜单' },
     'directory': { type: 'success', label: '目录' },
     'path': { type: 'info', label: '路径' },

@@ -76,6 +76,8 @@ export interface User {
   destroyed?: number
   type?: string
   setup?: number
+  api_key?: string
+  api_enabled?: number
 }
 
 /**
@@ -373,6 +375,22 @@ export const permissionApi = {
    */
   getUserRoleOptions: () => {
     return request.get<Array<{ value: string; label: string }>>('/admin/user/role-options')
+  },
+
+  /**
+   * 申请/生成 OpenAPI Key
+   * POST /api/admin/user/{id}/api-key
+   */
+  generateApiKey: (id: number) => {
+    return request.post<{ api_key: string; api_enabled: number }>(`/admin/user/${id}/api-key`)
+  },
+
+  /**
+   * 切换 OpenAPI 启用状态
+   * POST /api/admin/user/{id}/api-key/toggle
+   */
+  toggleApiKey: (id: number) => {
+    return request.post<{ api_enabled: number }>(`/admin/user/${id}/api-key/toggle`)
   }
 }
 

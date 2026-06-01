@@ -1,373 +1,278 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import {
-  ElCard,
-  ElButton,
-  ElInput,
-  ElSelect,
-  ElOption,
-  ElTable,
-  ElTableColumn,
-  ElMessage,
-  ElTag
-} from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { ref, watch, onMounted } from 'vue'
+import { ElTree, ElDatePicker, ElButton, ElInput, ElMessage } from 'element-plus'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import { gb28181Api } from '@/api/gb28181Api'
-import ChannelPlaybackDrawer from '@/views/device/ChannelPlaybackDrawer.vue'
+import RecordPlayback from '@/views/video/RecordPlayback.vue'
 
-const router = useRouter()
-
-// Define interfaces for the new table structure
-interface DeviceTableItem {
+interface DeviceNode {
   id: string
-  pkId?: number  // 设备主键 ID
-  name: string
-  channelName?: string,
-  type: 'video-channel' | 'group' | 'device',
-  status: 'online' | 'offline' | 'motion_detect'
-  hasChildren?: boolean
-  children?: DeviceTableItem[]
+  name?: string
+  label?: string
+  type: 'device' | 'channel'
+  device_id?: string
+  channel_id?: string
+  status?: string
+  device_name?: string
+  children?: DeviceNode[]
+  [key: string]: any
 }
 
-// State
-const tableData = ref<DeviceTableItem[]>([])
-const loading = ref(false)
-const searchKeyword = ref('')
+const treeRef = ref()
+const treeData = ref<DeviceNode[]>([])
+const treeLoading = ref(false)
+const treeFilter = ref('')
 
-// 筛选条件
-const filters = ref({
-  status: '',      // 在线/离线
-  keyword: ''      // 搜索关键字
-})
+const selectedDate = ref<string>(formatDate(new Date()))
 
-// 原始数据（用于筛选）
-const originalTableData = ref<DeviceTableItem[]>([])
-
-// Playback drawer state
-const playbackDrawer = ref({
-  visible: false,
+// 当前选中的通道信息
+const currentChannel = ref({
   deviceId: '',
-  devicePkId: 0,   // 设备主键 ID
   channelId: '',
-  channelPkId: 0,  // 通道主键 ID（VideoPlayback 页面可能没有）
-  channelName: ''
+  channelPkId: 0,
+  channelName: '',
+  hasSelection: false
 })
 
-// Load device data
-const loadDeviceTree = async () => {
-  loading.value = true
+function formatDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+const loadTree = async () => {
+  treeLoading.value = true
   try {
-    console.log('📼 Fetching device list...')
-    const response = await gb28181Api.getDeviceList();
-
-    console.log('📼 Device list response:', response)
-
-    // Handle different response structures
-    let devices: any[] = []
-
-    if (response?.list) {
-      // Mock API returns { list: [...], paginator: {...} }
-      devices = response.list
-    } else if (response?.code === 0 && response.data?.list) {
-      // Real API returns { code: 0, data: { list: [...] } }
-      devices = response.data.list
-    } else if (response?.code === 0 && Array.isArray(response.data)) {
-      // Alternative: { code: 0, data: [...] }
-      devices = response.data
-    } else if (Array.isArray(response)) {
-      // Direct array response
-      devices = response
-    }
-
-    console.log('📼 Parsed devices:', devices)
-
-    // Transform the device data to match the expected table structure
-    const transformedData: DeviceTableItem[] = devices.map((device: any) => ({
-      id: device.device_id || device.id,
-      pkId: device.id,  // 设备主键 ID
-      name: device.device_name || device.name || '未知设备',
-      type: 'video-channel',
-      status: device.status || 'offline',
-      channelName: '通道1',
-      hasChildren: false
-    }));
-
-    originalTableData.value = transformedData
-    applyFilters()  // 应用筛选
-    console.log('Device list loaded:', transformedData.length, 'items')
-  } catch (error: any) {
-    console.error('❌ Failed to load device tree:', error)
-    ElMessage.error(error.message || '获取设备列表失败')
+    const response = await gb28181Api.getDeviceTree()
+    treeData.value = Array.isArray(response) ? response : []
+  } catch {
+    ElMessage.error('加载设备树失败')
   } finally {
-    loading.value = false
+    treeLoading.value = false
   }
 }
 
-// 应用筛选条件
-const applyFilters = () => {
-  let filtered = [...originalTableData.value]
-
-  // 按状态筛选
-  if (filters.value.status) {
-    filtered = filtered.filter(item => item.status === filters.value.status)
-  }
-
-  // 按关键字筛选
-  if (filters.value.keyword) {
-    const keyword = filters.value.keyword.toLowerCase()
-    filtered = filtered.filter(item =>
-      item.name.toLowerCase().includes(keyword) ||
-      item.id.toLowerCase().includes(keyword)
-    )
-  }
-
-  tableData.value = filtered
-}
-
-// 搜索按钮点击
-const handleSearch = () => {
-  filters.value.keyword = searchKeyword.value
-  applyFilters()
-}
-
-// 重置筛选
-const handleReset = () => {
-  filters.value.status = ''
-  searchKeyword.value = ''
-  applyFilters()
-}
-
-// Get status tag
-const getStatusTag = (status: string) => {
-  switch (status) {
-    case 'online':
-      return { type: 'success', label: '在线' }
-    case 'offline':
-      return { type: 'danger', label: '离线' }
-    case 'motion_detect':
-      return { type: 'warning', label: '移动侦测' }
-    default:
-      return { type: 'info', label: '未知' }
+const handleNodeClick = (node: DeviceNode) => {
+  if (node.type !== 'channel') return
+  currentChannel.value = {
+    deviceId: node.device_id || '',
+    channelId: node.channel_id || node.id,
+    channelPkId: parseInt(node.id.replace(/\D/g, ''), 10) || 0,
+    channelName: `${node.device_name || node.device_id || ''} - ${node.name || node.label || node.id}`,
+    hasSelection: true
   }
 }
 
-// Navigate to playback view
-const goToPlayback = (row: DeviceTableItem) => {
-  // Open the cloud playback drawer
-  playbackDrawer.value = {
-    visible: true,
-    deviceId: row.id,
-    devicePkId: row.pkId || 0,
-    channelId: row.id,
-    channelPkId: 0,  // VideoPlayback 页面没有通道主键 ID
-    channelName: row.name
-  }
+const filterNode = (value: string, data: DeviceNode) => {
+  if (!value) return true
+  return (data.name || data.label || '').toLowerCase().includes(value.toLowerCase())
 }
 
-// Navigate to recordings list view
-const goToList = (row: DeviceTableItem) => {
-  router.push({ path: '/cloud-recordings', query: { device_id: row.id } })
-}
+watch(treeFilter, val => treeRef.value?.filter(val))
 
-// Initialize on component mounted
-onMounted(() => {
-  loadDeviceTree()
-})
+onMounted(loadTree)
 </script>
 
 <template>
-  <div class="video-playback-page">
-    <div class="main-content">
-      <!-- Main content - Device table -->
-      <div class="content-area">
-        <!-- Search controls -->
-        <ElCard class="search-card">
-          <div class="search-controls">
-            <ElSelect
-              v-model="filters.status"
-              placeholder="设备状态"
-              clearable
-              style="width: 120px; margin-right: 10px;"
-              @change="applyFilters"
-            >
-              <ElOption label="在线" value="online" />
-              <ElOption label="离线" value="offline" />
-            </ElSelect>
-
-            <ElInput
-              v-model="searchKeyword"
-              placeholder="设备名称/设备号搜索"
-              style="width: 200px; margin-right: 10px;"
-              clearable
-              @keyup.enter="handleSearch"
-            />
-
-            <ElButton
-              type="primary"
-              :icon="Search"
-              @click="handleSearch"
-            >
-              搜索
-            </ElButton>
-            <ElButton @click="handleReset">重置</ElButton>
-            <ElButton @click="loadDeviceTree">刷新</ElButton>
-          </div>
-        </ElCard>
-
-        <!-- Device table -->
-        <ElCard class="device-table-card">
-          <ElTable
-            v-loading="loading"
-            :data="tableData"
-            style="width: 100%"
-            row-key="id"
-            default-expand-all
-            :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-          >
-            <ElTableColumn
-              prop="name"
-              label="设备号"
-              min-width="200"
-            >
-              <template #default="{ row }">
-                <span>{{ row.name }}</span>
-              </template>
-            </ElTableColumn>
-            <ElTableColumn
-              prop="channelName"
-              label="通道号"
-              width="150"
-            />
-            <ElTableColumn
-              label="状态"
-              width="120"
-            >
-              <template #default="{ row }">
-                <ElTag :type="getStatusTag(row.status).type">
-                  {{ getStatusTag(row.status).label }}
-                </ElTag>
-              </template>
-            </ElTableColumn>
-            <ElTableColumn
-              label="操作"
-              width="250"
-            >
-              <template #default="{ row }">
-                <ElButton
-                  v-if="row.type === 'video-channel'"
-                  size="small"
-                  type="primary"
-                  @click="goToPlayback(row)"
-                >
-                  录像回放时间轴
-                </ElButton>
-                <ElButton
-                  v-if="row.type === 'video-channel'"
-                  size="small"
-                  type="info"
-                  @click="goToList(row)"
-                >
-                  录像列表
-                </ElButton>
-              </template>
-            </ElTableColumn>
-          </ElTable>
-        </ElCard>
+  <div class="playback-page">
+    <!-- Left: Device Tree -->
+    <div class="tree-panel">
+      <div class="panel-header">
+        <span class="panel-title">设备树</span>
+        <ElButton :icon="Refresh" size="small" circle @click="loadTree" />
+      </div>
+      <div class="tree-date">
+        <ElDatePicker
+          v-model="selectedDate"
+          type="date"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          :clearable="false"
+          style="width: 100%"
+          size="small"
+        />
+      </div>
+      <div class="tree-search">
+        <ElInput
+          v-model="treeFilter"
+          placeholder="搜索设备/通道"
+          clearable
+          size="small"
+          :prefix-icon="Search"
+        />
+      </div>
+      <div v-loading="treeLoading" class="tree-body">
+        <ElTree
+          ref="treeRef"
+          :data="treeData"
+          :props="{ label: 'name', children: 'children' }"
+          :filter-node-method="filterNode"
+          node-key="id"
+          default-expand-all
+          :expand-on-click-node="false"
+          @node-click="handleNodeClick"
+        >
+          <template #default="{ data }">
+            <div class="tree-node" :class="data.type">
+              <span class="status-dot" :class="data.status === 'online' ? 'online' : 'offline'" />
+              <span class="node-label">{{ data.name || data.label }}</span>
+            </div>
+          </template>
+        </ElTree>
       </div>
     </div>
 
-    <!-- Cloud Playback Drawer -->
-    <ChannelPlaybackDrawer
-      v-model="playbackDrawer.visible"
-      :device-id="playbackDrawer.deviceId"
-      :device-pk-id="playbackDrawer.devicePkId"
-      :channel-id="playbackDrawer.channelId"
-      :channel-pk-id="playbackDrawer.channelPkId"
-      :channel-name="playbackDrawer.channelName"
-      mode="cloud"
-    />
+    <!-- Right: Embedded RecordPlayback -->
+    <div class="playback-panel">
+      <RecordPlayback
+        v-if="currentChannel.hasSelection"
+        :model-value="true"
+        :device-id="currentChannel.deviceId"
+        :channel-id="currentChannel.channelId"
+        :channel-pk-id="currentChannel.channelPkId"
+        :channel-name="currentChannel.channelName"
+        :selected-date="selectedDate"
+      />
+      <div v-else class="empty-selection">
+        <div class="empty-icon">📹</div>
+        <p>请在左侧选择通道进行录像回放</p>
+        <p class="empty-sub">点击通道节点开始回放</p>
+      </div>
+    </div>
   </div>
 </template>
 
-<style scoped>
-.video-playback-page {
+<style scoped lang="scss">
+@use '@/styles/variables.scss' as *;
+
+.playback-page {
+  display: flex;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  background-color: #f5f7fa;
-}
-
-.header {
-  padding: 1rem 1.5rem;
-  background: #fff;
-  border-bottom: 1px solid #e6e6e6;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.main-content {
-  display: flex;
-  flex: 1;
+  background: $bg-main;
   overflow: hidden;
 }
 
-.content-area {
-  flex: 1;
-  padding: 1rem;
-  overflow: auto;
+.tree-panel {
+  width: 260px;
+  min-width: 260px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  background-color: #f5f7fa;
+  background: $bg-panel;
+  border-right: 1px solid $border-base;
+  overflow: hidden;
 }
 
-.search-card {
-  margin: 0 0 1rem 0;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  border: 1px solid #e6e6e6;
-}
-
-.search-controls {
+.panel-header {
   display: flex;
-  gap: 1rem;
   align-items: center;
-}
-
-.device-table-card {
-  flex: 1;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  border: 1px solid #e6e6e6;
-}
-
-.card-header {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem !important;
-  border-bottom: 1px solid #e6e6e6;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid $border-base;
+}
+
+.panel-title {
+  font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: $text-main;
 }
 
-:deep(.el-table) {
-  background-color: transparent;
-  border-radius: 8px;
+.tree-date {
+  padding: 8px 10px;
+  border-bottom: 1px solid $border-base;
 }
 
-:deep(.el-table__header) {
-  background-color: #fafafa;
+.tree-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid $border-base;
 }
 
-:deep(.el-table__row) {
-  background-color: #fff;
-  margin-bottom: 4px;
-  border-radius: 4px;
+.tree-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+
+  :deep(.el-tree) {
+    background: transparent;
+    color: $text-main;
+  }
+
+  :deep(.el-tree-node__content) {
+    height: 36px;
+
+    &:hover {
+      background: $bg-hover;
+    }
+  }
+
+  :deep(.el-tree-node.is-current > .el-tree-node__content) {
+    background: $bg-active;
+  }
 }
 
-:deep(.el-table__row:hover > td) {
-  background-color: #f5f7fa;
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.online {
+    background: $success;
+    box-shadow: 0 0 4px $success;
+  }
+
+  &.offline {
+    background: $danger;
+  }
+}
+
+.node-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.playback-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #000;
+}
+
+.empty-selection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: $text-muted;
+  gap: 8px;
+  background: $bg-hover;
+
+  .empty-icon {
+    font-size: 48px;
+    opacity: 0.4;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .empty-sub {
+    font-size: 12px;
+    color: $text-disabled;
+  }
 }
 </style>

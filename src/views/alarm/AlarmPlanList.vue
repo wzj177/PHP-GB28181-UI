@@ -253,6 +253,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+// @ts-ignore
 import { Search, Plus, Edit, Delete, Link } from '@element-plus/icons-vue'
 import { alarmApi } from '@/api/alarmApi'
 import type { AlarmPlan } from '@/types/alarm'

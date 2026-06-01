@@ -158,7 +158,8 @@ const playerIframeUrl = computed(() => {
     isLive: isLiveValue,  // 本地录像回放=true，云端录像=false
     width: `${playerWidth}px`,
     height: `${playerHeight}px`,
-    hasAudio: '1'
+    hasAudio: '1',
+    hasDownlaod: '1'
     // 移除 speed 参数，倍速变化通过 API 控制，不需要刷新 iframe
   })
 

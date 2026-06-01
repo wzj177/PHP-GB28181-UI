@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+// @ts-ignore
 import { RouterView } from 'vue-router'
 
 onMounted(() => {

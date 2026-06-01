@@ -48,6 +48,10 @@ export const pages: Record<string, () => Promise<any>> = {
   'RecordPlanList': () => import('@/views/recording/RecordPlanList.vue'),
   'RecordingsList': () => import('@/views/recording/RecordingsList.vue'),
   'RecordTaskList': () => import('@/views/recording/RecordTaskList.vue'),
+  'RecordMergeList': () => import('@/views/recording/RecordMergeList.vue'),
+
+  // SIP 网关管理
+  'SipGatewayList': () => import('@/views/gateway/SipGatewayList.vue'),
 
   // 报警管理
   'AlarmPlanList': () => import('@/views/alarm/AlarmPlanList.vue'),

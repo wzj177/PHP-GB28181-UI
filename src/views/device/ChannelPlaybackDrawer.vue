@@ -339,7 +339,7 @@ const fetchQueryResult = async (startTime: string, endTime: string) => {
             return {
               start,
               end,
-              type: 'normal',  // 默认为正常录像
+              type: 'normal' as const,  // 默认为正常录像
               // 保存原始时间戳，用于回放 API
               originalStartTime: record.start_time,
               originalEndTime: record.end_time

@@ -43,6 +43,7 @@
       <div v-if="validSelectedChannels.length > 0" class="batch-actions">
         <span class="selection-info">已选择 {{ validSelectedChannels.length }} 项</span>
         <ElButton type="primary" @click="openBindDialog">批量绑定流媒体</ElButton>
+        <ElButton type="success" @click="openAutoLiveDialog">批量设置直播模式</ElButton>
         <ElButton @click="clearSelection">取消选择</ElButton>
       </div>
     </div>
@@ -156,6 +157,28 @@
       @success="onEditSuccess"
     />
 
+    <!-- Batch Set Auto Live Dialog -->
+    <ElDialog v-model="autoLiveDialog.visible" title="批量设置直播模式" width="420px">
+      <ElForm label-width="100px">
+        <ElFormItem label="已选通道">
+          <span>{{ autoLiveDialog.count }} 个</span>
+        </ElFormItem>
+        <ElFormItem label="直播模式">
+          <ElSwitch
+            v-model="autoLiveDialog.auto_live"
+            :active-value="1"
+            :inactive-value="0"
+            active-text="全时直播"
+            inactive-text="按需直播"
+          />
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <ElButton @click="autoLiveDialog.visible = false">取消</ElButton>
+        <ElButton type="primary" @click="confirmAutoLive">确定</ElButton>
+      </template>
+    </ElDialog>
+
     <!-- Channel Playback Drawer -->
     <ChannelPlaybackDrawer
       v-model="playbackDialog.visible"
@@ -179,6 +202,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElSwitch } from 'element-plus'
+// @ts-ignore
 import { useRoute, useRouter } from 'vue-router'
 import { gb28181Api } from '@/api/gb28181Api'
 import ChannelBindDialog from './ChannelBindDialog.vue'
@@ -266,6 +290,7 @@ const editDialog = ref({
     origin_code?: string
     custom_lat?: string
     custom_lng?: string
+    auto_live?: 0 | 1
   } | null
 })
 
@@ -410,6 +435,31 @@ const onBindSuccess = () => {
   getChannelList()
 }
 
+// Batch set auto live dialog
+const autoLiveDialog = ref({
+  visible: false,
+  auto_live: 1 as 0 | 1,
+  count: 0
+})
+
+const openAutoLiveDialog = () => {
+  autoLiveDialog.value.count = validSelectedChannels.value.length
+  autoLiveDialog.value.auto_live = 1
+  autoLiveDialog.value.visible = true
+}
+
+const confirmAutoLive = async () => {
+  const ids = validSelectedChannels.value.map(c => c.id)
+  try {
+    await gb28181Api.batchSetAutoLive(ids, autoLiveDialog.value.auto_live)
+    ElMessage.success(`已设置 ${ids.length} 个通道的直播模式`)
+    autoLiveDialog.value.visible = false
+    getChannelList()
+  } catch (e: any) {
+    ElMessage.error(e.message || '设置失败')
+  }
+}
+
 // Open edit dialog
 const openEditDialog = (channel: Channel) => {
   editDialog.value.channel = {
@@ -419,7 +469,8 @@ const openEditDialog = (channel: Channel) => {
     show_name: channel.show_name || '',
     origin_code: channel.origin_code || '',
     custom_lat: channel.custom_lat || '',
-    custom_lng: channel.custom_lng || ''
+    custom_lng: channel.custom_lng || '',
+    auto_live: channel.auto_live || 0
   }
   editDialog.value.visible = true
 }

@@ -112,6 +112,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+// @ts-ignore
 import { Search, Plus, Edit, Delete, Link } from '@element-plus/icons-vue'
 import { recordingApi } from '@/api/recordingApi'
 import type { RecordPlan } from '@/types/recording'
@@ -137,7 +138,7 @@ const loadPlans = async () => {
       name: filters.value.name || undefined,
       status: filters.value.status,
       start: offset,
-      limit: pagination.value.limit
+      page_size: pagination.value.limit
     })
     plans.value = data.list
     pagination.value.total = data.paginator.total

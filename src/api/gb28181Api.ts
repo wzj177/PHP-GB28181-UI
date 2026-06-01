@@ -240,6 +240,14 @@ export const gb28181Api = {
   },
 
   /**
+   * 批量设置直播模式
+   * PUT /admin/gb28181/channels/batch/set-auto-live
+   */
+  batchSetAutoLive: (ids: number[], auto_live: 0 | 1) => {
+    return request.put('/admin/gb28181/channels/batch/set-auto-live', { ids, auto_live });
+  },
+
+  /**
    * 删除通道
    * DELETE /admin/gb28181/channels/{id}
    * @param id 通道主键ID

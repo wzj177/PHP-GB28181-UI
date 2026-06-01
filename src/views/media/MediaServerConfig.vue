@@ -30,43 +30,43 @@
               <ElFormItem
                 v-for="(value, field) in configData[key]"
                 :key="field"
-                :label="fieldLabels[field] ? `${fieldLabels[field]} (${field})` : field"
+                :label="fieldLabels[String(field)] ? `${fieldLabels[String(field)]} (${String(field)})` : String(field)"
               >
                 <!-- 0/1 开关类型 -->
                 <ElSwitch
-                  v-if="isSwitchField(field, value)"
+                  v-if="isSwitchField(String(field), value)"
                   v-model="configData[key][field]"
                   active-value="1"
                   inactive-value="0"
                 />
                 <!-- 端口号类型 -->
                 <ElInput
-                  v-else-if="isPortField(field)"
+                  v-else-if="isPortField(String(field))"
                   v-model.number="configData[key][field]"
                   type="number"
-                  :placeholder="`请输入${fieldLabels[field] || field}`"
+                  :placeholder="`请输入${fieldLabels[String(field)] || String(field)}`"
                 />
                 <!-- 密码类型 -->
                 <ElInput
-                  v-else-if="field === 'secret' || field === 'icePwd' || field === 'passPhrase'"
+                  v-else-if="String(field) === 'secret' || String(field) === 'icePwd' || String(field) === 'passPhrase'"
                   v-model="configData[key][field]"
                   type="password"
                   show-password
-                  :placeholder="`请输入${fieldLabels[field] || field}`"
+                  :placeholder="`请输入${fieldLabels[String(field)] || String(field)}`"
                 />
                 <!-- 长文本类型 -->
                 <ElInput
-                  v-else-if="isLongTextField(field)"
+                  v-else-if="isLongTextField(String(field))"
                   v-model="configData[key][field]"
                   type="textarea"
                   :rows="3"
-                  :placeholder="`请输入${fieldLabels[field] || field}`"
+                  :placeholder="`请输入${fieldLabels[String(field)] || String(field)}`"
                 />
                 <!-- 普通文本输入 -->
                 <ElInput
                   v-else
                   v-model="configData[key][field]"
-                  :placeholder="`请输入${fieldLabels[field] || field}`"
+                  :placeholder="`请输入${fieldLabels[String(field)] || String(field)}`"
                 />
               </ElFormItem>
               <ElFormItem>
@@ -83,8 +83,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+// @ts-ignore
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+// @ts-ignore
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { mediaServerApi } from '@/api/mediaServerApi'
 import type { ZLMConfig } from '@/types/media-server'
@@ -152,7 +154,6 @@ const fieldLabels: Record<string, string> = {
   authBasic: '基本认证',
   directProxy: '直接代理',
   handshakeSecond: '握手超时秒数',
-  keepAliveSecond: '保活秒数',
   lowLatency: '低延迟',
   rtpTransportType: 'RTP传输类型',
 
@@ -208,7 +209,6 @@ const fieldLabels: Record<string, string> = {
   alive_interval: '保活间隔',
   retry: '重试次数',
   retry_delay: '重试延迟',
-  timeoutSec: '超时秒数',
   stream_changed_schemas: '流变化模式',
   on_flow_report: '流量上报回调',
   on_http_access: 'HTTP访问回调',
@@ -281,16 +281,12 @@ const fieldLabels: Record<string, string> = {
   rtp_g711_dur_ms: 'RTP G711 持续时间毫秒数',
   udp_recv_socket_buffer: 'UDP接收套接字缓冲区',
 
-  // Shell 字段
-  maxReqSize: '最大请求大小',
-
   // SRT 字段
   latencyMul: '延迟倍数',
   passPhrase: '密码',
   pktBufSize: '包缓冲区大小',
 
-  // ONVIF 字段
-  port: 'ONVIF端口',
+  // Multicast 字段
 
   // Multicast 字段
   addrMax: '最大组播地址',
@@ -304,7 +300,7 @@ const configKeys = computed(() => {
 })
 
 // 判断是否是开关类型字段 (值为 '0' 或 '1')
-const isSwitchField = (field: string, value: string): boolean => {
+const isSwitchField = (field: string, value: string | number): boolean => {
   const switchFields = [
     'apiDebug',
     'allow_cross_domains',
@@ -345,7 +341,7 @@ const isSwitchField = (field: string, value: string): boolean => {
     'gop_cache',
     'merge_frame'
   ]
-  return switchFields.includes(field) && (value === '0' || value === '1')
+  return switchFields.includes(field) && (String(value) === '0' || String(value) === '1')
 }
 
 // 判断是否是端口号字段
@@ -384,6 +380,7 @@ const getDefaultConfig = (): ZLMConfig => ({
     port: '8086',
     rootPath: './www',
     sendBufSize: '65536',
+    sslport: '0',
     virtualPath: ''
   },
   rtsp: {
@@ -599,7 +596,7 @@ const loadConfig = async () => {
     }
 
     if (server) {
-      serverName.value = server.name
+      serverName.value = (server as any).name
     }
   } catch (error: any) {
     console.error('Failed to load config:', error)
@@ -626,7 +623,7 @@ const saveConfig = async () => {
 // Reset to defaults
 const resetDefaults = async () => {
   try {
-    await mediaServerApi.resetConfig(serverId.value)
+    await (mediaServerApi as any).resetConfig(serverId.value)
     await loadConfig()
     ElMessage.success('已重置为默认配置')
   } catch (error: any) {

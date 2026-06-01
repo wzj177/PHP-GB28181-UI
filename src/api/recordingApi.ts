@@ -175,6 +175,14 @@ export const recordingApi = {
    */
   getRecordingDetail: (id: number): Promise<RecordingFile> => {
     return request.get(`${BASE}/recordings/${id}`)
+  },
+
+  /**
+   * 批量删除录像文件
+   * POST /admin/recordings/batch-delete
+   */
+  batchDelete: (ids: number[]): Promise<{ deleted: number; file_errors: number; message: string }> => {
+    return request.post('/admin/gb28181/recordings/batch-delete', { ids })
   }
 }
 

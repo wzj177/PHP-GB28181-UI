@@ -186,8 +186,8 @@ const startDrag = (e: MouseEvent) => {
 
   isDragging.value = true
   startPos.value = {
-    x: e.clientX - dialogStyle.value.left.replace('px', '') * 1,
-    y: e.clientY - dialogStyle.value.top.replace('px', '') * 1
+    x: e.clientX - Number(dialogStyle.value.left.replace('px', '')),
+    y: e.clientY - Number(dialogStyle.value.top.replace('px', ''))
   }
 
   document.addEventListener('mousemove', onDrag)

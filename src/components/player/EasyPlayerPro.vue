@@ -30,7 +30,8 @@ interface Props {
   autoplay?: boolean
   isLive?: boolean // 是否为直播流
   hasAudio?: boolean
-  debug?: boolean
+  debug?: boolean,
+  download?: boolean,
   channelId?: string | number  // 通道 ID（用于回放控制）
   streamId?: string  // 回放流 ID（用于回放控制）
   customControls?: any  // 保留接口兼容性，EasyPlayerPro 使用内置按钮
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
   autoplay: true,
   isLive: true,
   hasAudio: true,
+  download: false,
   debug: false,
   channelId: '',
   streamId: '',
@@ -86,6 +88,7 @@ const initPlayer = () => {
     container: containerRef.value,
     isLive: props.isLive,
     hasAudio: props.hasAudio,
+    download: props.download,
     isMute: false,
     stretch: true,
     bufferTime: 1,
@@ -138,8 +141,10 @@ const initPlayer = () => {
 
   // 存储到全局对象
   try {
+    console.log('easyplayer options:', options)
     const player = new window.EasyPlayerPro(containerRef.value, options)
       ; (window as any)[playerKey.value] = player
+    console.log('easyplayer instance:', player)
     addCustomControls(player)
   } catch (e) {
     console.error('Failed to create EasyPlayerPro instance:', e)

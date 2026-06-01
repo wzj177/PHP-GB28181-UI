@@ -179,6 +179,12 @@ src/
 - SCSS with global variables from `@/styles/variables.scss`
 - Path alias `@` maps to `src` directory
 
+## Development Rules
+
+- **不要启动开发服务器**：每次开发完功能后，不需要运行 `pnpm dev` 启动项目验证。只需用 `pnpm type-check` 或 `pnpm build` 验证语法正确性即可。
+- **避免防御性编程**：不要为不可能发生的场景添加冗余的错误处理、fallback、参数校验。信任内部代码和框架保证，只在系统边界（用户输入、外部 API）做校验。
+- **不要过度工程**：只做必要的修改，不添加额外的功能、注释、类型标注或抽象。三行相似代码优于一个过早的抽象。
+
 ## Deployment Notes
 
 - Build output can be deployed to any static file server

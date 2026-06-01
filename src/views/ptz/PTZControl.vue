@@ -82,6 +82,11 @@ const cells = ref<Cell[]>(
 const showPlayerDialog = ref(false)
 const playerStreamInfo = ref<any>(null)
 
+const getFirstPlayUrl = (playUrls: Record<string, string | { url?: string } | null | undefined>) => {
+  const value = Object.values(playUrls).find(Boolean)
+  return typeof value === 'string' ? value : value?.url || ''
+}
+
 // Layout options
 const layoutOptions = [1, 4, 6, 9]
 
@@ -233,9 +238,9 @@ const playChannelWithAPI = async (cellIndex: number, channelId: string, deviceId
       if (playerType === 'easyplayer') {
         // EasyPlayerPro supports ALL protocols - prefer WebSocket, fallback to HTTP
         if (isSecurePage) {
-          streamUrl = data.play_urls.wss_flv || data.play_urls.https_flv || data.play_urls.rtcs || data.play_urls.ws_flv || data.play_urls.http_flv || data.play_urls.https_hls || Object.values(data.play_urls).find(url => url)?.url || ''
+          streamUrl = data.play_urls.wss_flv || data.play_urls.https_flv || data.play_urls.rtcs || data.play_urls.ws_flv || data.play_urls.http_flv || data.play_urls.https_hls || getFirstPlayUrl(data.play_urls) || ''
         } else {
-          streamUrl = data.play_urls.ws_flv || data.play_urls.wss_flv || data.play_urls.rtc || data.play_urls.http_flv || data.play_urls.hls || Object.values(data.play_urls).find(url => url)?.url || ''
+          streamUrl = data.play_urls.ws_flv || data.play_urls.wss_flv || data.play_urls.rtc || data.play_urls.http_flv || data.play_urls.hls || getFirstPlayUrl(data.play_urls) || ''
         }
       } else if (playerType === 'jessibuca' || playerType === 'h265web') {
         // Jessibuca and H265Web support: ws_flv, wss_flv, http_flv, https_flv

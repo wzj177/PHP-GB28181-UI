@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, computed, markRaw } from 'vue'
+// @ts-ignore
 import { useRouter, useRoute } from 'vue-router'
 import {
   ElMenu,
@@ -239,7 +240,7 @@ onUnmounted(() => {
             <!-- If the menu item has children, render as a sub-menu -->
             <ElSubMenu
               v-if="item.children && item.children.length > 0"
-              :index="item.id"
+              :index="String(item.id)"
             >
               <template #title>
                 <ElIcon>
@@ -250,7 +251,7 @@ onUnmounted(() => {
               <ElMenuItem
                 v-for="child in item.children"
                 :key="child.id"
-                :index="child.id"
+                :index="String(child.id)"
               >
                 <ElIcon>
                   <component :is="getIconComponent(child.icon || 'Monitor')" />
@@ -261,7 +262,7 @@ onUnmounted(() => {
             <!-- If the menu item has no children, render as a regular menu item -->
             <ElMenuItem
               v-else
-              :index="item.id"
+              :index="String(item.id)"
             >
               <ElIcon>
                 <component :is="getIconComponent(item.icon || 'Monitor')" />
