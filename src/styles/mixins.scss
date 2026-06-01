@@ -1,4 +1,4 @@
-@use 'variables.scss' as *;
+@use './variables';
 
 // Mixins
 @mixin flex-center {
@@ -20,64 +20,64 @@
 }
 
 @mixin panel {
-  background: $bg-panel;
-  border: 1px solid $border-base;
-  border-radius: $radius-panel;
-  padding: $spacing-md;
+  background: variables.$bg-panel;
+  border: 1px solid variables.$border-base;
+  border-radius: variables.$radius-panel;
+  padding: variables.$spacing-md;
 }
 
 @mixin button-base {
   height: 36px;
   background: #020617;
-  border: 1px solid $border-base;
+  border: 1px solid variables.$border-base;
   border-radius: 10px;
-  color: $text-main;
+  color: variables.$text-main;
   cursor: pointer;
   transition: 0.15s;
   padding: 0 12px;
-  
+
   &:hover {
-    border-color: $primary;
-    color: $primary;
+    border-color: variables.$primary;
+    color: variables.$primary;
   }
 }
 
 @mixin button-primary {
-  background: $primary;
-  border-color: $primary;
+  background: variables.$primary;
+  border-color: variables.$primary;
   color: #fff;
-  
+
   &:hover {
-    background: $primary-hover;
-    border-color: $primary-hover;
+    background: variables.$primary-hover;
+    border-color: variables.$primary-hover;
   }
 }
 
 @mixin button-success {
-  background: $success;
-  border-color: $success;
+  background: variables.$success;
+  border-color: variables.$success;
   color: #fff;
-  
+
   &:hover {
     opacity: 0.9;
   }
 }
 
 @mixin button-warning {
-  background: $warning;
-  border-color: $warning;
+  background: variables.$warning;
+  border-color: variables.$warning;
   color: #fff;
-  
+
   &:hover {
     opacity: 0.9;
   }
 }
 
 @mixin button-danger {
-  background: $danger;
-  border-color: $danger;
+  background: variables.$danger;
+  border-color: variables.$danger;
   color: #fff;
-  
+
   &:hover {
     opacity: 0.9;
   }
@@ -85,31 +85,31 @@
 
 // Utility Classes
 .text-main {
-  color: $text-main;
+  color: variables.$text-main;
 }
 
 .text-muted {
-  color: $text-muted;
+  color: variables.$text-muted;
 }
 
 .text-disabled {
-  color: $text-disabled;
+  color: variables.$text-disabled;
 }
 
 .bg-panel {
-  background: $bg-panel;
+  background: variables.$bg-panel;
 }
 
 .border-base {
-  border: 1px solid $border-base;
+  border: 1px solid variables.$border-base;
 }
 
 .radius-panel {
-  border-radius: $radius-panel;
+  border-radius: variables.$radius-panel;
 }
 
 .spacing-md {
-  padding: $spacing-md;
+  padding: variables.$spacing-md;
 }
 
 // Common Layout Classes
@@ -117,25 +117,25 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, $bg-main, $bg-panel);
-  color: $text-main;
+  background: linear-gradient(180deg, variables.$bg-main, variables.$bg-panel);
+  color: variables.$text-main;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
 .page-content {
-  padding: $spacing-md;
+  padding: variables.$spacing-md;
   flex: 1;
   overflow: auto;
 }
 
 .grid-container {
   display: grid;
-  gap: $spacing-md;
+  gap: variables.$spacing-md;
 }
 
 .row-container {
   display: flex;
-  gap: $spacing-md;
+  gap: variables.$spacing-md;
   align-items: center;
 }
 
@@ -147,12 +147,12 @@
 .form-row {
   display: flex;
   align-items: center;
-  gap: $spacing-md;
-  
+  gap: variables.$spacing-md;
+
   .form-label {
     width: 72px;
     font-size: 13px;
-    color: $text-muted;
+    color: variables.$text-muted;
     flex-shrink: 0;
   }
 }
@@ -161,8 +161,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 10px;
-  
-  @media (min-width: $breakpoint-md) {
+
+  @media (min-width: variables.$breakpoint-md) {
     grid-template-columns: repeat(3, 1fr);
   }
 }
@@ -179,22 +179,28 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  background: #020617;
-  border: 1px solid $border-base;
+  background: variables.$bg-active;
+  border: 1px solid variables.$border-base;
   border-radius: 10px;
   font-size: 13px;
-  
+  transition: background 0.15s, border-color 0.15s;
+
   span {
-    color: $text-main;
+    color: variables.$text-main;
+  }
+
+  &:hover {
+    background: variables.$bg-hover;
+    border-color: variables.$border-light;
   }
 }
 
 // Responsive helpers
 .responsive-grid {
   display: grid;
-  gap: $spacing-md;
-  
-  @media (min-width: $breakpoint-md) {
+  gap: variables.$spacing-md;
+
+  @media (min-width: variables.$breakpoint-md) {
     grid-template-columns: 1.2fr 1fr;
   }
 }

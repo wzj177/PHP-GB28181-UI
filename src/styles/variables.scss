@@ -1,21 +1,52 @@
-// Global color variables
-$bg-main:        #0B1220 !default;  // 页面主背景
-$bg-panel:       #0F172A !default;  // 面板 / 树 / 控件背景
-$bg-hover:       #162033 !default;  // hover
-$bg-active:      #1E293B !default;  // 选中
+// Global color variables - 支持亮色/暗色主题切换
 
-$border-base:    #243047 !default;  // 分割线
-$border-primary:    #3B82F6 !default;  // 分割线-主
-$border-light:   #2F3C57 !default;
+// 暗色主题（默认，适合监控场景）
+$dark-bg-main:        #0B1220 !default;  // 页面主背景
+$dark-bg-panel:       #0F172A !default;  // 面板 / 树 / 控件背景
+$dark-bg-hover:       #162033 !default;  // hover
+$dark-bg-active:      #1E293B !default;  // 选中
 
-$text-main:      #E5E7EB !default;  // 主文本
-$text-muted:     #9CA3AF !default;  // 次要
-$text-disabled:  #6B7280 !default;
+$dark-border-base:    #243047 !default;  // 分割线
+$dark-border-primary: #3B82F6 !default;  // 分割线-主
+$dark-border-light:   #2F3C57 !default;
+
+$dark-text-main:      #E5E7EB !default;  // 主文本
+$dark-text-muted:     #9CA3AF !default;  // 次要
+$dark-text-disabled:  #6B7280 !default;
+
+// 亮色主题（白天模式）
+$light-bg-main:        #F3F4F6 !default;  // 页面主背景
+$light-bg-panel:       #FFFFFF !default;  // 面板背景
+$light-bg-hover:       #F9FAFB !default;  // hover
+$light-bg-active:      #E5E7EB !default;  // 选中
+
+$light-border-base:    #E5E7EB !default;  // 分割线
+$light-border-primary: #3B82F6 !default;  // 分割线-主
+$light-border-light:   #F3F4F6 !default;
+
+$light-text-main:      #1F2937 !default;  // 主文本
+$light-text-muted:     #6B7280 !default;  // 次要
+$light-text-disabled:  #9CA3AF !default;
+
+// 默认使用暗色主题变量
+$bg-main:        var(--bg-main, #{$dark-bg-main});
+$bg-panel:       var(--bg-panel, #{$dark-bg-panel});
+$bg-hover:       var(--bg-hover, #{$dark-bg-hover});
+$bg-active:      var(--bg-active, #{$dark-bg-active});
+
+$border-base:    var(--border-base, #{$dark-border-base});
+$border-primary: var(--border-primary, #{$dark-border-primary});
+$border-light:   var(--border-light, #{$dark-border-light});
+
+$text-main:      var(--text-main, #{$dark-text-main});
+$text-muted:     var(--text-muted, #{$dark-text-muted});
+$text-disabled:  var(--text-disabled, #{$dark-text-disabled});
 
 $primary:        #3B82F6 !default;  // 操作蓝
 $primary-hover:  #2563EB !default;
 
 $success:        #22C55E !default;  // 在线
+$info:           #60A5FA !default;  // 信息类
 $warning:        #F59E0B !default;  // 异常
 $danger:         #EF4444 !default;  // 离线
 

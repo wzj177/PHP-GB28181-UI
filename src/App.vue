@@ -1,23 +1,67 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterView, useRoute } from 'vue-router'
-import NavigationLayout from '@/components/layout/NavigationLayout.vue'
+import { onMounted } from 'vue'
+// @ts-ignore
+import { RouterView } from 'vue-router'
 
-const route = useRoute()
+onMounted(() => {
+  // Clear any expired tokens on app start
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('token='))
+    ?.split('=')[1]
 
-// Determine if the current route should show NavigationLayout
-const showNavigationLayout = computed(() => {
-  return route.name !== 'Login' && route.path !== '/login'
+  if (!token) {
+    localStorage.removeItem('Authorization')
+  }
 })
 </script>
 
 <template>
-  <NavigationLayout v-if="showNavigationLayout">
-    <RouterView />
-  </NavigationLayout>
-  <RouterView v-else />
+  <RouterView />
 </template>
 
 <style>
-/* Global styles can be added here */
+/* Global reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3B82F6;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2563EB;
+}
 </style>

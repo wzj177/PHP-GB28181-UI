@@ -1,0 +1,418 @@
+{
+  "menus": [
+    {
+      "id": "dashboard",
+      "name": "仪表盘",
+      "icon": "House",
+      "path": "/dashboard",
+      "component": "Dashboard",
+      "title": "仪表盘",
+      "parentId": 0,
+      "sort": 1,
+      "type": "menu"
+    },
+    {
+      "id": "monitoring",
+      "name": "系统监控",
+      "icon": "TrendCharts",
+      "path": "/system-monitor",
+      "component": "SystemMonitor",
+      "title": "系统监控",
+      "parentId": 0,
+      "sort": 2,
+      "type": "directory",
+      "children": [
+        {
+          "id": "system-stats",
+          "name": "系统统计",
+          "icon": "DataAnalysis",
+          "path": "/system-stats",
+          "component": "SystemStats",
+          "title": "系统统计",
+          "parentId": "monitoring",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "device-stats",
+          "name": "设备统计",
+          "icon": "DataLine",
+          "path": "/device-stats",
+          "component": "DeviceStats",
+          "title": "设备统计",
+          "parentId": "monitoring",
+          "sort": 2,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "media-management",
+      "name": "流媒体管理",
+      "icon": "VideoCamera",
+      "path": "/media-management",
+      "component": "",
+      "title": "流媒体管理",
+      "parentId": 0,
+      "sort": 3,
+      "type": "directory",
+      "children": [
+        {
+          "id": "media-server-list",
+          "name": "流媒体服务器",
+          "icon": "Connection",
+          "path": "/media-servers",
+          "component": "MediaServerList",
+          "title": "流媒体服务器",
+          "parentId": "media-management",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "media-server-config",
+          "name": "网关配置",
+          "icon": "Setting",
+          "path": "/media-server-config/:id",
+          "component": "MediaServerConfig",
+          "title": "网关配置",
+          "parentId": "media-management",
+          "sort": 2,
+          "type": "path"
+        },
+        {
+          "id": "media-server-stats",
+          "name": "状态查询",
+          "icon": "DataAnalysis",
+          "path": "/media-server-stats/:id",
+          "component": "MediaServerStats",
+          "title": "状态查询",
+          "parentId": "media-management",
+          "sort": 3,
+          "type": "path"
+        }
+      ]
+    },
+    {
+      "id": "gb-device",
+      "name": "国标设备",
+      "icon": "Monitor",
+      "path": "/gb-device",
+      "component": "",
+      "title": "国标设备",
+      "parentId": 0,
+      "sort": 4,
+      "type": "directory",
+      "children": [
+        {
+          "id": "device-list",
+          "name": "设备列表",
+          "icon": "List",
+          "path": "/devices",
+          "component": "DeviceList",
+          "title": "设备列表",
+          "parentId": "gb-device",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "channel-list",
+          "name": "通道列表",
+          "icon": "Files",
+          "path": "/channels",
+          "component": "ChannelList",
+          "title": "通道列表",
+          "parentId": "gb-device",
+          "sort": 2,
+          "type": "menu"
+        },
+        {
+          "id": "ptz-control",
+          "name": "云台控制",
+          "icon": "VideoCamera",
+          "path": "/ptz-control",
+          "component": "PTZControl",
+          "title": "云台控制",
+          "parentId": "gb-device",
+          "sort": 3,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "stream-proxy-mgmt",
+      "name": "推拉流管理",
+      "icon": "Connection",
+      "path": "/stream-proxy-mgmt",
+      "component": "",
+      "title": "推拉流管理",
+      "parentId": 0,
+      "sort": 5,
+      "type": "directory",
+      "children": [
+        {
+          "id": "stream-proxy-list",
+          "name": "设备列表",
+          "icon": "List",
+          "path": "/stream-proxy",
+          "component": "StreamProxyList",
+          "title": "设备列表",
+          "parentId": "stream-proxy-mgmt",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "stream-proxy-logs",
+          "name": "日志列表",
+          "icon": "Document",
+          "path": "/stream-proxy-logs",
+          "component": "StreamProxyLogList",
+          "title": "日志列表",
+          "parentId": "stream-proxy-mgmt",
+          "sort": 2,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "video",
+      "name": "云端录像",
+      "icon": "VideoPlay",
+      "path": "/video",
+      "component": "VideoManagement",
+      "title": "云端录像",
+      "parentId": 0,
+      "sort": 6,
+      "type": "directory",
+      "children": [
+        {
+          "id": "video-list",
+          "name": "录像回放",
+          "icon": "VideoCamera",
+          "path": "/video-list",
+          "component": "VideoPlayback",
+          "title": "录像回放",
+          "parentId": "video",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "video-player",
+          "name": "视频播放",
+          "icon": "Play",
+          "path": "/video-playback/:deviceId",
+          "component": "VideoTimeline",
+          "title": "视频播放",
+          "parentId": "video",
+          "sort": 2,
+          "type": "path"
+        },
+        {
+          "id": "record-plan",
+          "name": "录像计划",
+          "icon": "Calendar",
+          "path": "/record-plan",
+          "component": "RecordPlanList",
+          "title": "录像计划",
+          "parentId": "video",
+          "sort": 3,
+          "type": "menu"
+        },
+        {
+          "id": "cloud-recordings",
+          "name": "录像文件",
+          "icon": "Film",
+          "path": "/cloud-recordings",
+          "component": "RecordingsList",
+          "title": "录像文件",
+          "parentId": "video",
+          "sort": 4,
+          "type": "menu"
+        },
+        {
+          "id": "record-tasks",
+          "name": "回放下载",
+          "icon": "List",
+          "path": "/record-tasks",
+          "component": "RecordTaskList",
+          "title": "回放下载",
+          "parentId": "video",
+          "sort": 5,
+          "type": "menu"
+        },
+        {
+          "id": "record-merge",
+          "name": "录像合并",
+          "icon": "Merge",
+          "path": "/record-merge",
+          "component": "RecordMergeList",
+          "title": "录像合并",
+          "parentId": "video",
+          "sort": 6,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "sip-gateway",
+      "name": "SIP 网关管理",
+      "icon": "Connection",
+      "path": "/sip-gateway",
+      "component": "",
+      "title": "SIP 网关管理",
+      "parentId": 0,
+      "sort": 10,
+      "type": "directory",
+      "children": [
+        {
+          "id": "sip-gateway-list",
+          "name": "网关列表",
+          "icon": "List",
+          "path": "/sip-gateway-list",
+          "component": "SipGatewayList",
+          "title": "网关列表",
+          "parentId": "sip-gateway",
+          "sort": 1,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "alarms",
+      "name": "报警管理",
+      "icon": "Bell",
+      "path": "/alarms",
+      "component": "",
+      "title": "报警管理",
+      "parentId": 0,
+      "sort": 8,
+      "type": "directory",
+      "children": [
+        {
+          "id": "alarm-plans",
+          "name": "报警计划",
+          "icon": "Calendar",
+          "path": "/alarm-plans",
+          "component": "AlarmPlanList",
+          "title": "报警计划",
+          "parentId": "alarms",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "alarm-events",
+          "name": "报警事件",
+          "icon": "Warning",
+          "path": "/alarm-events",
+          "component": "AlarmEventList",
+          "title": "报警事件",
+          "parentId": "alarms",
+          "sort": 2,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "map",
+      "name": "电子地图",
+      "icon": "MapLocation",
+      "path": "/map",
+      "component": "ElectronicMap",
+      "title": "电子地图",
+      "parentId": 0,
+      "sort": 9,
+      "type": "menu"
+    },
+    {
+      "id": "system",
+      "name": "系统管理",
+      "icon": "Setting",
+      "path": "/system",
+      "component": "",
+      "title": "系统管理",
+      "parentId": 0,
+      "sort": 11,
+      "type": "directory",
+      "children": [
+        {
+          "id": "system-logs",
+          "name": "系统日志",
+          "icon": "Document",
+          "path": "/system-logs",
+          "component": "SystemLogs",
+          "title": "系统日志",
+          "parentId": "system",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "attachment-list",
+          "name": "附件管理",
+          "icon": "Files",
+          "path": "/attachments",
+          "component": "AttachmentList",
+          "title": "附件管理",
+          "parentId": "system",
+          "sort": 2,
+          "type": "menu"
+        },
+        {
+          "id": "system-settings",
+          "name": "系统设置",
+          "icon": "Tools",
+          "path": "/system-settings",
+          "component": "SystemSettings",
+          "title": "系统设置",
+          "parentId": "system",
+          "sort": 3,
+          "type": "menu"
+        }
+      ]
+    },
+    {
+      "id": "permission",
+      "name": "权限管理",
+      "icon": "Lock",
+      "path": "/permission",
+      "component": "",
+      "title": "权限管理",
+      "parentId": 0,
+      "sort": 12,
+      "type": "directory",
+      "children": [
+        {
+          "id": "user-management",
+          "name": "用户管理",
+          "icon": "User",
+          "path": "/user-management",
+          "component": "UserManagement",
+          "title": "用户管理",
+          "parentId": "permission",
+          "sort": 1,
+          "type": "menu"
+        },
+        {
+          "id": "role-management",
+          "name": "角色管理",
+          "icon": "UserFilled",
+          "path": "/role-management",
+          "component": "RoleManagement",
+          "title": "角色管理",
+          "parentId": "permission",
+          "sort": 2,
+          "type": "menu"
+        },
+        {
+          "id": "menu-management",
+          "name": "菜单管理",
+          "icon": "Menu",
+          "path": "/menu-management",
+          "component": "MenuManagement",
+          "title": "菜单管理",
+          "parentId": "permission",
+          "sort": 3,
+          "type": "menu"
+        }
+      ]
+    }
+  ]
+}

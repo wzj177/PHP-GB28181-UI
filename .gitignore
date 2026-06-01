@@ -1,7 +1,10 @@
 # Dependencies
+
+deploy.sh
 node_modules/
 .pnpm-store/
 
+.claude
 # Environment
 .env
 .env*.local
@@ -91,3 +94,5 @@ desktop.ini
 # Lock files
 pnpm-lock.yaml
 yarn.lock
+
+docs/EasyPlayer.js

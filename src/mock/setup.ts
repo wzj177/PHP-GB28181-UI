@@ -1,9 +1,7 @@
 // src/mock/setup.ts
 import Mock from './index'
-import { enableProdMode } from 'mockjs'
 
 // Determine if we need to mock based on environment
-const isMockEnabled = import.meta.env.VITE_MOCK_ENABLED !== 'false'
 
 if (isMockEnabled && import.meta.env.DEV) {
   Mock.setup({
@@ -11,7 +9,9 @@ if (isMockEnabled && import.meta.env.DEV) {
   })
   console.log('Mock enabled')
 } else {
-  enableProdMode() // Enable production mode for Mock.js
+  Mock.setup({
+    timeout: 0
+  }) // Disable mock in production
   console.log('Mock disabled')
 }
 

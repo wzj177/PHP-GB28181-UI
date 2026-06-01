@@ -70,69 +70,78 @@
             >
               ↘
             </div>
-            <div class="center">PTZ</div>
+            <div class="center">
+              PTZ
+            </div>
           </div>
 
           <div class="controls">
             <div class="row">
               <span class="label">速度</span>
-              <ElSlider v-model="speed" :min="1" :max="10" :step="1" show-stops />
+              <ElSlider
+                v-model="speed"
+                :min="1"
+                :max="10"
+                :step="1"
+                show-stops
+              />
             </div>
 
             <div class="btn-group">
               <ElButton
+                size="small"
                 @mousedown="startZoomCommand('tele')"
                 @mouseup="stopZoomCommand()"
-                size="small"
+                @mouseleave="stopZoomCommand()"
               >
                 变倍 +
               </ElButton>
               <ElButton
+                size="small"
                 @mousedown="startZoomCommand('wide')"
                 @mouseup="stopZoomCommand()"
-                size="small"
+                @mouseleave="stopZoomCommand()"
               >
                 变倍 −
               </ElButton>
-              <ElButton @click="focusCommand('auto')" size="small">
-                自动对焦
-              </ElButton>
               <ElButton
-                @mousedown="startFocusCommand('far')"
-                @mouseup="stopFocusCommand()"
                 size="small"
+                @mousedown="startFocusCommand('focus_far')"
+                @mouseup="stopFocusCommand()"
+                @mouseleave="stopFocusCommand()"
               >
                 远焦
               </ElButton>
               <ElButton
-                @mousedown="startFocusCommand('near')"
-                @mouseup="stopFocusCommand()"
                 size="small"
+                @mousedown="startFocusCommand('focus_near')"
+                @mouseup="stopFocusCommand()"
+                @mouseleave="stopFocusCommand()"
               >
                 近焦
               </ElButton>
-              <ElButton @click="irisCommand('open')" size="small">
-                光圈
+              <ElButton
+                size="small"
+                @click="irisCommand('iris_open')"
+              >
+                光圈 +
+              </ElButton>
+              <ElButton
+                size="small"
+                @click="irisCommand('iris_close')"
+              >
+                光圈 -
               </ElButton>
             </div>
 
             <div class="voice-speak">
-              <h3 style="margin-top: 16px">语音对讲</h3>
-              <div class="talk">
-                <ElButton
-                  type="primary"
-                  :disabled="isTalkActive"
-                  @click="startTalk()"
-                >
-                  开始对讲
-                </ElButton>
-                <ElButton
-                  :disabled="!isTalkActive"
-                  @click="stopTalk()"
-                >
-                  停止
-                </ElButton>
-              </div>
+              <VoiceTalkControl
+                ref="voiceTalkRef"
+                :device-id="ids?.deviceId || ''"
+                :channel-id="ids?.channelId || ''"
+                :debug="false"
+                title="语音对讲"
+              />
             </div>
           </div>
         </div>
@@ -140,33 +149,172 @@
 
       <!-- 预置位 -->
       <div class="panel">
-        <h3>预置位（1–255）</h3>
-        <div class="preset-list" id="presetList">
-          <div v-for="i in 255" :key="i" class="preset">
-            <span>{{
-              presetNames[i] ? i + " · " + presetNames[i] : i + " · 未设置"
-            }}</span>
+        <div class="panel-header">
+          <h3>预置位（1–255）</h3>
+          <ElButton
+            size="small"
+            :loading="queryingPresetsFromDevice"
+            @click="queryPresetsFromDevice()"
+          >
+            从设备查询
+          </ElButton>
+        </div>
+        <div
+          id="presetList"
+          class="preset-list"
+        >
+          <div
+            v-for="i in 255"
+            :key="i"
+            class="preset"
+          >
+            <span v-if="isPresetSet(i)">{{ i }} · {{ getPresetName(i) }}</span>
+            <span v-else>{{ i }} · 预置位{{ i }}</span>
             <div>
-              <ElButton @click="gotoPreset(i)" size="small" type="primary">调用</ElButton>
-              <ElButton @click="setPreset(i)" size="small">设置</ElButton>
+              <ElButton
+                v-if="isPresetSet(i)"
+                size="small"
+                type="primary"
+                @click="gotoPreset(i)"
+              >
+                调用
+              </ElButton>
+              <ElButton
+                v-if="isPresetSet(i)"
+                size="small"
+                type="danger"
+                @click="deletePreset(i)"
+              >
+                删除
+              </ElButton>
+              <ElButton
+                v-if="!isPresetSet(i)"
+                size="small"
+                type="success"
+                :loading="settingPresets.has(i)"
+                @click="setPreset(i)"
+              >
+                设置
+              </ElButton>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- 扩展控制区 -->
+    <div class="grid-ext">
+      <!-- 设备快捷控制 -->
+      <div class="panel">
+        <h3>设备控制</h3>
+        <div class="ext-btn-group">
+          <div class="ext-row">
+            <span class="ext-label">布防</span>
+            <div class="btn-group">
+              <ElButton size="small" type="warning" @click="deviceGuard('SetGuard')">布防</ElButton>
+              <ElButton size="small" @click="deviceGuard('ResetGuard')">撤防</ElButton>
+            </div>
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">雨刷</span>
+            <div class="btn-group">
+              <ElButton size="small" @click="deviceWiper(true)">开启</ElButton>
+              <ElButton size="small" @click="deviceWiper(false)">关闭</ElButton>
+            </div>
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">辅助开关</span>
+            <div class="btn-group">
+              <ElInputNumber v-model="auxSwitchId" :min="1" :max="255" size="small" style="width:80px" />
+              <ElButton size="small" @click="deviceAuxSwitch(true)">打开</ElButton>
+              <ElButton size="small" @click="deviceAuxSwitch(false)">关闭</ElButton>
+            </div>
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">其他</span>
+            <div class="btn-group">
+              <ElButton size="small" @click="deviceAlarmReset()">报警复位</ElButton>
+              <ElButton size="small" @click="deviceIframe()">强制I帧</ElButton>
+              <ElButton size="small" type="danger" @click="deviceReboot()">远程重启</ElButton>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 看守位设置 -->
+      <div class="panel">
+        <h3>看守位设置</h3>
+        <div class="ext-btn-group">
+          <div class="ext-row">
+            <span class="ext-label">预置位编号</span>
+            <ElInputNumber v-model="homePresetIndex" :min="1" :max="255" size="small" />
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">归位延时(s)</span>
+            <ElInputNumber v-model="homeResetTime" :min="0" :max="3600" size="small" />
+          </div>
+          <div class="btn-group" style="margin-top:8px">
+            <ElButton size="small" type="primary" @click="deviceHomePosition(1)">启用看守位</ElButton>
+            <ElButton size="small" @click="deviceHomePosition(0)">关闭看守位</ElButton>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自动扫描 -->
+      <div class="panel">
+        <h3>自动扫描</h3>
+        <div class="ext-btn-group">
+          <div class="ext-row">
+            <span class="ext-label">扫描组号</span>
+            <ElInputNumber v-model="scanGroupId" :min="0" :max="255" size="small" />
+          </div>
+          <div class="ext-row">
+            <span class="ext-label">扫描速度</span>
+            <ElInputNumber v-model="scanSpeed" :min="1" :max="255" size="small" />
+          </div>
+          <div class="btn-group" style="margin-top:8px">
+            <ElButton size="small" type="primary" @click="scanControl('scan_start')">开始扫描</ElButton>
+            <ElButton size="small" @click="scanControl('scan_stop')">停止扫描</ElButton>
+          </div>
+          <div class="btn-group" style="margin-top:6px">
+            <ElButton size="small" @click="scanControl('scan_set_left')">设左边界</ElButton>
+            <ElButton size="small" @click="scanControl('scan_set_right')">设右边界</ElButton>
+            <ElButton size="small" @click="scanControl('scan_set_speed')">设扫描速度</ElButton>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 巡航 -->
-    <div class="panel" style="width: 100%; margin-top: 16px;">
+    <!-- <div
+      class="panel"
+      style="width: 100%; margin-top: 16px;"
+    >
       <ElRow>
         <ElCol :span="12">
-          <h3 style="margin-top: 0;">巡航（Cruise）</h3>
+          <h3 style="margin-top: 0;">
+            巡航（Cruise）
+          </h3>
           <div class="controls">
             <div class="row">
               <span class="label">巡航号</span>
-              <ElSelect v-model="cruiseId" @change="loadCruisePoints()" size="small">
-                <ElOption value="1" label="巡航 1" />
-                <ElOption value="2" label="巡航 2" />
-                <ElOption value="3" label="巡航 3" />
+              <ElSelect
+                v-model="cruiseId"
+                size="small"
+                @change="loadCruisePoints()"
+              >
+                <ElOption
+                  value="1"
+                  label="巡航 1"
+                />
+                <ElOption
+                  value="2"
+                  label="巡航 2"
+                />
+                <ElOption
+                  value="3"
+                  label="巡航 3"
+                />
               </ElSelect>
             </div>
 
@@ -191,34 +339,58 @@
             </div>
 
             <div class="btn-group">
-              <ElButton @click="addToCruise()" type="primary">加入巡航</ElButton>
-              <ElButton @click="startCruise()" type="success">开始巡航</ElButton>
-              <ElButton @click="stopCruise()" type="danger">停止巡航</ElButton>
+              <ElButton
+                type="primary"
+                @click="addToCruise()"
+              >
+                加入巡航
+              </ElButton>
+              <ElButton
+                type="success"
+                @click="startCruise()"
+              >
+                开始巡航
+              </ElButton>
+              <ElButton
+                type="danger"
+                @click="stopCruise()"
+              >
+                停止巡航
+              </ElButton>
             </div>
           </div>
         </ElCol>
         <ElCol :span="12">
           <div style="margin-top: 0;">
             <h3>巡航点列表</h3>
-            <div class="preset-list" id="cruisePointList">
+            <div
+              id="cruisePointList"
+              class="preset-list"
+            >
               <div
                 v-for="(point, index) in cruisePoints"
                 :key="index"
                 class="preset"
               >
                 <span>预置位 {{ point }} - 位置 {{ index + 1 }}</span>
-                <ElButton @click="removeFromCruise(index)" size="small" type="danger">移除</ElButton>
+                <ElButton
+                  size="small"
+                  type="danger"
+                  @click="removeFromCruise(index)"
+                >
+                  移除
+                </ElButton>
               </div>
             </div>
           </div>
         </ElCol>
       </ElRow>
-    </div>
+    </div> -->
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, defineProps } from "vue";
+import { ref, defineProps, onMounted, watch, computed } from "vue";
 import {
   ElSlider,
   ElButton,
@@ -227,8 +399,11 @@ import {
   ElOption,
   ElRow,
   ElCol,
-  ElMessage
+  ElMessage,
+  ElMessageBox
 } from 'element-plus';
+import { gb28181Api } from '@/api/gb28181Api';
+import VoiceTalkControl from './VoiceTalkControl.vue';
 
 // Define props for component communication
 interface Props {
@@ -239,139 +414,492 @@ const props = withDefaults(defineProps<Props>(), {
   channelId: "",
 });
 
+// 预置位数据接口
+interface Preset {
+  id: number;
+  device_id: string;
+  channel_id: string;
+  value: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // State variables
-const speed = ref(5);
-const presetNames = reactive({
-  1: "大门入口",
-  2: "停车场",
-  5: "走廊",
-});
+const speed = ref(5);  // Speed range: 1-255
+const isPtzActive = ref(false);  // Track if PTZ command is active (mouse was pressed)
+const presets = ref<Preset[]>([]);  // 从后端获取的预置位列表
+const settingPresets = ref<Set<number>>(new Set());  // 正在设置中的预置位
 const cruiseId = ref("1");
 const cruiseStay = ref(5);
 const cruiseSpeed = ref(4);
 const cruisePoints = ref<number[]>([]);
-const isTalkActive = ref(false);
+
+// 扩展控制状态
+const auxSwitchId = ref(1);
+const homePresetIndex = ref(1);
+const homeResetTime = ref(0);
+const scanGroupId = ref(0);
+const scanSpeed = ref(50);
+const queryingPresetsFromDevice = ref(false);
+
+// Voice talk control ref
+const voiceTalkRef = ref<{ canStop: { value: boolean }; stop: () => Promise<void>; isConnected: { value: boolean } } | null>(null);
+
+// 创建预置位映射表，方便查找
+const presetMap = computed(() => {
+  const map = new Map<number, Preset>();
+  presets.value.forEach(preset => {
+    map.set(preset.value, preset);
+  });
+  return map;
+});
+
+// Helper function to parse channelId
+// Format: {device_id}-{channel_id}
+const parseChannelId = () => {
+  if (!props.channelId) {
+    return null;
+  }
+
+  const parts = props.channelId.split('-');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  return {
+    deviceId: parts[0],
+    channelId: parts[1]
+  };
+};
+
+// Computed property for voice talk component
+const ids = computed(() => parseChannelId());
 
 // PTZ control functions
-const startPtzCommand = (direction: string) => {
-  ElMessage.info(`开始 ${direction} 方向 PTZ 控制`);
-  console.log(
-    `START_PTZ_${direction.toUpperCase()}`,
-    speed.value,
-    props.channelId
-  );
-  // Send PTZ command to backend/api
+const startPtzCommand = async (direction: string) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    return;  // Silent fail on hover
+  }
+
+  try {
+    await gb28181Api.ptzControl({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      command: direction,
+      speed: speed.value
+    });
+    isPtzActive.value = true;  // Mark as active
+    console.log(`PTZ ${direction} started with speed ${speed.value}`);
+  } catch (error: any) {
+    console.error('PTZ 控制命令发送失败:', error);
+    ElMessage.error(error.message || `发送 PTZ 控制命令失败: ${direction}`);
+  }
 };
 
-const stopPtzCommand = () => {
-  ElMessage.info("停止 PTZ 控制");
-  console.log("STOP_PTZ_COMMAND", props.channelId);
-  // Send stop command to backend/api
+const stopPtzCommand = async () => {
+  // Only send stop command if PTZ was actually started
+  if (!isPtzActive.value) {
+    return;
+  }
+
+  const ids = parseChannelId();
+  if (!ids) {
+    return;
+  }
+
+  try {
+    await gb28181Api.ptzControl({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      command: 'stop',
+      speed: speed.value
+    });
+    console.log('PTZ stopped');
+  } catch (error: any) {
+    console.error('停止 PTZ 控制命令发送失败:', error);
+    ElMessage.error(error.message || '发送停止 PTZ 控制命令失败');
+  } finally {
+    isPtzActive.value = false;  // Reset flag
+  }
 };
 
-const startZoomCommand = (zoomDirection: string) => {
-  ElMessage.info(`开始变倍 ${zoomDirection}`);
-  console.log(`START_ZOOM_${zoomDirection.toUpperCase()}`, props.channelId);
-  // Send zoom command to backend/api
+const startZoomCommand = async (zoomDirection: string) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    return;  // Silent fail on hover
+  }
+
+  try {
+    await gb28181Api.ptzControl({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      command: zoomDirection === 'tele' ? 'zoom_in' : 'zoom_out',
+      speed: speed.value
+    });
+    isPtzActive.value = true;  // Mark as active
+    console.log(`Zoom ${zoomDirection} started with speed ${speed.value}`);
+  } catch (error: any) {
+    console.error('变倍控制命令发送失败:', error);
+    ElMessage.error(error.message || `发送变倍控制命令失败: ${zoomDirection}`);
+  }
 };
 
-const stopZoomCommand = () => {
-  ElMessage.info("停止变倍");
-  console.log("STOP_ZOOM_COMMAND", props.channelId);
-  // Send stop zoom command to backend/api
+const stopZoomCommand = async () => {
+  await stopPtzCommand();
 };
 
-const focusCommand = (focusType: string) => {
-  ElMessage.info(`${focusType} 对焦`);
-  console.log(`FOCUS_${focusType.toUpperCase()}`, props.channelId);
-  // Send focus command to backend/api
+// Focus commands
+const startFocusCommand = async (focusDirection: string) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    return;
+  }
+
+  try {
+    await gb28181Api.ptzControl({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      command: focusDirection,
+      speed: speed.value
+    });
+    isPtzActive.value = true;
+    console.log(`Focus ${focusDirection} started`);
+  } catch (error: any) {
+    console.error('对焦控制命令发送失败:', error);
+    ElMessage.error(error.message || '发送对焦控制命令失败');
+  }
 };
 
-const startFocusCommand = (focusDirection: string) => {
-  ElMessage.info(`开始 ${focusDirection} 对焦`);
-  console.log(`START_FOCUS_${focusDirection.toUpperCase()}`, props.channelId);
-  // Send focus command to backend/api
+const stopFocusCommand = async () => {
+  await stopPtzCommand();
 };
 
-const stopFocusCommand = () => {
-  ElMessage.info("停止对焦");
-  console.log("STOP_FOCUS_COMMAND", props.channelId);
-  // Send stop focus command to backend/api
+// Iris commands
+const irisCommand = async (irisType: string) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  try {
+    await gb28181Api.ptzControl({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      command: irisType,
+      speed: speed.value
+    });
+    console.log(`Iris ${irisType} executed`);
+  } catch (error: any) {
+    console.error('光圈控制命令发送失败:', error);
+    ElMessage.error(error.message || '发送光圈控制命令失败');
+  }
 };
 
-const irisCommand = (irisType: string) => {
-  ElMessage.info(`光圈 ${irisType}`);
-  console.log(`IRIS_${irisType.toUpperCase()}`, props.channelId);
-  // Send iris command to backend/api
+// Preset commands
+const getPresetName = (value: number): string => {
+  const preset = presetMap.value.get(value);
+  return preset?.name || '';
 };
 
-// Preset functions
-const gotoPreset = (id: number) => {
-  ElMessage.info(`调用预置位 ${id}`);
-  console.log("GOTO_PRESET", id, props.channelId);
-  // Send GB28181 call preset command
+// 检查预置位是否已设置（记录是否存在）
+const isPresetSet = (value: number): boolean => {
+  return presetMap.value.has(value);
 };
 
-const setPreset = (id: number) => {
-  ElMessage.info(`设置预置位 ${id}`);
-  console.log("SET_PRESET", id, props.channelId);
-  // Send GB28181 set preset command
+// 加载预置位列表
+const loadPresetList = async () => {
+  const ids = parseChannelId();
+  if (!ids) {
+    return;
+  }
+
+  try {
+    const data = await gb28181Api.getPresetList({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId
+    });
+    presets.value = data || [];
+    console.log('预置位列表加载成功:', presets.value.length, '个预置位');
+  } catch (error: any) {
+    console.error('加载预置位列表失败:', error);
+    presets.value = [];
+  }
 };
 
-// Cruise functions
-const loadCruisePoints = () => {
-  ElMessage.info("加载巡航点");
-  console.log("LOAD_CRUISE_POINTS", cruiseId.value, props.channelId);
-  // Load saved cruise points from backend
+// 调用预置位
+const gotoPreset = async (value: number) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  try {
+    await gb28181Api.callPreset({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      value
+    });
+    ElMessage.success(`预置位 ${value} 调用成功`);
+  } catch (error: any) {
+    console.error('调用预置位失败:', error);
+    ElMessage.error(error.message || '调用预置位失败');
+  }
+};
+
+// 设置预置位
+const setPreset = async (value: number) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  const name = `预置位${value}`;
+
+  try {
+    settingPresets.value.add(value);
+    await gb28181Api.setPreset({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      value,
+      name
+    });
+    ElMessage.success(`预置位 ${value} 设置成功`);
+    await loadPresetList();  // 重新加载预置位列表
+  } catch (error: any) {
+    console.error('设置预置位失败:', error);
+    ElMessage.error(error.message || '设置预置位失败');
+  } finally {
+    settingPresets.value.delete(value);
+  }
+};
+
+// 删除预置位
+const deletePreset = async (value: number) => {
+  const ids = parseChannelId();
+  if (!ids) {
+    ElMessage.warning('请先选择通道');
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除预置位 ${value} 吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+
+    await gb28181Api.deletePreset({
+      device_id: ids.deviceId,
+      channel_id: ids.channelId,
+      value
+    });
+    ElMessage.success(`预置位 ${value} 删除成功`);
+    await loadPresetList();  // 重新加载预置位列表
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('删除预置位失败:', error);
+      ElMessage.error(error.message || '删除预置位失败');
+    }
+  }
+};
+
+// ===== 扩展设备控制函数 =====
+
+const deviceReboot = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await ElMessageBox.confirm('确定要远程重启该设备吗？', '重启确认', {
+      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
+    });
+    await gb28181Api.deviceReboot({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('重启命令已发送');
+  } catch (error: any) {
+    if (error !== 'cancel') ElMessage.error(error.message || '发送重启命令失败');
+  }
+};
+
+const deviceGuard = async (action: 'SetGuard' | 'ResetGuard') => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceGuard({ device_id: ids.deviceId, channel_id: ids.channelId, action });
+    ElMessage.success(action === 'SetGuard' ? '布防命令已发送' : '撤防命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '布防/撤防命令发送失败');
+  }
+};
+
+const deviceAlarmReset = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceAlarmReset({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('报警复位命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '报警复位命令发送失败');
+  }
+};
+
+const deviceIframe = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceIframe({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('强制关键帧命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '强制关键帧命令发送失败');
+  }
+};
+
+const deviceWiper = async (on: boolean) => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceWiper({ device_id: ids.deviceId, channel_id: ids.channelId, on });
+    ElMessage.success(on ? '雨刷开启命令已发送' : '雨刷关闭命令已发送');
+  } catch (error: any) {
+    ElMessage.error(error.message || '雨刷控制命令发送失败');
+  }
+};
+
+const deviceAuxSwitch = async (on: boolean) => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceAuxSwitch({
+      device_id: ids.deviceId, channel_id: ids.channelId,
+      switch_id: auxSwitchId.value, on
+    });
+    ElMessage.success(`辅助开关 ${auxSwitchId.value} ${on ? '打开' : '关闭'} 命令已发送`);
+  } catch (error: any) {
+    ElMessage.error(error.message || '辅助开关控制命令发送失败');
+  }
+};
+
+const deviceHomePosition = async (enabled: 0 | 1) => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.deviceHomePosition({
+      device_id: ids.deviceId, channel_id: ids.channelId,
+      enabled, reset_time: homeResetTime.value, preset_index: homePresetIndex.value
+    });
+    ElMessage.success(enabled ? '看守位已启用' : '看守位已关闭');
+  } catch (error: any) {
+    ElMessage.error(error.message || '看守位命令发送失败');
+  }
+};
+
+const scanControl = async (action: 'scan_start' | 'scan_stop' | 'scan_set_left' | 'scan_set_right' | 'scan_set_speed') => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  try {
+    await gb28181Api.scanControl({
+      device_id: ids.deviceId, channel_id: ids.channelId,
+      action, group_id: scanGroupId.value,
+      ...(action === 'scan_set_speed' ? { speed: scanSpeed.value } : {})
+    });
+    const actionLabels: Record<string, string> = {
+      scan_start: '开始扫描', scan_stop: '停止扫描',
+      scan_set_left: '设置左边界', scan_set_right: '设置右边界', scan_set_speed: '设置扫描速度'
+    };
+    ElMessage.success(`${actionLabels[action] || action} 命令已发送`);
+  } catch (error: any) {
+    ElMessage.error(error.message || '扫描控制命令发送失败');
+  }
+};
+
+const queryPresetsFromDevice = async () => {
+  const ids = parseChannelId();
+  if (!ids) { ElMessage.warning('请先选择通道'); return; }
+  queryingPresetsFromDevice.value = true;
+  try {
+    await gb28181Api.queryPresetsFromDevice({ device_id: ids.deviceId, channel_id: ids.channelId });
+    ElMessage.success('预置位查询命令已发送，设备将异步返回结果，稍后刷新列表');
+    // 延迟 2s 后重新拉取预置位列表（设备异步返回）
+    setTimeout(() => loadPresetList(), 2000);
+  } catch (error: any) {
+    ElMessage.error(error.message || '预置位查询命令发送失败');
+  } finally {
+    queryingPresetsFromDevice.value = false;
+  }
+};
+
+// Cruise commands (not implemented in current API)
+const loadCruisePoints = async () => {
+  ElMessage.info('巡航功能暂未实现');
 };
 
 const addToCruise = (id: number = 1) => {
-  // Simple implementation - in reality, this would add the current preset
-  // For now we'll just simulate adding presets to the cruise
-  const nextPreset = (cruisePoints.value.length + 1) % 255;
-  cruisePoints.value.push(nextPreset || 1);
-  ElMessage.success(`添加预置位 ${nextPreset} 到巡航`);
-  console.log("ADD_TO_CRUISE", nextPreset, props.channelId);
+  ElMessage.info('巡航功能暂未实现');
 };
 
-const startCruise = () => {
-  ElMessage.success("开始巡航");
-  console.log("START_CRUISE", {
-    id: cruiseId.value,
-    stay: cruiseStay.value,
-    speed: cruiseSpeed.value,
-    points: cruisePoints.value,
-    channelId: props.channelId,
-  });
-  // Send start cruise command to backend
+const startCruise = async () => {
+  ElMessage.info('巡航功能暂未实现');
 };
 
-const stopCruise = () => {
-  ElMessage.warning("停止巡航");
-  console.log("STOP_CRUISE", props.channelId);
-  // Send stop cruise command to backend
+const stopCruise = async () => {
+  ElMessage.info('巡航功能暂未实现');
 };
 
 const removeFromCruise = (index: number) => {
-  const removedPreset = cruisePoints.value[index];
-  cruisePoints.value.splice(index, 1);
-  ElMessage.warning(`移除巡航点: 预置位 ${removedPreset}`);
+  ElMessage.info('巡航功能暂未实现');
 };
 
-// Talk functions
-const startTalk = () => {
-  isTalkActive.value = true;
-  ElMessage.success("开始对讲");
-  console.log("START_TALK", props.channelId);
-  // Start audio streaming
+// 监听 channelId 变化
+watch(() => props.channelId, (newChannelId) => {
+  if (newChannelId) {
+    loadPresetList();
+  }
+});
+
+// 监听 presets 变化，用于调试
+watch(presets, (newPresets) => {
+  console.log('预置位数据已更新:', newPresets.length, '个预置位');
+  if (newPresets.length > 0) {
+    console.log('预置位详情:', newPresets.map(p => ({ value: p.value, name: p.name })));
+  }
+}, { deep: true });
+
+// 组件挂载时加载预置位列表
+onMounted(() => {
+  if (props.channelId) {
+    loadPresetList();
+  }
+});
+
+// Stop voice talk if active
+const stopVoiceTalk = async () => {
+  if (voiceTalkRef.value?.canStop?.value) {
+    try {
+      await voiceTalkRef.value.stop();
+      console.log('Voice talk stopped successfully');
+    } catch (error) {
+      console.error('Failed to stop voice talk:', error);
+    }
+  }
 };
 
-const stopTalk = () => {
-  isTalkActive.value = false;
-  ElMessage.info("停止对讲");
-  console.log("STOP_TALK", props.channelId);
-  // Stop audio streaming
+// Check if voice talk is active
+const isVoiceTalkActive = () => {
+  return voiceTalkRef.value?.isConnected?.value || false;
 };
+
+// Expose methods for parent component
+defineExpose({
+  stopVoiceTalk,
+  isVoiceTalkActive
+});
 </script>
 
 <style lang="scss" scoped>
@@ -391,7 +919,9 @@ const stopTalk = () => {
 }
 
 .grid {
-  @extend .responsive-grid;
+  display: grid;
+  grid-template-columns: 1fr; /* 始终单列，避免在窄面板中两列挤压 */
+  gap: 12px;
 }
 
 .panel {
@@ -410,7 +940,13 @@ const stopTalk = () => {
   display: grid;
   grid-template-columns: 200px 1fr;
   gap: 20px;
-  align-items: center;
+  align-items: start;
+
+  /* 面板宽度不足时纵向堆叠 */
+  @media (max-width: 460px) {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
 }
 
 .pad {
@@ -538,38 +1074,20 @@ const stopTalk = () => {
   flex: 1;
 }
 
-:deep(.el-input__wrapper) {
-  background-color: #020617 !important;
-  border: 1px solid $border-base !important;
-  box-shadow: none !important;
-  color: $text-main;
-}
-
-:deep(.el-input__inner) {
-  color: $text-main;
-}
-
 :deep(.el-select .el-input__wrapper) {
-  background-color: #020617 !important;
-  border: 1px solid $border-base !important;
-  box-shadow: none !important;
-  color: $text-main;
-}
-
-:deep(.el-popper) {
-  background-color: #020617;
+  background-color: $bg-active;
   border: 1px solid $border-base;
+  box-shadow: none;
   color: $text-main;
 }
 
 :deep(.el-select-dropdown__item) {
   color: $text-main;
-  background-color: #020617;
 }
 
 :deep(.el-select-dropdown__item.hover),
 :deep(.el-select-dropdown__item:hover) {
-  background-color: $border-light;
+  background-color: $bg-hover;
 }
 
 .btn-group {
@@ -598,6 +1116,49 @@ const stopTalk = () => {
     height: 28px;
     padding: 0 10px;
     font-size: 12px;
+  }
+}
+
+/* ================= 扩展控制区 ================= */
+.grid-ext {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.ext-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ext-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .ext-label {
+    font-size: 12px;
+    color: $text-muted;
+    white-space: nowrap;
+    min-width: 64px;
+  }
+
+  .btn-group {
+    flex: 1;
+    flex-wrap: wrap;
   }
 }
 </style>

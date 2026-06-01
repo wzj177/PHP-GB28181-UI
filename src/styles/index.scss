@@ -1,6 +1,39 @@
 // Global styles entry point
-@import './variables';
-@import './mixins';
+@use './variables';
+@use './mixins';
+
+// 主题 CSS 变量定义
+:root {
+  // 暗色主题（默认）
+  --bg-main: #0B1220;
+  --bg-panel: #0F172A;
+  --bg-hover: #162033;
+  --bg-active: #1E293B;
+
+  --border-base: #243047;
+  --border-primary: #3B82F6;
+  --border-light: #2F3C57;
+
+  --text-main: #E5E7EB;
+  --text-muted: #9CA3AF;
+  --text-disabled: #6B7280;
+}
+
+// 亮色主题
+:root[data-theme='light'] {
+  --bg-main: #F3F4F6;
+  --bg-panel: #FFFFFF;
+  --bg-hover: #F9FAFB;
+  --bg-active: #E5E7EB;
+
+  --border-base: #E5E7EB;
+  --border-primary: #3B82F6;
+  --border-light: #F3F4F6;
+
+  --text-main: #1F2937;
+  --text-muted: #6B7280;
+  --text-disabled: #9CA3AF;
+}
 
 // Base styles
 * {
@@ -11,15 +44,16 @@ body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: linear-gradient(180deg, $bg-main, $bg-panel);
-  color: $text-main;
+  background: linear-gradient(180deg, var(--bg-main), var(--bg-panel));
+  color: var(--text-main);
+  transition: background 0.3s, color 0.3s;
 }
 
 // Common components styles
 .page-header {
-  padding: $spacing-md;
-  background: $bg-panel;
-  border-bottom: 1px solid $border-base;
+  padding: variables.$spacing-md;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-base);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -29,44 +63,27 @@ body {
   font-size: 18px;
   font-weight: 600;
   margin: 0;
+  color: var(--text-main);
 }
 
 .header-actions {
   display: flex;
-  gap: $spacing-sm;
+  gap: variables.$spacing-sm;
 }
 
-// Common layout components
-.sidebar {
-  width: 300px;
-  background: $bg-panel;
-  border-right: 1px solid $border-base;
-  display: flex;
-  flex-direction: column;
-  transition: width 0.3s;
-}
-
-.sidebar.collapsed {
-  width: 60px;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
+// Video grid layouts
 .video-grid {
   display: grid;
   height: 100%;
-  gap: $spacing-sm;
+  gap: variables.$spacing-sm;
 }
 
 .video-player-container {
-  border-radius: $radius-base;
+  border-radius: variables.$radius-base;
   overflow: hidden;
-  background: #f5f7fa;
+  background: var(--bg-panel);
   position: relative;
+  border: 1px solid var(--border-base);
 }
 
 .video-placeholder {
@@ -76,6 +93,7 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
+  background: var(--bg-hover);
 }
 
 .video-element {
@@ -86,68 +104,121 @@ body {
 
 .placeholder-content {
   text-align: center;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .placeholder-text {
   font-size: 16px;
   margin-bottom: 8px;
+  color: var(--text-main);
 }
 
 .select-prompt {
   font-size: 14px;
-  color: #c0c4cc;
+  color: var(--text-muted);
 }
 
 .ptz-overlay {
   position: absolute;
-  top: $spacing-sm;
-  left: $spacing-sm;
+  top: variables.$spacing-sm;
+  left: variables.$spacing-sm;
   z-index: 10;
 }
 
-// Component-specific styles
+// Status badges (used across multiple components)
 .status-badge {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
-  
+
   &.online {
-    background: rgba($success, 0.2);
-    color: $success;
-    border: 1px solid $success;
+    background: rgba(variables.$success, 0.2);
+    color: variables.$success;
+    border: 1px solid variables.$success;
   }
-  
+
   &.offline {
-    background: rgba($danger, 0.2);
-    color: $danger;
-    border: 1px solid $danger;
+    background: rgba(variables.$danger, 0.2);
+    color: variables.$danger;
+    border: 1px solid variables.$danger;
   }
-  
+
   &.motion-detect {
-    background: rgba($warning, 0.2);
-    color: $warning;
-    border: 1px solid $warning;
+    background: rgba(variables.$warning, 0.2);
+    color: variables.$warning;
+    border: 1px solid variables.$warning;
   }
 }
 
+// Scrollbar styles for dark/light theme
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-panel);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--text-muted);
+  }
+}
+
+// Element Plus theme overrides
+.el-button {
+  transition: all 0.3s;
+}
+
+.el-card {
+  background: var(--bg-panel);
+  border-color: var(--border-base);
+  color: var(--text-main);
+}
+
+.el-input__inner {
+  &:focus {
+    box-shadow: none !important;
+  }
+}
+
+
+.easyplayer-controls-item-wrap{
+  .el-button {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: scale(1.05);
+    }
+
+    &.control-active {
+      background: #409EFF;
+      color: #fff;
+      border-color: #409EFF;
+
+      &:hover {
+        background: #66B1FF;
+      }
+    }
+  }
+}
+
+
 // Responsive adjustments
-@media (max-width: $breakpoint-md) {
+@media (max-width: variables.$breakpoint-md) {
   .page-container {
     flex-direction: column;
   }
-  
-  .sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid $border-base;
-  }
-  
-  .btn-group {
-    grid-template-columns: 1fr !important;
-  }
-  
+
   .responsive-grid {
     grid-template-columns: 1fr !important;
   }
@@ -155,15 +226,23 @@ body {
 
 // Utility functions
 @function theme-color($color, $opacity: 1) {
-  @if $color == "primary" {
-    @return rgba($primary, $opacity);
-  } @else if $color == "success" {
-    @return rgba($success, $opacity);
-  } @else if $color == "warning" {
-    @return rgba($warning, $opacity);
-  } @else if $color == "danger" {
-    @return rgba($danger, $opacity);
-  } @else {
-    @return rgba($text-main, $opacity);
+  @if $color=="primary" {
+    @return rgba(variables.$primary, $opacity);
+  }
+
+  @else if $color=="success" {
+    @return rgba(variables.$success, $opacity);
+  }
+
+  @else if $color=="warning" {
+    @return rgba(variables.$warning, $opacity);
+  }
+
+  @else if $color=="danger" {
+    @return rgba(variables.$danger, $opacity);
+  }
+
+  @else {
+    @return rgba(variables.$text-main, $opacity);
   }
 }

@@ -1,5 +1,36 @@
 import Mock from 'mockjs'
 
+
+const realApiPrefixes = ['/admin/auth/captcha', 'admin/auth/login', '/admin/auth/logout', '/admin/auth/userinfo']
+
+
+export const isRealApiUrl = (url: string): boolean => {
+  if (!url) return false
+
+  let path = url
+
+  // 处理完整 URL 的情况
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      path = new URL(url).pathname
+    } catch {
+      return false
+    }
+  }
+
+  return realApiPrefixes.some(prefix => path.startsWith(prefix))
+}
+
+Mock.XHR.prototype.send = (function (send) {
+  return function () {
+    if (isRealApiUrl(this.custom.url)) {
+      console.log(`Bypassing mock for real API URL: ${this.custom.url}`)
+      return send.apply(this, arguments as any)
+    }
+    send.apply(this, arguments as any)
+  }
+})(Mock.XHR.prototype.send)
+
 // Mock device tree data
 Mock.mock('/api/devices/tree', 'get', () => {
   return Mock.mock({
@@ -196,6 +227,55 @@ Mock.mock('/api/map/devices', 'get', () => {
       }
     ]
   })
+})
+
+// Mock login
+Mock.mock('/api/auth/login', 'post', (options: any) => {
+  const body = JSON.parse(options.body)
+  const { username, password } = body
+
+  // Mock authentication logic
+  if (username === 'admin' && password === '123456') {
+    return {
+      code: 200,
+      message: '登录成功',
+      data: {
+        token: `mock_token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        expiresIn: 3600 // 1 hour
+      }
+    }
+  } else {
+    return {
+      code: 401,
+      message: '用户名或密码错误',
+      data: null
+    }
+  }
+})
+
+// Mock logout
+Mock.mock('/api/auth/logout', 'post', () => {
+  return {
+    code: 200,
+    message: '退出成功',
+    data: null
+  }
+})
+
+// Mock user info
+Mock.mock('/api/auth/userinfo', 'get', () => {
+  return {
+    code: 200,
+    message: '获取用户信息成功',
+    data: {
+      id: 1,
+      username: 'admin',
+      nickname: '管理员',
+      email: 'admin@example.com',
+      roles: ['admin'],
+      permissions: ['*:*:*']
+    }
+  }
 })
 
 export default Mock

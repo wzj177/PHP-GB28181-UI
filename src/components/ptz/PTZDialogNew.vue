@@ -1,34 +1,74 @@
 <template>
-  <div v-show="localVisible && !isMinimized" ref="dialogWrapperRef" class="dialog-wrapper"
-    :class="{ 'dialog-maximized': isMaximized }" :style="{
+  <div
+    v-show="localVisible && !isMinimized"
+    ref="dialogWrapperRef"
+    class="dialog-wrapper"
+    :class="{ 'dialog-maximized': isMaximized }"
+    :style="{
       top: isMaximized ? '0' : dialogStyle.top,
       left: isMaximized ? '0' : dialogStyle.left,
       width: isMaximized ? '100vw' : dialogStyle.width,
       height: isMaximized ? '100vh' : dialogStyle.height,
       zIndex: zIndex
-    }" @mousedown="bringToFront">
-    <div ref="dialogHeaderRef" class="dialog-header" @mousedown="startDrag">
+    }"
+    @mousedown="bringToFront"
+  >
+    <div
+      ref="dialogHeaderRef"
+      class="dialog-header"
+      @mousedown="startDrag"
+    >
       <span class="dialog-title">云台控制（PTZ）</span>
       <div class="dialog-controls">
-        <button class="dialog-btn" @click="minimizeDialog">
-          <svg width="12" height="12" viewBox="0 0 1024 1024">
+        <button
+          class="dialog-btn"
+          @click="minimizeDialog"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 1024 1024"
+          >
             <path d="M1024 810.666667H0l34.133333-42.666667h955.733334l34.133333 42.666667z" />
           </svg>
         </button>
-        <button class="dialog-btn" @click="toggleMaximize">
-          <svg width="12" height="12" viewBox="0 0 1024 1024" v-if="!isMaximized">
+        <button
+          class="dialog-btn"
+          @click="toggleMaximize"
+        >
+          <svg
+            v-if="!isMaximized"
+            width="12"
+            height="12"
+            viewBox="0 0 1024 1024"
+          >
             <path
-              d="M725.333333 725.333333H298.666667V298.666667h426.666666v426.666666z m-42.666666-42.666666V341.333333H341.333333v341.333334h341.333334z m85.333333-469.333333H170.666667c-47.061333 0-85.333333 38.272-85.333334 85.333333v597.333334c0 47.061333 38.272 85.333333 85.333334 85.333333h682.666666c47.061333 0 85.333333-38.272 85.333334-85.333333V298.666667c0-47.061333-38.272-85.333333-85.333334-85.333333z" />
+              d="M725.333333 725.333333H298.666667V298.666667h426.666666v426.666666z m-42.666666-42.666666V341.333333H341.333333v341.333334h341.333334z m85.333333-469.333333H170.666667c-47.061333 0-85.333333 38.272-85.333334 85.333333v597.333334c0 47.061333 38.272 85.333333 85.333334 85.333333h682.666666c47.061333 0 85.333333-38.272 85.333334-85.333333V298.666667c0-47.061333-38.272-85.333333-85.333334-85.333333z"
+            />
           </svg>
-          <svg width="12" height="12" viewBox="0 0 1024 1024" v-else>
+          <svg
+            v-else
+            width="12"
+            height="12"
+            viewBox="0 0 1024 1024"
+          >
             <path
-              d="M896 640h-128v128H512V512h256V128h128v512z m-640 0V128H128v512H384V512H256V256h384v128h128v128H256z" />
+              d="M896 640h-128v128H512V512h256V128h128v512z m-640 0V128H128v512H384V512H256V256h384v128h128v128H256z"
+            />
           </svg>
         </button>
-        <button class="dialog-btn close-btn" @click="handleClose">
-          <svg width="12" height="12" viewBox="0 0 1024 1024">
+        <button
+          class="dialog-btn close-btn"
+          @click="handleClose"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 1024 1024"
+          >
             <path
-              d="M512 469.651304l302.638948-302.638948 65.361052 65.361052L577.361052 535.012354l302.638948 302.638948-65.361052 65.361052L512 599.651304l-302.638948 302.638948-65.361052-65.361052L446.638948 535.012354 144 232.373406l65.361052-65.361052L512 469.651304z" />
+              d="M512 469.651304l302.638948-302.638948 65.361052 65.361052L577.361052 535.012354l302.638948 302.638948-65.361052 65.361052L512 599.651304l-302.638948 302.638948-65.361052-65.361052L446.638948 535.012354 144 232.373406l65.361052-65.361052L512 469.651304z"
+            />
           </svg>
         </button>
       </div>
@@ -38,14 +78,26 @@
     </div>
   </div>
   <!-- Minimized window indicator -->
-  <div v-if="localVisible && isMinimized" class="minimized-indicator" :style="{ zIndex: zIndex }"
-    @click="restoreDialog">
+  <div
+    v-if="localVisible && isMinimized"
+    class="minimized-indicator"
+    :style="{ zIndex: zIndex }"
+    @click="restoreDialog"
+  >
     <div class="minimized-content">
       <span class="minimized-title">云台控制（PTZ）</span>
-      <button class="dialog-btn close-btn" @click.stop="handleClose">
-        <svg width="12" height="12" viewBox="0 0 1024 1024">
+      <button
+        class="dialog-btn close-btn"
+        @click.stop="handleClose"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 1024 1024"
+        >
           <path
-            d="M512 469.651304l302.638948-302.638948 65.361052 65.361052L577.361052 535.012354l302.638948 302.638948-65.361052 65.361052L512 599.651304l-302.638948 302.638948-65.361052-65.361052L446.638948 535.012354 144 232.373406l65.361052-65.361052L512 469.651304z" />
+            d="M512 469.651304l302.638948-302.638948 65.361052 65.361052L577.361052 535.012354l302.638948 302.638948-65.361052 65.361052L512 599.651304l-302.638948 302.638948-65.361052-65.361052L446.638948 535.012354 144 232.373406l65.361052-65.361052L512 469.651304z"
+          />
         </svg>
       </button>
     </div>
@@ -134,8 +186,8 @@ const startDrag = (e: MouseEvent) => {
 
   isDragging.value = true
   startPos.value = {
-    x: e.clientX - dialogStyle.value.left.replace('px', '') * 1,
-    y: e.clientY - dialogStyle.value.top.replace('px', '') * 1
+    x: e.clientX - Number(dialogStyle.value.left.replace('px', '')),
+    y: e.clientY - Number(dialogStyle.value.top.replace('px', ''))
   }
 
   document.addEventListener('mousemove', onDrag)

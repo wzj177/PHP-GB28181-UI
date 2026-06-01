@@ -26,7 +26,17 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
-      port: 3230
+      port: 3230,
+      https: {
+        key: './dev_certs/localhost+2-key.pem',
+        cert: './dev_certs/localhost+2.pem'
+      },
+      proxy: {
+        '/api': {
+          target: 'http://127.0.0.1:8886',
+          changeOrigin: true
+        }
+      }
     }
   }
 })

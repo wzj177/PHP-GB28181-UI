@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+// @ts-ignore
 import { useRoute } from 'vue-router'
 import {
   ElCard,
@@ -9,21 +10,22 @@ import {
   ElMessage
 } from 'element-plus'
 import { Search, VideoCamera, Download } from '@element-plus/icons-vue'
-import { deviceApi } from '@/api/deviceApi'
+import { gb28181Api } from '@/api/gb28181Api'
 
 // Define recording interface
 interface Recording {
   id: string
-  deviceId: string
-  channelId: string
-  startTime: string
-  endTime: string
+  device_id: string
+  channel_id: string
+  start_time: string
+  end_time: string
   duration: number // in minutes
-  fileSize: string
+  file_size: string
   type: 'motion' | 'manual' | 'schedule'
 }
 
 const route = useRoute()
+const videoRef = ref<HTMLVideoElement | null>(null)
 const deviceId = ref(route.params.deviceId as string)
 const recordings = ref<Recording[]>([])
 const loading = ref(false)
@@ -35,6 +37,9 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const isDragging = ref(false)
 const startTime = ref(new Date())
 const endTime = ref(new Date())
+// Additional state for video playback
+const videoSrc = ref('')
+const selectedChannel = ref('ch1') // Default channel
 
 // Initialize with today's date
 onMounted(() => {
@@ -59,37 +64,20 @@ onUnmounted(() => {
 // Load recordings
 const loadRecordings = async () => {
   if (!deviceId.value) return
-  
+
   loading.value = true
   try {
-    // In a real app, this would call the API
-    // For demo, we'll use mock data
-    const mockResponse = {
-      data: [
-        {
-          id: 'rec1',
-          deviceId: deviceId.value,
-          channelId: 'ch1',
-          startTime: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-          endTime: new Date(Date.now() - 3000000).toISOString(), // 50 mins ago
-          duration: 10,
-          fileSize: '120MB',
-          type: 'motion' as const
-        },
-        {
-          id: 'rec2',
-          deviceId: deviceId.value,
-          channelId: 'ch1', 
-          startTime: new Date(Date.now() - 1800000).toISOString(), // 30 mins ago
-          endTime: new Date(Date.now() - 1200000).toISOString(), // 20 mins ago
-          duration: 10,
-          fileSize: '110MB',
-          type: 'manual' as const
-        }
-      ]
-    }
+    const response = await gb28181Api.getRecordings({
+      device_id: deviceId.value,
+      start_time: startTime.value.toISOString(),
+      end_time: endTime.value.toISOString()
+    });
 
-    recordings.value = mockResponse.data
+    if (response?.code === 0) {
+      recordings.value = response.data || [];
+    } else {
+      throw new Error(response?.message || '获取录像列表失败');
+    }
     drawTimeline()
   } catch (error) {
     console.error('Failed to fetch recordings:', error)
@@ -181,7 +169,7 @@ const drawTimeline = () => {
   const startHour = new Date(startTime.value)
   startHour.setMinutes(0, 0, 0)
   
-  let currentHour = new Date(startHour)
+  const currentHour = new Date(startHour)
   while (currentHour.getTime() < endTime.value.getTime()) {
     const x = (currentHour.getTime() - startTime.value.getTime()) * pixelsPerMs
     
@@ -207,7 +195,7 @@ const drawTimeline = () => {
   const startMinute = new Date(startTime.value)
   startMinute.setSeconds(0, 0)
   
-  let currentMinute = new Date(startMinute)
+  const currentMinute = new Date(startMinute)
   while (currentMinute.getTime() < endTime.value.getTime()) {
     // Skip if this minute is already covered by hour mark
     if (currentMinute.getMinutes() === 0) {
@@ -232,20 +220,20 @@ const drawTimeline = () => {
   
   // Draw recording events
   recordings.value.forEach(rec => {
-    const start = new Date(rec.startTime).getTime()
-    const end = new Date(rec.endTime).getTime()
-    
+    const start = new Date(rec.start_time).getTime()
+    const end = new Date(rec.end_time).getTime()
+
     const startX = (start - startTime.value.getTime()) * pixelsPerMs
     const endX = (end - startTime.value.getTime()) * pixelsPerMs
     const rectWidth = endX - startX
-    
+
     if (rectWidth > 0 && startX <= width && endX >= 0) {
       const color = getRecordingTypeColor(rec.type)
-      
+
       // Draw event rectangle
       ctx.fillStyle = color + '80' // Add transparency (80 hex = 50% opacity)
       ctx.fillRect(startX, padding, Math.max(rectWidth, 2), height - padding * 2)
-      
+
       // Draw border
       ctx.strokeStyle = color
       ctx.lineWidth = 1
@@ -323,19 +311,122 @@ const formatDisplayDate = (date: Date | null) => {
   })
 }
 
+// Start live stream
+const startLiveStream = async () => {
+  if (!deviceId.value || !selectedChannel.value) {
+    ElMessage.error('设备ID或通道ID未指定')
+    return
+  }
+
+  try {
+    // API already returns play_urls directly (unwrapped by request.ts interceptor)
+    const data = await gb28181Api.startLive({
+      device_id: deviceId.value,
+      channel_id: selectedChannel.value
+    });
+
+    if (data?.play_urls) {
+      // Prefer HLS, FLV, or other formats in order
+      const urls = data.play_urls;
+      videoSrc.value = urls.hls || urls.http_flv || urls.ws_flv || urls.flv || urls.rtsp || Object.values(urls)[0];
+
+      ElMessage.success(data.message || '实时视频开始播放');
+    } else {
+      ElMessage.error('获取播放地址失败');
+    }
+  } catch (error: any) {
+    console.error('启动实时视频失败:', error);
+    ElMessage.error(error.message || '启动实时视频失败');
+  }
+}
+
+// Stop live stream
+const stopLiveStream = async () => {
+  if (!deviceId.value || !selectedChannel.value) {
+    ElMessage.error('设备ID或通道ID未指定')
+    return
+  }
+
+  try {
+    // API returns { message: "实时视频已停止" } directly (unwrapped by request.ts)
+    const data = await gb28181Api.stopLive({
+      device_id: deviceId.value,
+      channel_id: selectedChannel.value
+    });
+
+    // Stop video playback
+    if (videoRef.value) {
+      videoRef.value.pause();
+      videoSrc.value = '';
+    }
+
+    ElMessage.success(data.message || '实时视频已停止');
+  } catch (error: any) {
+    console.error('停止实时视频失败:', error);
+    ElMessage.error(error.message || '停止实时视频失败');
+  }
+}
+
+// Start playback for a specific recording
+const startPlayback = async (recording: Recording) => {
+  if (!recording.device_id || !recording.channel_id) {
+    ElMessage.error('无效的录像记录');
+    return
+  }
+
+  try {
+    // API returns play_urls directly (unwrapped by request.ts interceptor)
+    const data = await gb28181Api.startPlayback({
+      device_id: recording.device_id,
+      channel_id: recording.channel_id,
+      start_time: recording.start_time,
+      end_time: recording.end_time
+    });
+
+    if (data?.play_urls) {
+      // Prefer HLS, FLV, or other formats in order
+      const urls = data.play_urls;
+      videoSrc.value = urls.hls || urls.http_flv || urls.ws_flv || urls.flv || urls.rtsp || Object.values(urls)[0];
+      ElMessage.success('录像回放开始');
+    } else {
+      ElMessage.error('获取播放地址失败');
+    }
+  } catch (error: any) {
+    console.error('启动录像回放失败:', error);
+    ElMessage.error(error.message || '启动录像回放失败');
+  }
+}
+
 // Download recording
-const downloadRecording = (recordingId: string) => {
-  console.log(`Downloading recording: ${recordingId}`)
-  ElMessage.success('下载开始')
+const downloadRecording = async (recordingId: string) => {
+  try {
+    const response = await (gb28181Api as any).downloadRecording(recordingId);
+
+    if (response) {
+      // Create a blob from the response and trigger download
+      const blob = new Blob([response], { type: 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `recording_${recordingId}.mp4`; // Set appropriate filename
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      ElMessage.success('下载开始');
+    } else {
+      ElMessage.error('下载失败');
+    }
+  } catch (error: any) {
+    console.error('Failed to download recording:', error);
+    ElMessage.error(error.message || '下载失败');
+  }
 }
 </script>
 
 <template>
   <div class="video-player-page">
-    <div class="header">
-      <h2>录像回放</h2>
-    </div>
-
     <div class="main-content">
       <!-- Search controls -->
       <ElCard class="search-card">
@@ -372,8 +463,8 @@ const downloadRecording = (recordingId: string) => {
 
           <ElButton
             type="primary"
-            @click="searchRecordings"
             :icon="Search"
+            @click="searchRecordings"
           >
             查询
           </ElButton>
@@ -389,8 +480,38 @@ const downloadRecording = (recordingId: string) => {
         </template>
 
         <div class="video-player-container">
-          <!-- Black background instead of video player -->
-          <div class="black-player-background"></div>
+          <video
+            ref="videoRef"
+            class="video-element"
+            :src="videoSrc"
+            controls
+            autoplay
+            :style="{ display: videoSrc ? 'block' : 'none' }"
+          />
+          <div
+            v-if="!videoSrc"
+            class="placeholder-player"
+            @click="startLiveStream"
+          >
+            <div
+              v-if="!videoSrc"
+              class="play-icon"
+            >
+              ▶
+            </div>
+            <p v-if="!videoSrc">
+              点击播放实时视频
+            </p>
+          </div>
+          <ElButton
+            v-if="videoSrc"
+            type="danger"
+            size="small"
+            class="stop-button"
+            @click="stopLiveStream"
+          >
+            停止播放
+          </ElButton>
         </div>
       </ElCard>
 
@@ -414,7 +535,7 @@ const downloadRecording = (recordingId: string) => {
               @mousemove="handleMouseMove"
               @mouseup="handleMouseUp"
               @mouseleave="handleMouseUp"
-            ></canvas>
+            />
           </div>
         </div>
       </ElCard>
@@ -495,12 +616,40 @@ const downloadRecording = (recordingId: string) => {
   overflow: hidden;
   background-color: #000;
   margin: 20px auto; /* Center horizontally */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.black-player-background {
+.video-element {
   width: 100%;
   height: 100%;
+  object-fit: cover;
+}
+
+.placeholder-player {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   background-color: #000;
+  color: white;
+  font-size: 1.5rem;
+}
+
+.play-icon {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+
+.stop-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
 }
 
 .timeline-container {
