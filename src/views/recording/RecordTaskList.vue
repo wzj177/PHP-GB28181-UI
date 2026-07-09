@@ -95,11 +95,18 @@
       </div>
     </el-card>
 
-    <RecordPlayback
+    <ElDrawer
       v-model="playbackDrawer.visible"
-      :channel-name="playbackDrawer.channelName"
-      :video-url="playbackDrawer.videoUrl"
-    />
+      :title="playbackDrawer.channelName || '录像回放'"
+      direction="rtl"
+      size="70%"
+    >
+      <RecordPlayback
+        v-model="playbackDrawer.visible"
+        :channel-name="playbackDrawer.channelName"
+        :video-url="playbackDrawer.videoUrl"
+      />
+    </ElDrawer>
   </div>
 </template>
 
