@@ -104,12 +104,13 @@
         </ElTableColumn>
         <ElTableColumn prop="last_heartbeat_at" label="最后心跳" width="175" show-overflow-tooltip />
         <ElTableColumn prop="description" label="描述" min-width="120" show-overflow-tooltip />
-        <ElTableColumn label="操作" width="320" fixed="right">
+        <ElTableColumn label="操作" min-width="390" fixed="right">
           <template #default="{ row }">
             <ElButton size="small" type="success" :disabled="row.status === 'online'" @click="handleStart(row)">启动</ElButton>
             <ElButton size="small" type="warning" :disabled="row.status === 'stopped'" @click="handleStop(row)">停止</ElButton>
             <ElButton size="small" type="info" @click="handleRestart(row)">重启</ElButton>
-            <ElButton size="small" @click="showPlayUrls(row)">播放地址</ElButton>
+            <ElButton size="small" type="primary" @click="handlePlay(row)">播放</ElButton>
+            <ElButton v-if="row.type === 'push'" size="small" @click="showPushUrl(row)">推流地址</ElButton>
             <ElButton size="small" type="primary" @click="openEditDialog(row)">编辑</ElButton>
             <ElButton size="small" type="danger" @click="handleDelete(row)">删除</ElButton>
           </template>
@@ -153,6 +154,25 @@
             <ElOption label="RTMP" value="rtmp" />
             <ElOption label="HTTP-FLV" value="http-flv" />
           </ElSelect>
+        </ElFormItem>
+        <ElFormItem v-if="formData.type === 'push'" prop="stream">
+          <template #label>
+            <span>推流ID</span>
+            <ElTooltip placement="top">
+              <template #content>
+                <div>自定义推流ID，方便在 OBS 中配置（如 obs_live_01）</div>
+                <div>留空则系统自动生成 UUID</div>
+                <div>仅支持字母、数字、下划线、横线</div>
+              </template>
+              <el-icon class="tip-icon"><QuestionFilled /></el-icon>
+            </ElTooltip>
+          </template>
+          <ElInput
+            v-model="formData.stream"
+            :disabled="formDialog.isEdit"
+            placeholder="留空自动生成，如 obs_live_01"
+            clearable
+          />
         </ElFormItem>
         <ElFormItem v-if="formData.type === 'pull'" prop="source_url">
           <template #label>
@@ -201,7 +221,7 @@
             />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="RTP传输方式" prop="rtp_type">
+        <ElFormItem v-if="formData.type === 'pull'" label="RTP传输方式" prop="rtp_type">
           <ElSelect v-model="formData.rtp_type" style="width: 100%;">
             <ElOption label="TCP" :value="0" />
             <ElOption label="UDP" :value="1" />
@@ -213,18 +233,18 @@
               <ElSwitch v-model="formData.enable_hls" :active-value="1" :inactive-value="0" />
             </ElFormItem>
           </ElCol>
-          <ElCol :span="8">
+          <ElCol v-if="formData.type === 'pull'" :span="8">
             <ElFormItem label="启用MP4">
               <ElSwitch v-model="formData.enable_mp4" :active-value="1" :inactive-value="0" />
             </ElFormItem>
           </ElCol>
-          <ElCol :span="8">
+          <ElCol v-if="formData.type === 'pull'" :span="8">
             <ElFormItem label="自动重连">
               <ElSwitch v-model="formData.enable_auto_reconnect" :active-value="1" :inactive-value="0" />
             </ElFormItem>
           </ElCol>
         </ElRow>
-        <ElRow :gutter="20">
+        <ElRow v-if="formData.type === 'pull'" :gutter="20">
           <ElCol :span="12">
             <ElFormItem label="最大重试次数">
               <ElInputNumber v-model="formData.max_retry_count" :min="0" :max="100" style="width: 100%;" />
@@ -246,31 +266,61 @@
       </template>
     </ElDialog>
 
-    <!-- 播放地址弹窗 -->
-    <ElDialog v-model="playUrlsDialog.visible" title="播放地址" width="560px">
-      <div v-if="playUrlsDialog.urls" class="play-urls">
-        <div v-for="(url, key) in playUrlsDialog.urls" :key="key" class="play-url-item">
-          <span class="url-key">{{ key.toUpperCase() }}</span>
-          <ElInput :model-value="url" readonly style="flex: 1;">
-            <template #append>
-              <ElButton @click="copyUrl(url)">复制</ElButton>
-            </template>
+    <!-- 播放器（复用通道列表同款 AggregatedPlayer，左侧播放器 + 右侧播放地址列表） -->
+    <AggregatedPlayer
+      v-model="playDialog.visible"
+      :stream-info="playDialog.streamInfo"
+      is-live
+      show-play-url-list
+    />
+
+    <!-- 推流地址弹窗 -->
+    <ElDialog v-model="pushUrlDialog.visible" title="推流地址" width="600px">
+      <div v-if="pushUrlDialog.data" class="push-url-box">
+        <div class="push-obs">
+          <div class="push-obs-title">📺 OBS 推流配置</div>
+          <div class="push-obs-row">
+            <span class="push-obs-label">服务器</span>
+            <code>{{ pushServer }}</code>
+            <ElButton text @click="copyUrl(pushServer)">复制</ElButton>
+          </div>
+          <div class="push-obs-row">
+            <span class="push-obs-label">串流密钥</span>
+            <code>{{ pushUrlDialog.data.stream_id }}</code>
+            <ElButton text @click="copyUrl(pushUrlDialog.data.stream_id)">复制</ElButton>
+          </div>
+        </div>
+        <div class="push-url-item">
+          <span class="url-key">RTMP</span>
+          <ElInput :model-value="pushUrlDialog.data.rtmp" readonly style="flex: 1;">
+            <template #append><ElButton @click="copyUrl(pushUrlDialog.data.rtmp)">复制</ElButton></template>
           </ElInput>
         </div>
+        <div v-if="pushUrlDialog.data.rtsp" class="push-url-item">
+          <span class="url-key">RTSP</span>
+          <ElInput :model-value="pushUrlDialog.data.rtsp" readonly style="flex: 1;">
+            <template #append><ElButton @click="copyUrl(pushUrlDialog.data.rtsp)">复制</ElButton></template>
+          </ElInput>
+        </div>
+        <div v-if="pushUrlDialog.data.tips" class="push-help">
+          <p v-if="pushUrlDialog.data.tips.obs_rtmp">{{ pushUrlDialog.data.tips.obs_rtmp }}</p>
+          <p v-if="pushUrlDialog.data.tips.ffmpeg">{{ pushUrlDialog.data.tips.ffmpeg }}</p>
+        </div>
       </div>
-      <div v-else class="empty-urls">暂无播放地址（流代理未启动）</div>
+      <div v-else class="empty-urls">暂无推流地址</div>
     </ElDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 // @ts-ignore
 import { Connection, SuccessFilled, WarningFilled, CircleCloseFilled, QuestionFilled } from '@element-plus/icons-vue'
 import { streamProxyApi } from '@/api/streamProxyApi'
 import { mediaServerApi } from '@/api/mediaServerApi'
+import { AggregatedPlayer } from '@/components/player'
 
 interface StreamProxy {
   id: number
@@ -434,18 +484,38 @@ const handleDelete = async (row: StreamProxy) => {
   }
 }
 
-// 播放地址
-const playUrlsDialog = ref({ visible: false, urls: null as Record<string, string> | null })
-const showPlayUrls = async (row: StreamProxy) => {
+// 播放：拉取 play-urls 后交给 AggregatedPlayer 播放（与通道列表播放器一致）
+const playDialog = ref({ visible: false, streamInfo: null as any })
+const handlePlay = async (row: StreamProxy) => {
   try {
     const data: any = await streamProxyApi.getPlayUrls(row.id)
-    playUrlsDialog.value = { visible: true, urls: data || null }
+    if (!data) {
+      ElMessage.warning('暂无播放地址（流代理未启动）')
+      return
+    }
+    playDialog.value = { visible: true, streamInfo: data }
   } catch (e: any) {
     ElMessage.error(e.message || '获取播放地址失败')
   }
 }
 const copyUrl = (url: string) => {
   navigator.clipboard.writeText(url).then(() => ElMessage.success('已复制'))
+}
+
+// 推流地址
+const pushUrlDialog = ref({ visible: false, data: null as any })
+// OBS 服务器地址 = RTMP 推流地址去掉最后的串流密钥段
+const pushServer = computed(() => {
+  const rtmp: string = pushUrlDialog.value.data?.rtmp || ''
+  return rtmp.replace(/\/[^/]+$/, '')
+})
+const showPushUrl = async (row: StreamProxy) => {
+  try {
+    const data: any = await streamProxyApi.getPushUrl(row.id)
+    pushUrlDialog.value = { visible: true, data: data || null }
+  } catch (e: any) {
+    ElMessage.error(e.message || '获取推流地址失败')
+  }
 }
 
 // 表单
@@ -457,6 +527,7 @@ const defaultForm = () => ({
   type: 'pull' as 'pull' | 'push',
   protocol: 'rtsp',
   source_url: '',
+  stream: '',
   media_server_id: '',
   rtp_type: 0,
   enable_hls: 1,
@@ -468,13 +539,16 @@ const defaultForm = () => ({
 })
 const formData = ref(defaultForm())
 
-const formRules: FormRules = {
+const formRules = computed<FormRules>(() => ({
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
   type: [{ required: true, message: '请选择类型', trigger: 'change' }],
   protocol: [{ required: true, message: '请选择协议', trigger: 'change' }],
-  source_url: [{ required: true, message: '请输入源地址', trigger: 'blur' }],
+  source_url: formData.value.type === 'pull'
+    ? [{ required: true, message: '请输入源地址', trigger: 'blur' }]
+    : [],
+  stream: [{ pattern: /^[A-Za-z0-9_-]*$/, message: '仅支持字母、数字、下划线、横线', trigger: 'blur' }],
   media_server_id: [{ required: true, message: '请选择流媒体服务器', trigger: 'change' }]
-}
+}))
 
 const onTypeChange = () => {
   formData.value.source_url = ''
@@ -492,6 +566,7 @@ const openEditDialog = (row: StreamProxy) => {
     type: row.type,
     protocol: row.protocol,
     source_url: row.source_url || '',
+    stream: row.stream || '',
     media_server_id: row.media_server_id || '',
     rtp_type: row.rtp_type ?? 0,
     enable_hls: row.enable_hls ?? 1,
@@ -515,7 +590,8 @@ const handleSubmit = async () => {
     formDialog.value.loading = true
     try {
       if (formDialog.value.isEdit) {
-        const { id, type, protocol, source_url, media_server_id, ...updatePayload } = formData.value
+        // 标识字段不可改：type/protocol/stream/media_server_id，其余（含 source_url）均可更新
+        const { id, type, protocol, stream, media_server_id, ...updatePayload } = formData.value
         await streamProxyApi.update(id, updatePayload)
         ElMessage.success('更新成功')
       } else {
@@ -609,19 +685,62 @@ onMounted(async () => {
   padding: 12px 0;
 }
 
-.play-urls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.empty-urls {
+  text-align: center;
+  color: #909399;
+  padding: 20px 0;
 }
 
-.play-url-item {
+.push-url-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.push-obs {
+  background: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 12px 16px;
+
+  .push-obs-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #303133;
+  }
+
+  .push-obs-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin-top: 6px;
+
+    .push-obs-label {
+      width: 64px;
+      color: #909399;
+      flex-shrink: 0;
+    }
+
+    code {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #dcdfe6;
+      border-radius: 4px;
+      padding: 4px 8px;
+      word-break: break-all;
+      color: #303133;
+    }
+  }
+}
+
+.push-url-item {
   display: flex;
   align-items: center;
   gap: 8px;
 
   .url-key {
-    width: 80px;
+    width: 60px;
     font-size: 12px;
     font-weight: 600;
     color: #606266;
@@ -629,10 +748,18 @@ onMounted(async () => {
   }
 }
 
-.empty-urls {
-  text-align: center;
+.push-help {
+  font-size: 12px;
   color: #909399;
-  padding: 20px 0;
+  line-height: 1.6;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 8px 12px;
+
+  p {
+    margin: 0;
+    word-break: break-all;
+  }
 }
 
 .text-muted {

@@ -130,12 +130,30 @@
           </ElTabPane>
 
           <!-- 编码信息 -->
-          <ElTabPane v-if="currentUrl" label="编码信息" name="codec">
+          <ElTabPane v-if="currentUrl && !props.showPlayUrlList" label="编码信息" name="codec">
             <MediaInfo
               ref="mediaInfoRef"
               :url="currentUrl"
               :stream-id="props.streamInfo?.stream_id"
             />
+          </ElTabPane>
+
+          <!-- 播放地址（流代理模式：列出全部地址并可复制） -->
+          <ElTabPane
+            v-if="props.showPlayUrlList && playUrlEntries.length"
+            label="播放地址"
+            name="playUrls"
+          >
+            <div class="play-url-list">
+              <div v-for="item in playUrlEntries" :key="item.key" class="play-url-row">
+                <span class="play-url-label">{{ item.label }}</span>
+                <ElInput :model-value="item.url" readonly size="small">
+                  <template #append>
+                    <ElButton @click="copyPlayUrl(item.url)">复制</ElButton>
+                  </template>
+                </ElInput>
+              </div>
+            </div>
           </ElTabPane>
         </ElTabs>
       </div>
@@ -196,17 +214,42 @@ interface Props {
   streamInfo?: StreamInfo | null
   hasAudio?: boolean
   isLive?: boolean // 是否为直播流
+  showPlayUrlList?: boolean // 流代理模式：用「播放地址」列表替换「编码信息」
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: false,
   hasAudio: false,
-  isLive: false
+  isLive: false,
+  showPlayUrlList: false
 })
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
+
+// 播放地址列表（流代理模式）：把 streamInfo 里的地址项整理成可复制的清单
+const PLAY_URL_LABELS: Record<string, string> = {
+  rtsp: 'RTSP', rtsps: 'RTSPS',
+  rtmp: 'RTMP', rtmps: 'RTMPS',
+  flv: 'FLV', http_flv: 'HTTP-FLV', https_flv: 'HTTPS-FLV',
+  ws_flv: 'WS-FLV', wss_flv: 'WSS-FLV',
+  hls: 'HLS', https_hls: 'HTTPS-HLS', ws_hls: 'WS-HLS', wss_hls: 'WSS-HLS',
+  hls_fmp4: 'HLS-FMP4', https_hls_fmp4: 'HTTPS-HLS-FMP4',
+  rtc: 'WebRTC', rtcs: 'WebRTC (Secure)',
+  fmp4: 'FMP4', https_fmp4: 'HTTPS-FMP4', ws_fmp4: 'WS-FMP4', wss_fmp4: 'WSS-FMP4',
+  ts: 'TS', https_ts: 'HTTPS-TS', ws_ts: 'WS-TS', wss_ts: 'WSS-TS',
+  mp4: 'MP4', https_mp4: 'HTTPS-MP4'
+}
+const playUrlEntries = computed(() => {
+  if (!props.streamInfo) return []
+  return Object.entries(props.streamInfo)
+    .filter(([k, v]) => PLAY_URL_LABELS[k] && typeof v === 'string' && v)
+    .map(([k, v]) => ({ key: k, label: PLAY_URL_LABELS[k], url: v as string }))
+})
+const copyPlayUrl = (url: string) => {
+  navigator.clipboard.writeText(url).then(() => ElMessage.success('已复制'))
+}
 
 const visible = computed({
   get: () => props.modelValue,
@@ -862,5 +905,26 @@ onUnmounted(async () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   display: block;
+}
+
+.play-url-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.play-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.play-url-label {
+  width: 92px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary);
 }
 </style>

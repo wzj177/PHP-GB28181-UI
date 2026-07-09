@@ -49,6 +49,7 @@ export const streamProxyApi = {
     protocol: 'rtsp' | 'rtmp' | 'http-flv'
     source_url?: string
     media_server_id: string
+    stream?: string
     description?: string
     tags?: string[]
     enable_auto_reconnect?: number
@@ -67,6 +68,7 @@ export const streamProxyApi = {
    */
   update: (id: number, data: {
     name?: string
+    source_url?: string
     description?: string
     tags?: string[]
     enable_auto_reconnect?: number
@@ -117,6 +119,14 @@ export const streamProxyApi = {
    */
   getPlayUrls: (id: number) => {
     return request.get(`/admin/stream-proxies/${id}/play-urls`)
+  },
+
+  /**
+   * 获取推流地址（推流代理，用于配置 OBS / FFmpeg）
+   * GET /admin/stream-proxies/{id}/push-url
+   */
+  getPushUrl: (id: number) => {
+    return request.get(`/admin/stream-proxies/${id}/push-url`)
   },
 
   /**

@@ -66,25 +66,6 @@
             </el-col>
           </el-row>
 
-          <!-- 运行状态（仅详情模式显示） -->
-          <template v-if="readonly">
-            <el-divider content-position="left">TCP 进程状态</el-divider>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="TCP 状态">
-                  <el-tag v-if="detail.tcp_status" :type="detail.tcp_status === 'running' ? 'success' : 'danger'" size="small">
-                    {{ detail.tcp_status === 'running' ? '运行中' : detail.tcp_status }}
-                  </el-tag>
-                  <span v-else>-</span>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="TCP PID">
-                  {{ detail.tcp_pid ?? '-' }}
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </template>
         </el-tab-pane>
 
         <!-- Tab 2: 设备认证 -->
@@ -351,7 +332,6 @@ const defaultForm = (): FormState => ({
 })
 
 const form = ref<FormState>(defaultForm())
-const detail = ref<Record<string, any>>({})
 
 const rules: FormRules = {
   gateway_id: [{ required: true, message: '请输入网关标识', trigger: 'blur' }],
@@ -404,7 +384,6 @@ const onOpen = async () => {
   if (props.gatewayId) {
     try {
       const detailData = await sipGatewayApi.getGatewayDetail(props.gatewayId)
-      detail.value = detailData
       form.value = {
         ...form.value,
         ...detailData,

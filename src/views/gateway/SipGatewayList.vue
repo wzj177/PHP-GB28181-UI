@@ -34,10 +34,6 @@
           <el-button type="primary" :icon="Search" @click="search">查询</el-button>
           <el-button @click="resetFilters">重置</el-button>
         </el-form-item>
-        <div style="flex: 1" />
-        <el-form-item>
-          <el-button type="primary" :icon="Plus" @click="openAdd">新建网关</el-button>
-        </el-form-item>
       </el-form>
     </el-card>
 
@@ -54,8 +50,8 @@
         <el-table-column prop="transport" label="传输协议" width="90" align="center" />
         <el-table-column label="TCP状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.tcp_status" :type="row.tcp_status === 'running' ? 'success' : 'danger'" size="small">
-              {{ row.tcp_status === 'running' ? '运行中' : row.tcp_status }}
+            <el-tag v-if="row.tcp_status" :type="tcpStatusTagType(row.tcp_status)" size="small">
+              {{ tcpStatusLabel(row.tcp_status) }}
             </el-tag>
             <span v-else>-</span>
           </template>
@@ -72,10 +68,13 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column label="UDP状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
+        </el-table-column>
+        <el-table-column label="UDP PID" width="90" align="center">
+          <template #default="{ row }">{{ row.pid ?? '-' }}</template>
         </el-table-column>
         <el-table-column label="设备数" width="80" align="center">
           <template #default="{ row }">{{ row.device_count }}</template>
@@ -117,7 +116,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus, Delete } from '@element-plus/icons-vue'
+import { Search, Delete } from '@element-plus/icons-vue'
 import { sipGatewayApi } from '@/api/sipGatewayApi'
 import type { SipGateway, SipGatewayStatus } from '@/types/sipGateway'
 import SipGatewayFormDialog from './SipGatewayFormDialog.vue'
@@ -150,6 +149,32 @@ const statusLabel = (status: SipGatewayStatus) => {
   return map[status] || status
 }
 
+const tcpStatusLabel = (s?: string) => {
+  const map: Record<string, string> = {
+    running: '运行中',
+    stopped: '已停止',
+    stop: '已停止',
+    error: '异常',
+    starting: '启动中',
+    exited: '已退出',
+    crashed: '崩溃'
+  }
+  return (s && map[s]) || s || '-'
+}
+
+const tcpStatusTagType = (s?: string): 'success' | 'info' | 'warning' | 'danger' => {
+  const map: Record<string, 'success' | 'info' | 'warning' | 'danger'> = {
+    running: 'success',
+    stopped: 'info',
+    stop: 'info',
+    error: 'danger',
+    starting: 'warning',
+    exited: 'info',
+    crashed: 'danger'
+  }
+  return (s && map[s]) || 'warning'
+}
+
 const loadGateways = async () => {
   loading.value = true
   try {
@@ -178,10 +203,6 @@ const search = () => {
 const resetFilters = () => {
   filters.value = { gateway_name: '', status: undefined, mq_type: undefined }
   search()
-}
-
-const openAdd = () => {
-  dialog.value = { visible: true, gatewayId: null, readonly: false }
 }
 
 const openDetail = (gateway: SipGateway) => {
