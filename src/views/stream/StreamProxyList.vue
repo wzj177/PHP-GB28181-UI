@@ -106,9 +106,9 @@
         <ElTableColumn prop="description" label="描述" min-width="120" show-overflow-tooltip />
         <ElTableColumn label="操作" min-width="390" fixed="right">
           <template #default="{ row }">
-            <ElButton size="small" type="success" :disabled="row.status === 'online'" @click="handleStart(row)">启动</ElButton>
-            <ElButton size="small" type="warning" :disabled="row.status === 'stopped'" @click="handleStop(row)">停止</ElButton>
-            <ElButton size="small" type="info" @click="handleRestart(row)">重启</ElButton>
+            <ElButton v-if="row.type === 'pull'" size="small" type="success" :disabled="row.status === 'online'" @click="handleStart(row)">启动</ElButton>
+            <ElButton v-if="row.type === 'pull'" size="small" type="warning" :disabled="row.status === 'stopped'" @click="handleStop(row)">停止</ElButton>
+            <ElButton v-if="row.type === 'pull'" size="small" type="info" @click="handleRestart(row)">重启</ElButton>
             <ElButton size="small" type="primary" @click="handlePlay(row)">播放</ElButton>
             <ElButton v-if="row.type === 'push'" size="small" @click="showPushUrl(row)">推流地址</ElButton>
             <ElButton size="small" type="primary" @click="openEditDialog(row)">编辑</ElButton>
@@ -147,6 +147,9 @@
             <ElOption label="拉流 (Pull)" value="pull" />
             <ElOption label="推流 (Push)" value="push" />
           </ElSelect>
+          <div v-if="formData.type === 'push'" class="form-tip-push">
+            推流由 OBS / FFmpeg 等客户端主动接入，创建后可在操作列查看推流地址
+          </div>
         </ElFormItem>
         <ElFormItem label="协议" prop="protocol">
           <ElSelect v-model="formData.protocol" placeholder="请选择协议" style="width: 100%;">
@@ -773,6 +776,13 @@ onMounted(async () => {
   font-size: 14px;
   vertical-align: middle;
   &:hover { color: #409eff; }
+}
+
+.form-tip-push {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #e6a23c;
+  line-height: 1.5;
 }
 </style>
 
